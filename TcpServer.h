@@ -160,6 +160,8 @@ private:
 	CloseSocketQueue mCloseSocketQueue;
 	KMutex mCloseSocketQueueMutex;
 
+	KMutex mSendMessageMutex;
+
 	/**
 	 * 总接收包处理时间
 	 */
