@@ -73,3 +73,13 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+.cproject
+
+*.xml
+
+.cproject
+
+.cproject
+
+.cproject
