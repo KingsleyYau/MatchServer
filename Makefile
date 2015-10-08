@@ -1,11 +1,12 @@
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0
-CXXFLAGS +=	-Ilibev -I. -Wunused-variable
+CXXFLAGS +=	-Ilibev -Isqlite -I. -Wunused-variable
 
-LIBS =		libev/.libs/libev.a -lpthread -lsqlite3 
+LIBS =		libev/.libs/libev.a -lsqlite3 -lpthread 
 
 JSONOBJS = 	json_reader.o json_value.o json_writer.o md5.o
-OBJS =		server.o KThread.o KLog.o MatchServer.o TcpServer.o MessageList.o RequestManager.o DBManager.o LogManager.o \
-			DataParser.o DataHttpParser.o LogFile.o MessageMgr.o
+OBJS =		server.o KThread.o KLog.o MatchServer.o TcpServer.o MessageList.o \
+			RequestManager.o DBManager.o LogManager.o DataParser.o \
+			DataHttpParser.o LogFile.o MessageMgr.o
 OBJS += 	$(JSONOBJS)
 TARGET =	server
 
