@@ -26,11 +26,11 @@ int DataHttpParser::ParseData(char* buffer) {
 	int j = 0;
 	char* pParam = NULL;
 
-	// find Body
-	char *pBody = strstr(buffer, "\r\n\r\n");
-	if( pBody != NULL ) {
-		pBody += strlen("\r\n\r\n");
-	}
+//	// find Body
+//	char *pBody = strstr(buffer, "\r\n\r\n");
+//	if( pBody != NULL ) {
+//		pBody += strlen("\r\n\r\n");
+//	}
 
 	// parse header
 	char *pFirst = NULL;
@@ -38,6 +38,8 @@ int DataHttpParser::ParseData(char* buffer) {
 	while( p != NULL ) {
 		if( j == 0 ) {
 			ParseFirstLine(p);
+			// only first line is useful
+			break;
 		} else {
 			if( (pParam = strstr(p, "Content-Length:")) != NULL ) {
 				int len = strlen("Content-Length:");
@@ -53,14 +55,14 @@ int DataHttpParser::ParseData(char* buffer) {
 		p = strtok_r(NULL, "\r\n", &pFirst);
 	}
 
-	if( pBody != NULL ) {
-		if( pBody != NULL && miContentLength > 0 ) {
-			if( pBody + miContentLength != NULL ) {
-				*(pBody + miContentLength) = '\0';
-				result = DataParser::ParseData(pBody);
-			}
-		}
-	}
+//	if( pBody != NULL ) {
+//		if( pBody != NULL && miContentLength > 0 ) {
+//			if( pBody + miContentLength != NULL ) {
+//				*(pBody + miContentLength) = '\0';
+//				result = DataParser::ParseData(pBody);
+//			}
+//		}
+//	}
 
 	return result;
 }

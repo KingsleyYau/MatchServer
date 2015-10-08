@@ -72,7 +72,7 @@ bool DBManager::Init(int iMaxMemoryCopy, bool addTestData) {
 	return bFlag;
 }
 
-bool DBManager::Query(char* sql, char** result, int* iRow, int* iColumn) {
+bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn) {
 	int index;
 	char *msg = NULL;
 	bool bFlag = true;
@@ -86,7 +86,6 @@ bool DBManager::Query(char* sql, char** result, int* iRow, int* iColumn) {
 
 	sqlite3* db = mdbs[index];
 	bFlag = QuerySQL( db, sql, result, iRow, iColumn, &msg );
-
 	if( msg != NULL ) {
 		fprintf(stderr, "# Could not select table, msg : %s \n", msg);
 		bFlag = false;
@@ -151,6 +150,7 @@ void DBManager::SyncDataFromDataBase() {
 				sqlite3_bind_int(stmtMan, 2, j);
 				sqlite3_bind_int(stmtMan, 3, 1);
 				sqlite3_step(stmtMan);
+				miLastManRecordId++;
 
 				sprintf(ids, "lady-%d", id);
 //				sprintf(sql, "INSERT INTO LADY(`LADYID`, `QID`, `AID`) VALUES('%s', %d, %d);",
@@ -164,7 +164,11 @@ void DBManager::SyncDataFromDataBase() {
 				sqlite3_bind_int(stmtLady, 2, j);
 				sqlite3_bind_int(stmtLady, 3, 1);
 				sqlite3_step(stmtLady);
+				miLastLadyRecordId++;
 
+				if( miLastManRecordId % 20 == 0 ) {
+					usleep(100);
+				}
 			}
 		}
 		sqlite3_finalize(stmtMan);
@@ -372,7 +376,7 @@ bool DBManager::InitTestData(sqlite3 *db) {
 
 	// 插入表
 	gettimeofday(&tStart, NULL);
-	for( int i = 0; i < 40; i++ ) {
+	for( int i = 0; i < 40000; i++ ) {
 
 		sprintf(id, "man-%d", i);
 		sprintf(idlady, "lady-%d", i);
@@ -395,6 +399,7 @@ bool DBManager::InitTestData(sqlite3 *db) {
 			sqlite3_bind_int(stmtMan, 2, j);
 			sqlite3_bind_int(stmtMan, 3, r);
 			sqlite3_step(stmtMan);
+			miLastManRecordId++;
 
 			// insert lady
 			r = rand() % 30;
@@ -411,6 +416,11 @@ bool DBManager::InitTestData(sqlite3 *db) {
 			sqlite3_bind_int(stmtLady, 2, j);
 			sqlite3_bind_int(stmtLady, 3, r);
 			sqlite3_step(stmtLady);
+			miLastLadyRecordId++;
+
+			if( miLastLadyRecordId % 20 == 0 ) {
+				usleep(10);
+			}
 		}
 	}
 	sqlite3_finalize(stmtMan);
@@ -421,9 +431,6 @@ bool DBManager::InitTestData(sqlite3 *db) {
 	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
 	printf("# Insert table ok time: %ldus \n", usec);
 	printf("# 插入240万条记录时间: %lds \n\n", usec / 1000 / 1000);
-
-	miLastManRecordId = 40000;
-	miLastLadyRecordId = 40000;
 
 	return true;
 }
@@ -447,12 +454,12 @@ bool DBManager::ExecSQL(sqlite3 *db, char* sql, char** msg) {
 
 	return ( ret == SQLITE_OK );
 }
-bool DBManager::QuerySQL(sqlite3 *db, char* sql, char** result, int* iRow, int* iColumn, char** msg) {
+bool DBManager::QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int* iColumn, char** msg) {
 	int ret;
 	do {
-		ret = sqlite3_get_table( db, sql, &result, iRow, iColumn, msg );
+		ret = sqlite3_get_table( db, sql, result, iRow, iColumn, msg );
 		if( ret == SQLITE_BUSY ) {
-			printf("# DBManager::QuerySQL( ret == SQLITE_BUSY )");
+			printf("# DBManager::QuerySQL( ret == SQLITE_BUSY ) \n");
 			if ( msg != NULL ) {
 				sqlite3_free(msg);
 				msg= NULL;
@@ -461,7 +468,7 @@ bool DBManager::QuerySQL(sqlite3 *db, char* sql, char** result, int* iRow, int* 
 		}
 
 		if( ret != SQLITE_OK ) {
-			printf("# DBManager::QuerySQL( ret : %d )", ret);
+			printf("# DBManager::QuerySQL( ret : %d ) \n", ret);
 		}
 	} while( ret == SQLITE_BUSY );
 

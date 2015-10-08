@@ -47,8 +47,13 @@ protected:
 				LogManager::GetLogManager()->Log(LOG_WARNING,
 						"MatchServer::StateRunnable( tid : %d, GetWatcherList() : %d )",
 						(int)syscall(SYS_gettid),
-						(WatcherList*) mContainer->GetTcpServer()->GetWatcherList()->size()
+						(WatcherList*) mContainer->GetTcpServer()->GetWatcherList()->Size()
 						);
+				LogManager::GetLogManager()->Log(LOG_WARNING,
+										"MatchServer::StateRunnable( tid : %d, LogManager::GetIdleMessageList() : %d )",
+										(int)syscall(SYS_gettid),
+										(WatcherList*) LogManager::GetLogManager()->GetIdleMessageList()->Size()
+										);
 			}
 			sleep(1);
 		}

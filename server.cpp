@@ -22,7 +22,7 @@ int iMemory = 1;	// sqlite句柄数目, 即内存数据库数目
 int iThread = 1;	// 线程数目
 
 // Just 4 log
-#define MaxMsgDataCount 200000
+#define MaxMsgDataCount 10000
 
 bool Parse(int argc, char *argv[]);
 
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 	LogManager::LogSetFlushBuffer(5 * BUFFER_SIZE_1K * BUFFER_SIZE_1K);
 //	LogManager::LogSetFlushBuffer(0);
 	LogManager::GetLogManager()->Start(MaxMsgDataCount, LOG_STAT);
-	LogManager::GetLogManager()->Log(LOG_MSG, "MatchServer::Run( MaxMsgDataCount : %d )", MaxMsgDataCount);
+	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( MaxMsgDataCount : %d )", MaxMsgDataCount);
 
 	MatchServer server;
 	server.Run(100000, iMemory, iThread);

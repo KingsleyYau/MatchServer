@@ -31,11 +31,13 @@
 #include "KThread.h"
 #include "MessageList.h"
 #include "LogManager.h"
+#include "KSafeList.h"
 
 #define CLOSESOCKET_TIME    1000     // 1秒后关闭
 #define DiffGetTickCount(start, end)    ((start) <= (end) ? (end) - (start) : ((unsigned int)(-1)) - (start) + (end))
 
-typedef list<ev_io *> WatcherList;
+//typedef list<ev_io *> WatcherList;
+typedef KSafeList<ev_io *> WatcherList;
 
 class CloseSocketRunnable;
 class HandleRunnable;
@@ -74,9 +76,9 @@ public:
 	int GetSocket();
 	MessageList *GetIdleMessageList();
 	MessageList *GetHandleMessageList();
-//	MessageList *GetSendMessageList();
+	MessageList* GetSendMessageList();
 	MessageList *GetHandleSendMessageList();
-	Message** GetSendMessageList();
+//	Message** GetSendMessageList();
 
 	WatcherList *GetWatcherList();
 	ev_async *GetAsyncSendWatcher();
@@ -95,6 +97,8 @@ public:
 
 	void HandleCloseQueue();
 
+	void LockWatcherList();
+	void UnLockWatcherList();
 private:
 	/* Thread safe message list */
 	MessageList mIdleMessageList;
@@ -102,11 +106,13 @@ private:
 
 //	MessageList mSendMessageList;
 	MessageList mHandleSendMessageList;
+	MessageList* mpSendMessageList;
 
-	Message **mpSendMessageList;
+//	Message **mpSendMessageList;
 
-	/* Not thread safe watcher list */
+	/* Thread safe watcher list */
 	WatcherList mWatcherList;
+	KMutex mWatcherListMutex;
 
 	/**
 	 * CloseSocket线程
@@ -159,8 +165,6 @@ private:
 	 */
 	CloseSocketQueue mCloseSocketQueue;
 	KMutex mCloseSocketQueueMutex;
-
-	KMutex mSendMessageMutex;
 
 	/**
 	 * 总接收包处理时间

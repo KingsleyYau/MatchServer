@@ -28,7 +28,7 @@ public:
 
 	bool Init(int iMaxMemoryCopy, bool addTestData = false);
 
-	bool Query(char* sql, char** result, int* iRow, int* iColumn);
+	bool Query(char* sql, char*** result, int* iRow, int* iColumn);
 	void FinishQuery(char** result);
 
 	void SyncDataFromDataBase();
@@ -50,7 +50,7 @@ private:
 	bool InitTestData(sqlite3 *db);
 
 	bool ExecSQL(sqlite3 *db, char* sql, char** msg);
-	bool QuerySQL(sqlite3 *db, char* sql, char** result, int* iRow, int* iColumn, char** msg);
+	bool QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int* iColumn, char** msg);
 };
 
 #endif /* DBMANAGER_H_ */

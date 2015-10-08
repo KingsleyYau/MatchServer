@@ -89,7 +89,6 @@ CFileCtrl::CFileCtrl(const char *szlogPath, const char* szFileName, unsigned lon
 	if (g_iMemSize) {
 	    m_pBuffer = new char[g_iMemSize];
 	}
-	printf("# g_iMemSize : %d \n", g_iMemSize);
 }
 
 CFileCtrl::~CFileCtrl()

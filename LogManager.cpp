@@ -169,7 +169,7 @@ bool LogManager::Start(int maxIdle, LOG_LEVEL nLevel) {
 	// Just 4 log
 	g_iLogLevel = nLevel;
     MkDir(g_SysConf.strLogPath.c_str());
-    MkDir(g_SysConf.strTempPath.c_str());
+//    MkDir(g_SysConf.strTempPath.c_str());
 //    InitMsgList(maxIdle);
 //    KLog::SetLogDirectory(g_SysConf.strLogPath.c_str());
 

@@ -21,6 +21,8 @@ public:
 	DBManager mDBManager;
 	int miMaxQuery;
 
+	long miSleep;
+	long miQuery;
 	int miCur;		// 已经查询次数
 	long miMin;		// 最小处理时间
 	long miMax;		// 最大处理时间
