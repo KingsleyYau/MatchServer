@@ -1,0 +1,38 @@
+﻿CREATE TABLE `mq_man_answer` (
+  `id` int(8) unsigned NOT NULL AUTO_INCREMENT,
+  `q_id` varchar(20) NOT NULL,
+  `question_status` tinyint(1) NOT NULL,
+  `content` varchar(400) NOT NULL,
+  `manid` char(12) NOT NULL,
+  `manname` varchar(50) NOT NULL,
+  `country` varchar(50) NOT NULL,
+  `answer_id` tinyint(1) NOT NULL,
+  `answer` varchar(50) NOT NULL,
+  `q_concat` varchar(30) NOT NULL,
+  `answer_time` datetime NOT NULL,
+  `last_update` datetime NOT NULL,
+  `ip` varchar(20) NOT NULL,
+  `siteid` tinyint(2) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `manid` (`manid`),
+  KEY `q_id` (`q_id`)
+) ENGINE=MyISAM AUTO_INCREMENT=1195 DEFAULT CHARSET=utf8
+CREATE TABLE `mq_woman_answer` (
+  `id` int(8) unsigned NOT NULL AUTO_INCREMENT,
+  `q_id` varchar(20) NOT NULL,
+  `question_status` tinyint(1) NOT NULL,
+  `content` varchar(400) NOT NULL,
+  `womanid` varchar(50) NOT NULL,
+  `womanname` varchar(50) NOT NULL,
+  `agent` varchar(20) NOT NULL,
+  `answer_id` tinyint(1) NOT NULL,
+  `answer` varchar(50) NOT NULL,
+  `q_concat` varchar(30) NOT NULL,
+  `answer_time` datetime NOT NULL,
+  `last_update` datetime NOT NULL,
+  `siteid` tinyint(1) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `womanid` (`womanid`),
+  KEY `q_id` (`q_id`),
+  KEY `q_concat` (`q_concat`)
+) ENGINE=MyISAM AUTO_INCREMENT=3083 DEFAULT CHARSET=utf8
