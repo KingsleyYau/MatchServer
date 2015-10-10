@@ -25,7 +25,7 @@ protected:
 	void onRun() {
 		int iCount = 0;
 		while( mContainer->IsRunning() ) {
-			if ( iCount < 30 ) {
+			if ( iCount < 60 ) {
 				iCount++;
 			} else {
 				iCount = 0;
@@ -40,9 +40,9 @@ protected:
 						(MessageList*) mContainer->GetTcpServer()->GetHandleMessageList()->Size()
 						);
 				LogManager::GetLogManager()->Log(LOG_WARNING,
-						"MatchServer::StateRunnable( tid : %d, GetHandleSendMessageList() : %d )",
+						"MatchServer::StateRunnable( tid : %d, GetSendImmediatelyMessageList() : %d )",
 						(int)syscall(SYS_gettid),
-						(MessageList*) mContainer->GetTcpServer()->GetHandleSendMessageList()->Size()
+						(MessageList*) mContainer->GetTcpServer()->GetSendImmediatelyMessageList()->Size()
 						);
 				LogManager::GetLogManager()->Log(LOG_WARNING,
 						"MatchServer::StateRunnable( tid : %d, GetWatcherList() : %d )",
@@ -80,7 +80,8 @@ void MatchServer::Run(int iMaxClient, int iMaxMemoryCopy, int iMaxHandleThread) 
 	miMaxMemoryCopy = iMaxMemoryCopy;
 
 	/* db manager */
-	mDBManager.Init(iMaxMemoryCopy, true);
+	mDBManager.Init(iMaxMemoryCopy, false);
+	mDBManager.InitSyncDataBase(4, "192.168.70.129", 3306, "qpidnetwork", "root", "123456");
 
 	/* request manager */
 	mRequestManager.Init(&mDBManager);
@@ -123,7 +124,7 @@ bool MatchServer::OnAccept(TcpServer *ts, Message *m) {
 void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
 	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnRecvMessage( "
 			"tid : %d, "
-			"m->fd : %d, "
+			"m->fd : [%d], "
 			"start "
 			")",
 			(int)syscall(SYS_gettid),
@@ -131,42 +132,49 @@ void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
 			);
 	Message *sm = ts->GetIdleMessageList()->PopFront();
 	if( sm != NULL ) {
+		sm->fd = m->fd;
+		sm->wr = m->wr;
+
 		int ret = mRequestManager.HandleRecvMessage(m, sm);
 		if( 0 != ret ) {
 			// Process finish, send respond
-			sm->fd = m->fd;
-			sm->wr = m->wr;
-			ts->SendMessage(sm);
+//			ts->SendMessage(sm);
+			ts->SendMessageByQueue(sm);
 		}
 	} else {
 		LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnRecvMessage( "
 				"tid : %d, "
+				"m->fd : [%d], "
 				"No idle message can be use "
 				")",
-				(int)syscall(SYS_gettid)
+				(int)syscall(SYS_gettid),
+				m->fd
 				);
+		// 断开连接
+		ts->Disconnect(m->fd);
 	}
 	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnRecvMessage( "
 			"tid : %d, "
-			"m->fd : %d, "
+			"m->fd : [%d], "
 			"end "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd);
+			m->fd
+			);
 }
 
 void MatchServer::OnSendMessage(TcpServer *ts, Message *m) {
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnSendMessage( tid : %d, m->fd : %d, start )", (int)syscall(SYS_gettid), m->fd);
+	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnSendMessage( tid : %d, m->fd : [%d], start )", (int)syscall(SYS_gettid), m->fd);
 	// 发送成功，断开连接
-	ts->Disconnect(m->fd, m->wr, m->ww);
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnSendMessage( tid : %d, m->fd : %d, end )", (int)syscall(SYS_gettid), m->fd);
+	ts->Disconnect(m->fd);
+	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnSendMessage( tid : %d, m->fd : [%d], end )", (int)syscall(SYS_gettid), m->fd);
 }
 
 /**
  * OnDisconnect
  */
 void MatchServer::OnDisconnect(TcpServer *ts, int fd) {
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnDisconnect( tid: %d, fd : %d )", (int)syscall(SYS_gettid), fd);
+	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnDisconnect( tid: %d, fd : [%d] )", (int)syscall(SYS_gettid), fd);
 }
 
 unsigned int MatchServer::GetTickCount() {

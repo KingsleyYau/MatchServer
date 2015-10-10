@@ -17,8 +17,8 @@ public:
 protected:
 	void onRun() {
 		while( true ) {
+			sleep(300);
 			mpDBManager->SyncDataFromDataBase();
-			sleep(30);
 		}
 	}
 	DBManager* mpDBManager;
@@ -34,6 +34,16 @@ DBManager::DBManager() {
 	mpSyncRunnable = new SyncRunnable(this);
 
 	sqlite3_config(SQLITE_CONFIG_MEMSTATUS, false);
+
+//	int size = 200 * 1024 * 1024;
+//	mpSqliteHeapBuffer = new char[size];
+//	sqlite3_config(SQLITE_CONFIG_HEAP, mpSqliteHeapBuffer, size, 2);
+//
+//	int size = 1024 * 1024 * 1024;
+//	mpSqlitePageBuffer = new char[size];
+//	sqlite3_config(SQLITE_CONFIG_PAGECACHE, mpSqlitePageBuffer, 4, 256 * 1024 * 1024);
+//
+//	sqlite3_config(SQLITE_CONFIG_LOOKASIDE, 1024, 1024);
 }
 
 DBManager::~DBManager() {
@@ -66,13 +76,61 @@ bool DBManager::Init(int iMaxMemoryCopy, bool addTestData) {
 		}
 	}
 
-	// Start sync thread
-//	mSyncThread.start(mpSyncRunnable);
+	return bFlag;
+}
+
+bool DBManager::InitSyncDataBase(
+			int iMaxThread,
+			const char* pcHost,
+			short shPort,
+			const char* pcDBname,
+	        const char* pcUser,
+	        const char* pcPasswd
+	        ) {
+	bool bFlag = false;
+
+	bFlag = mDBSpool.SetConnection(iMaxThread);
+	bFlag = bFlag && mDBSpool.SetDBparm(pcHost, shPort, pcDBname,
+					pcUser, pcPasswd);
+	bFlag = bFlag && mDBSpool.Connect();
+
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"DBManager::InitSyncDataBase( "
+			"pcHost : %s, "
+			"shPort : %d, "
+			"pcDBname : %s, "
+			"pcUser : %s, "
+			"pcPasswd : %s, "
+			"bFlag : %s "
+			")",
+			pcHost,
+			shPort,
+			pcDBname,
+			pcUser,
+			pcPasswd,
+			bFlag?"true":"false"
+			);
+
+	if( bFlag ) {
+		SyncDataFromDataBase();
+
+		// Start sync thread
+		mSyncThread.start(mpSyncRunnable);
+	}
 
 	return bFlag;
 }
 
 bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn) {
+	LogManager::GetLogManager()->Log(
+							LOG_STAT, "DBManager::Query( "
+							"tid : %d, "
+							"sql : %s "
+							")",
+							(int)syscall(SYS_gettid),
+							sql
+							);
 	int index;
 	char *msg = NULL;
 	bool bFlag = true;
@@ -87,6 +145,14 @@ bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn) {
 	sqlite3* db = mdbs[index];
 	bFlag = QuerySQL( db, sql, result, iRow, iColumn, &msg );
 	if( msg != NULL ) {
+		LogManager::GetLogManager()->Log(
+								LOG_STAT, "DBManager::Query( "
+								"tid : %d, "
+								"Could not select table, msg : %s "
+								")",
+								(int)syscall(SYS_gettid),
+								msg
+								);
 		fprintf(stderr, "# Could not select table, msg : %s \n", msg);
 		bFlag = false;
 		sqlite3_free(msg);
@@ -102,85 +168,266 @@ void DBManager::FinishQuery(char** result) {
 }
 
 void DBManager::SyncDataFromDataBase() {
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"DBManager::SyncDataFromDataBase( "
+			"tid : %d, "
+			"start "
+			")",
+			(int)syscall(SYS_gettid)
+			);
+
 	// load data from database as mysql
 	timeval tStart;
 	timeval tEnd;
 
 	char *msg = NULL;
-	char sql[2048] = {'\0'};
+	char sql[1024] = {'\0'};
 	char ids[64] = {'\0'};
 
-	sprintf(sql,
-			"SELECT ID, MANID, QID, AID FROM MAN WHERE ID > %d"
-			";",
-			miLastManRecordId
-	);
-
-	sprintf(sql,
-			"SELECT ID, LADYID, QID, AID FROM LADY WHERE ID > %d"
-			";",
-			miLastLadyRecordId
-	);
-
-	sqlite3_stmt *stmtMan;
-	sqlite3_stmt *stmtLady;
+	sqlite3_stmt **stmtMan = new sqlite3_stmt*[miMaxMemoryCopy];
+	sqlite3_stmt **stmtLady = new sqlite3_stmt*[miMaxMemoryCopy];
 
 	// update memory
 	gettimeofday(&tStart, NULL);
-	for( int i = 0; i < miMaxMemoryCopy; i++ ) {
-		ExecSQL( mdbs[i], "BEGIN;", NULL );
-		sprintf(sql, "INSERT INTO MAN(`MANID`, `QID`, `AID`) VALUES(?, ?, ?)");
-		sqlite3_prepare_v2(mdbs[i], sql, strlen(sql), &stmtMan, 0);
 
-		sprintf(sql, "INSERT INTO LADY(`LADYID`, `QID`, `AID`) VALUES(?, ?, ?)");
-		sqlite3_prepare_v2(mdbs[i], sql, strlen(sql), &stmtLady, 0);
+	sprintf(sql,
+			"SELECT * FROM mq_man_answer WHERE id > %d"
+			";",
+			miLastManRecordId
+	);
+	LogManager::GetLogManager()->Log(
+			LOG_WARNING,
+			"DBManager::SyncDataFromDataBase( "
+			"tid : %d, "
+			"sql : %s "
+			")",
+			(int)syscall(SYS_gettid),
+			sql
+			);
 
-		for( int id = miLastManRecordId; id < miLastManRecordId + 1000; id++ ) {
-			for( int j = 0; j < 30; j++ ) {
-				// insert man
-				sprintf(ids, "man-%d", id);
-//				sprintf(sql, "INSERT INTO MAN(`MANID`, `QID`, `AID`) VALUES('%s', %d, %d);",
-//						ids,
-//						j,
-//						1
-//						);
-//				ExecSQL( mdbs[i], sql, &msg );
-				sqlite3_reset(stmtMan);
-				sqlite3_bind_text(stmtMan, 1, ids, strlen(ids), NULL);
-				sqlite3_bind_int(stmtMan, 2, j);
-				sqlite3_bind_int(stmtMan, 3, 1);
-				sqlite3_step(stmtMan);
-				miLastManRecordId++;
+	MYSQL_RES* pSQLRes = NULL;
+	short shIdt = 0;
+	int iRows = 0;
+	if (SQL_TYPE_SELECT == mDBSpool.ExecuteSQL(sql, &pSQLRes, shIdt, iRows)
+		&& iRows > 0) {
+		int iFields = mysql_num_fields(pSQLRes);
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"DBManager::SyncDataFromDataBase( "
+				"tid : %d, "
+				"sql : %s, "
+				"iRows : %d, "
+				"iFields : %d "
+				")",
+				(int)syscall(SYS_gettid),
+				sql,
+				iRows,
+				iFields
+				);
+		if (iFields > 0) {
+			MYSQL_FIELD* fields;
+			MYSQL_ROW row;
+			fields = mysql_fetch_fields(pSQLRes);
 
-				sprintf(ids, "lady-%d", id);
-//				sprintf(sql, "INSERT INTO LADY(`LADYID`, `QID`, `AID`) VALUES('%s', %d, %d);",
-//						ids,
-//						j,
-//						1
-//						);
-//				ExecSQL( mdbs[i], sql, NULL );
-				sqlite3_reset(stmtLady);
-				sqlite3_bind_text(stmtLady, 1, ids, strlen(ids), NULL);
-				sqlite3_bind_int(stmtLady, 2, j);
-				sqlite3_bind_int(stmtLady, 3, 1);
-				sqlite3_step(stmtLady);
-				miLastLadyRecordId++;
+			for( int i = 0; i < miMaxMemoryCopy; i++ ) {
+				ExecSQL( mdbs[i], "BEGIN;", NULL );
+				sprintf(sql, "INSERT INTO man("
+						"`id`, "
+						"`qid`, "
+						"`question_status`, "
+						"`manid`, "
+						"`aid`, "
+						"`siteid`"
+						") "
+						"VALUES("
+						"?, "
+						"?, "
+						"?, "
+						"?, "
+						"?, "
+						"?"
+						")"
+						);
+				sqlite3_prepare_v2(mdbs[i], sql, strlen(sql), &(stmtMan[i]), 0);
+			}
 
-				if( miLastManRecordId % 20 == 0 ) {
-					usleep(100);
+			for (int i = 0; i < iRows; i++) {
+				if ((row = mysql_fetch_row(pSQLRes)) == NULL) {
+					break;
+				}
+
+//				for( int j = 0; j < iFields; j++ ) {
+//					LogManager::GetLogManager()->Log(
+//							LOG_STAT,
+//							"DBManager::SyncDataFromDataBase( "
+//							"tid : %d, "
+//							"row[%d] : %s "
+//							")",
+//							(int)syscall(SYS_gettid),
+//							j,
+//							row[j]
+//							);
+//				}
+
+				if( row[0] ) {
+					int temp = atoi(row[0]);
+					miLastManRecordId = temp;
+				}
+
+				for( int j = 0; j < miMaxMemoryCopy; j++ ) {
+					// insert man
+					InsertManFromDataBase(stmtMan[j], row, iFields);
 				}
 			}
+
+			for( int i = 0; i < miMaxMemoryCopy; i++ ) {
+				sqlite3_finalize(stmtMan[i]);
+				ExecSQL( mdbs[i], "COMMIT;", NULL );
+			}
+
 		}
-		sqlite3_finalize(stmtMan);
-		sqlite3_finalize(stmtLady);
-		ExecSQL( mdbs[i], "COMMIT;", NULL );
 	}
+	mDBSpool.ReleaseConnection(shIdt);
+
+	sprintf(sql,
+			"SELECT * FROM mq_woman_answer WHERE id > %d"
+			";",
+			miLastLadyRecordId
+	);
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"DBManager::SyncDataFromDataBase( "
+			"tid : %d, "
+			"sql : %s "
+			")",
+			(int)syscall(SYS_gettid),
+			sql
+			);
+	if (SQL_TYPE_SELECT == mDBSpool.ExecuteSQL(sql, &pSQLRes, shIdt, iRows)
+		&& iRows > 0) {
+		int iFields = mysql_num_fields(pSQLRes);
+		LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"DBManager::SyncDataFromDataBase( "
+						"tid : %d, "
+						"sql : %s, "
+						"iRows : %d, "
+						"iFields : %d "
+						")",
+						(int)syscall(SYS_gettid),
+						sql,
+						iRows,
+						iFields
+						);
+		if (iFields > 0) {
+			MYSQL_FIELD* fields;
+			MYSQL_ROW row;
+			fields = mysql_fetch_fields(pSQLRes);
+
+			for( int i = 0; i < miMaxMemoryCopy; i++ ) {
+				ExecSQL( mdbs[i], "BEGIN;", NULL );
+				sprintf(sql, "INSERT INTO woman("
+						"`id`, "
+						"`qid`, "
+						"`question_status`, "
+						"`womanid`, "
+						"`aid`, "
+						"`siteid`"
+						") "
+						"VALUES("
+						"?, "
+						"?, "
+						"?, "
+						"?, "
+						"?, "
+						"?"
+						")");
+				sqlite3_prepare_v2(mdbs[i], sql, strlen(sql), &(stmtLady[i]), 0);
+			}
+
+			for (int i = 0; i < iRows; i++) {
+				if ((row = mysql_fetch_row(pSQLRes)) == NULL) {
+					break;
+				}
+
+				if( row[0] ) {
+					miLastLadyRecordId = atoi(row[0]);
+				}
+
+				for( int j = 0; j < miMaxMemoryCopy; j++ ) {
+					// insert lady
+					InsertLadyFromDataBase(stmtLady[j], row, iFields);
+				}
+			}
+
+			for( int i = 0; i < miMaxMemoryCopy; i++ ) {
+				sqlite3_finalize(stmtLady[i]);
+				ExecSQL( mdbs[i], "COMMIT;", NULL );
+			}
+		}
+	}
+	mDBSpool.ReleaseConnection(shIdt);
+
 	gettimeofday(&tEnd, NULL);
 	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
 
-	miLastManRecordId += 1000;
+	if( stmtMan ) {
+		delete stmtMan;
+	}
 
-	printf("# DBManager::SyncDataFromDataBase( 插入60000条记录用时 : %ldus ) \n\n", usec);
+	if( stmtLady ) {
+		delete stmtLady;
+	}
+
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"DBManager::SyncDataFromDataBase( "
+			"tid : %d, "
+			"time : %ldus "
+			"end "
+			")",
+			(int)syscall(SYS_gettid),
+			usec
+			);
+}
+
+int DBManager::GetLastLadyRecordId() {
+	return miLastManRecordId;
+}
+
+void DBManager::Status() {
+	sqlite3* db;
+	int current;
+	int highwater;
+
+	for( int i = 0; i < miMaxMemoryCopy; i++ ) {
+		sqlite3* db = mdbs[i];
+		sqlite3_db_status(db, SQLITE_STATUS_MEMORY_USED, &current, &highwater, true);
+		printf("# db[%d] SQLITE_STATUS_MEMORY_USED, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_STATUS_MALLOC_SIZE, &current, &highwater, true);
+		printf("# db[%d] SQLITE_STATUS_MALLOC_SIZE, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_STATUS_MALLOC_COUNT, &current, &highwater, true);
+		printf("# db[%d] SQLITE_STATUS_MALLOC_COUNT, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_STATUS_PAGECACHE_USED, &current, &highwater, true);
+		printf("# db[%d] SQLITE_STATUS_PAGECACHE_USED, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_STATUS_SCRATCH_USED, &current, &highwater, true);
+		printf("# db[%d] SQLITE_STATUS_SCRATCH_USED, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_STATUS_SCRATCH_OVERFLOW, &current, &highwater, true);
+		printf("# db[%d] SQLITE_STATUS_SCRATCH_OVERFLOW, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_STATUS_SCRATCH_SIZE, &current, &highwater, true);
+		printf("# db[%d] SQLITE_STATUS_SCRATCH_SIZE, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_STATUS_PARSER_STACK, &current, &highwater, true);
+		printf("# db[%d] SQLITE_STATUS_PARSER_STACK, current : %d, highwater : %d \n", i, current, highwater);
+	}
+
 }
 
 bool DBManager::DumpDB(sqlite3 *db) {
@@ -250,11 +497,14 @@ bool DBManager::CreateTable(sqlite3 *db) {
 
 	// 建男士表
 	sprintf(sql,
-			"CREATE TABLE MAN("
-						"ID INTEGER PRIMARY KEY AUTOINCREMENT,"
-						"MANID VARCHAR(64),"
-						"QID INT,"
-						"AID INT"
+			"CREATE TABLE man("
+//						"ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+						"id INT PRIMARY KEY,"
+						"qid INT,"
+						"question_status INT,"
+						"manid VARCHAR(12),"
+						"aid INT,"
+						"siteid INT"
 						");"
 	);
 
@@ -265,12 +515,12 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		msg = NULL;
 		return false;
 	}
-	printf("# Create table MAN ok \n");
+	printf("# Create table man ok \n");
 
-	// 建男士表索引(MANID, QID, AID)
+	// 建男士表索引(manid, qid, aid)
 	sprintf(sql,
-			"CREATE INDEX MANINDEX_MANID_QID_AID "
-			"ON MAN (MANID, QID, AID)"
+			"CREATE INDEX manindex_manid_qid_aid "
+			"ON man (manid, qid, aid)"
 			";"
 	);
 
@@ -282,12 +532,12 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		return false;
 	}
 
-	// 建男士表索引(QID, AID)
+	// 建男士表索引(qid, aid)
 	sprintf(sql,
-			"CREATE INDEX MANINDEX_QID_AID "
-			"ON MAN (QID, AID)"
+			"CREATE INDEX manindex_qid_aid "
+			"ON man (qid, aid)"
 			";"
-		);
+	);
 
 	ExecSQL( db, sql, &msg );
 	if( msg != NULL ) {
@@ -296,37 +546,40 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		msg = NULL;
 		return false;
 	}
-	printf("# Create table MAN index ok \n");
+	printf("# Create table man index ok \n");
 
 	// 建女士表
 	sprintf(sql,
-			"CREATE TABLE LADY("
-						"ID INTEGER PRIMARY KEY AUTOINCREMENT,"
-						"LADYID VARCHAR(64), "
-						"QID INT, "
-						"AID INT"
+			"CREATE TABLE woman("
+//						"ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+						"id INT PRIMARY KEY,"
+						"qid INT,"
+						"question_status INT,"
+						"womanid VARCHAR(50),"
+						"aid INT,"
+						"siteid INT"
 						");"
 	);
 
 	ExecSQL( db, sql, &msg );
 	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table lady, msg: %s \n", msg);
+		fprintf(stderr, "# Could not create table woman, msg: %s \n", msg);
 		sqlite3_free(msg);
 		msg = NULL;
 		return false;
 	}
-	printf("# Create table LADY ok \n");
+	printf("# Create table woman ok \n");
 
 	// 建女士表索引(QID, AID)
 	sprintf(sql,
-			"CREATE INDEX LADYINDEX_QID_AID "
-			"ON LADY (QID, AID)"
+			"CREATE INDEX womanindex_qid_aid "
+			"ON woman (qid, aid)"
 			";"
 	);
 
 	ExecSQL( db, sql, &msg );
 	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table lady index, msg: %s \n", msg);
+		fprintf(stderr, "# Could not create table woman index, msg: %s \n", msg);
 		sqlite3_free(msg);
 		msg = NULL;
 		return false;
@@ -334,19 +587,19 @@ bool DBManager::CreateTable(sqlite3 *db) {
 
 	// 建女士表索引(LADYID, QID, AID)
 	sprintf(sql,
-			"CREATE INDEX LADYINDEX_LADYID_QID_AID "
-			"ON LADY (LADYID, QID, AID)"
+			"CREATE INDEX womanindex_womanid_qid_aid "
+			"ON woman (womanid, qid, aid)"
 			";"
 	);
 
 	ExecSQL( db, sql, &msg );
 	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table lady index, msg: %s \n", msg);
+		fprintf(stderr, "# Could not create table woman index, msg: %s \n", msg);
 		sqlite3_free(msg);
 		msg = NULL;
 		return false;
 	}
-	printf("# Create table LADY index ok \n");
+	printf("# Create table woman index ok \n");
 
 	return true;
 }
@@ -368,10 +621,10 @@ bool DBManager::InitTestData(sqlite3 *db) {
 
 	bFlag = ExecSQL( db, "BEGIN;", &msg );
 
-	sprintf(sql, "INSERT INTO MAN(`MANID`, `QID`, `AID`) VALUES(?, ?, ?)");
+	sprintf(sql, "INSERT INTO man(`manid`, `qid`, `aid`) VALUES(?, ?, ?)");
 	sqlite3_prepare_v2(db, sql, strlen(sql), &stmtMan, 0);
 
-	sprintf(sql, "INSERT INTO LADY(`LADYID`, `QID`, `AID`) VALUES(?, ?, ?)");
+	sprintf(sql, "INSERT INTO woman(`womanid`, `qid`, `aid`) VALUES(?, ?, ?)");
 	sqlite3_prepare_v2(db, sql, strlen(sql), &stmtLady, 0);
 
 	// 插入表
@@ -379,7 +632,7 @@ bool DBManager::InitTestData(sqlite3 *db) {
 	for( int i = 0; i < 40000; i++ ) {
 
 		sprintf(id, "man-%d", i);
-		sprintf(idlady, "lady-%d", i);
+		sprintf(idlady, "%d", i);
 
 		for( int j = 0; j < 30; j++ ) {
 			sprintf(qid, "%d", j);
@@ -418,7 +671,7 @@ bool DBManager::InitTestData(sqlite3 *db) {
 			sqlite3_step(stmtLady);
 			miLastLadyRecordId++;
 
-			if( miLastLadyRecordId % 20 == 0 ) {
+			if( miLastLadyRecordId % 60 == 0 ) {
 				usleep(10);
 			}
 		}
@@ -473,4 +726,140 @@ bool DBManager::QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int*
 	} while( ret == SQLITE_BUSY );
 
 	return ( ret == SQLITE_OK );
+}
+
+bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int iFields) {
+	sqlite3_reset(stmtMan);
+
+	if( iFields == 14 ) {
+
+		// id
+		if( row[0] ) {
+			sqlite3_bind_int(stmtMan, 1, atoi(row[0]));
+		}
+		// q_id -> qid
+		if( row[1] ) {
+			sqlite3_bind_int(stmtMan, 2, atoi(row[1]));
+		}
+		// question_status
+		if( row[2] ) {
+			sqlite3_bind_int(stmtMan, 3, atoi(row[2]));
+		}
+//		// content
+//		if( row[3] ) {
+//			sqlite3_bind_text(stmtMan, 4, row[3], strlen(row[3]), NULL);
+//		}
+		// manid
+		if( row[4] ) {
+			sqlite3_bind_text(stmtMan, 4, row[4], strlen(row[4]), NULL);
+		}
+//		// manname
+//		if( row[5] ) {
+//			sqlite3_bind_text(stmtMan, 6, row[5], strlen(row[5]), NULL);
+//		}
+//		// country
+//		if( row[6] ) {
+//			sqlite3_bind_text(stmtMan, 7, row[6], strlen(row[6]), NULL);
+//		}
+//		// answer_id
+//		if( row[7] ) {
+//			sqlite3_bind_int(stmtMan, 8, atoi(row[7]));
+//		}
+//		// answer
+//		if( row[8] ) {
+//			sqlite3_bind_text(stmtMan, 9, row[8], strlen(row[8]), NULL);
+//		}
+		// q_concat -> aid
+		if( row[9] ) {
+			sqlite3_bind_int(stmtMan, 5, atoi(row[9]));
+		}
+//		// answer_time
+//		if( row[10] ) {
+//			sqlite3_bind_text(stmtMan, 11, row[10], strlen(row[10]), NULL);
+//		}
+//		// last_update
+//		if( row[11] ) {
+//			sqlite3_bind_text(stmtMan, 12, row[11], strlen(row[11]), NULL);
+//		}
+//		// ip
+//		if( row[12] ) {
+//			sqlite3_bind_text(stmtMan, 13, row[12], strlen(row[12]), NULL);
+//		}
+		// siteid
+		if( row[13] ) {
+			sqlite3_bind_int(stmtMan, 6, atoi(row[13]));
+		}
+
+		int code = sqlite3_step(stmtMan);
+
+	} else {
+		return false;
+	}
+
+	return true;
+}
+
+bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, int iFields) {
+	sqlite3_reset(stmtLady);
+
+	if( iFields == 13 ) {
+		// id
+		if( row[0] ) {
+			sqlite3_bind_int(stmtLady, 1, atoi(row[0]));
+		}
+		// q_id -> qid
+		if( row[1] ) {
+			sqlite3_bind_int(stmtLady, 2, atoi(row[1]));
+		}
+		// question_status
+		if( row[2] ) {
+			sqlite3_bind_int(stmtLady, 3, atoi(row[2]));
+		}
+//		// content
+//		if( row[3] ) {
+//			sqlite3_bind_text(stmtLady, 4, row[3], strlen(row[3]), NULL);
+//		}
+		// womanid
+		if( row[4] ) {
+			sqlite3_bind_text(stmtLady, 4, row[4], strlen(row[4]), NULL);
+		}
+//		// womanname
+//		if( row[5] ) {
+//			sqlite3_bind_text(stmtLady, 6, row[5], strlen(row[5]), NULL);
+//		}
+//		// agent
+//		if( row[6] ) {
+//			sqlite3_bind_text(stmtLady, 7, row[6], strlen(row[6]), NULL);
+//		}
+//		// answer_id
+//		if( row[7] ) {
+//			sqlite3_bind_int(stmtLady, 8, atoi(row[7]));
+//		}
+//		// answer
+//		if( row[8] ) {
+//			sqlite3_bind_text(stmtLady, 9, row[8], strlen(row[8]), NULL);
+//		}
+		// q_concat -> aid
+		if( row[9] ) {
+			sqlite3_bind_int(stmtLady, 5, atoi(row[9]));
+		}
+//		// answer_time
+//		if( row[10] ) {
+//			sqlite3_bind_text(stmtLady, 11, row[10], strlen(row[10]), NULL);
+//		}
+//		// last_update
+//		if( row[11] ) {
+//			sqlite3_bind_text(stmtLady, 12, row[11], strlen(row[11]), NULL);
+//		}
+		// siteid
+		if( row[12] ) {
+			sqlite3_bind_int(stmtLady, 6, atoi(row[12]));
+		}
+
+		int code = sqlite3_step(stmtLady);
+	} else {
+		return false;
+	}
+
+	return true;
 }

@@ -9,6 +9,8 @@
 #include "RequestManager.h"
 #include "DataHttpParser.h"
 
+#define UNHANDLE_TIME    5000     // 5秒后丢弃
+
 RequestManager::RequestManager() {
 	// TODO Auto-generated constructor stub
 }
@@ -23,38 +25,46 @@ bool RequestManager::Init(DBManager* pDBManager) {
 }
 
 int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
-	if( m == NULL ) {
-		return -1;
-	}
-
 	int ret = -1;
 
-	DataHttpParser dataHttpParser;
-	ret = dataHttpParser.ParseData(m->buffer);
-
 	Json::FastWriter writer;
-	Json::Value rootSend;
+	Json::Value rootSend, womanListNode, womanNode;
 
-	const char* pManId = dataHttpParser.GetParam("MANID");
-	int iCount = 0;
-	int errno = 0;
-	char errmsg[1024] = {'\0'};
-	unsigned int start = 0;
-	unsigned int time = 0;
+	int iErrno = 0;
+	char sErrmsg[1024] = {'\0'};
+	int start = 0;
+	int time = 0;
+	int querytime = 0;
+
+	if( m == NULL ) {
+		return ret;
+	}
+
+	DataHttpParser dataHttpParser;
+	if ( DiffGetTickCount(m->starttime, GetTickCount()) < UNHANDLE_TIME ) {
+		if( m->buffer != NULL ) {
+			ret = dataHttpParser.ParseData(m->buffer);
+		}
+	} else {
+		snprintf(sErrmsg, MAXLEN - 1, "query timeout");
+	}
+
+	start = GetTickCount();
 
 	if( ret == 1 ) {
-		LogManager::GetLogManager()->Log(LOG_MSG, "RequestManager::HandleRecvMessage( "
-						"tid : %d, "
-						"m->fd: %d, "
-						"manid : %s, "
-						"parse ok "
-						")",
-						(int)syscall(SYS_gettid),
-						m->fd,
-						pManId
-						);
-
-		start = GetTickCount();
+		const char* pManId = dataHttpParser.GetParam("MANID");
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"RequestManager::HandleRecvMessage( "
+				"tid : %d, "
+				"m->fd: %d, "
+				"manid : %s, "
+				"parse ok "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd,
+				pManId
+				);
 
 		if( pManId != NULL ) {
 			// 执行查询
@@ -63,7 +73,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 //			sprintf(sql,
 //					"SELECT COUNT(DISTINCT LADY.ID) FROM LADY JOIN MAN ON MAN.QID = LADY.QID AND MAN.AID = LADY.AID WHERE MAN.MANID = '%s';",
 //					pManId);
-			sprintf(sql, "SELECT * FROM MAN WHERE MANID = '%s';", pManId);
+			sprintf(sql, "SELECT * FROM man WHERE manid = '%s';", pManId);
 
 			bool bResult = false;
 			char** result = NULL;
@@ -79,65 +89,157 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			timeval tStart;
 			timeval tEnd;
 
-			bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn);
-			if( bResult && result ) {
-				for( int j = 0; j < (iRow + 1); j++ ) {
-					gettimeofday(&tStart, NULL);
-					qid = atoi(result[j * iColumn + 2]);
-					aid = atoi(result[j * iColumn + 3]);
+			map<string, int> womanidMap;
+			map<string, int>::iterator itr;
+			string womanid;
 
-					sprintf(sql, "SELECT COUNT(DISTINCT ID) FROM LADY WHERE QID = %d AND AID = %d;", qid, aid);
+			bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn);
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"RequestManager::HandleRecvMessage( "
+					"tid : %d, "
+					"m->fd: [%d], "
+					"iRow : %d, "
+					"iColumn : %d "
+					")",
+					(int)syscall(SYS_gettid),
+					m->fd,
+					iRow,
+					iColumn
+					);
+			if( bResult && result && iRow > 0 ) {
+				for( int i = 1; i < (iRow + 1); i++ ) {
+					gettimeofday(&tStart, NULL);
+
+//					for( int j = 0; j < iColumn ; j++ ) {
+//						LogManager::GetLogManager()->Log(LOG_MSG, "RequestManager::HandleRecvMessage( "
+//										"tid : %d, "
+//										"m->fd: %d, "
+//										"result[%d * iColumn + %d] : %s "
+//										")",
+//										(int)syscall(SYS_gettid),
+//										m->fd,
+//										i,
+//										j,
+//										result[i * iColumn + j]
+//										);
+//					}
+
+					qid = atoi(result[i * iColumn + 1]);
+					aid = atoi(result[i * iColumn + 4]);
+
+					sprintf(sql, "SELECT womanid FROM woman WHERE qid = %d AND aid = %d AND question_status='1';",
+							qid,
+							aid
+							);
 					bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2);
-					if( bResult && result2 ) {
-						if( iRow == 2 ) {
-							iCount += atoi(result[1 * iColumn]);
+					LogManager::GetLogManager()->Log(
+										LOG_STAT,
+										"RequestManager::HandleRecvMessage( "
+										"tid : %d, "
+										"m->fd: [%d], "
+										"iRow2 : %d, "
+										"iColumn2 : %d "
+										")",
+										(int)syscall(SYS_gettid),
+										m->fd,
+										iRow2,
+										iColumn2
+										);
+					if( bResult && result2 && iRow2 > 0 ) {
+						for( int k = 1; k < (iRow2 + 1); k++ ) {
+							// find womanid
+							womanid = result2[k * iColumn2];
+							itr = womanidMap.find(womanid);
+							if( itr != womanidMap.end() ) {
+								itr->second++;
+							} else {
+								womanidMap.insert(map<string, int>::value_type(womanid, 1));
+							}
 						}
-//						for( int j2 = 0; j2 < (iRow2 + 1); j2++ ) {
-//							for( int k = 0; k < iColumn2; k++ ) {
-//								printf("%8s |", result2[j2 * iColumn2 + k]);
-//							}
-//							printf("\n");
-//						}
 					}
+
 					mpDBManager->FinishQuery(result2);
 					gettimeofday(&tEnd, NULL);
 					long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
 					usleep(usec);
+					querytime += usec / 1000;
 				}
 
 				mpDBManager->FinishQuery(result);
+
+				int size = womanidMap.size();// - 30;
+//				size = (size > 0)?size:0;
+
+				int iIndex = 0;//rand() % size;
+				int iCount = 0;
+				int iItem = 0;
+				LogManager::GetLogManager()->Log(
+								LOG_STAT,
+								"RequestManager::HandleRecvMessage( "
+								"tid : %d, "
+								"m->fd: %d, "
+								"size : %d, "
+								"iIndex : %d "
+								")",
+								(int)syscall(SYS_gettid),
+								m->fd,
+								size,
+								iIndex
+								);
+				for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+//					iCount++;
+//					if( iCount < iIndex ) {
+//						continue;
+//					}
+
+					iItem++;
+					if( iItem > 29 ) {
+						break;
+					}
+
+					Json::Value womanNode;
+					womanNode[itr->first] = itr->second;
+					womanListNode.append(womanNode);
+				}
 			}
 		} else {
-			errno = -1;
-			sprintf(errmsg, "param not found");
+			ret = -1;
+			iErrno = 1001;
+			sprintf(sErrmsg, "param not found");
 		}
 
-		time = GetTickCount() - start;
-		LogManager::GetLogManager()->Log(LOG_MSG, "RequestManager::HandleRecvMessage( "
-				"tid : %d, "
-				"m->fd: %d, "
-				"Query time : %d ms "
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd,
-				time
-				);
-
 	} else {
-		LogManager::GetLogManager()->Log(LOG_MSG, "RequestManager::HandleRecvMessage( "
-								"m->fd: %d, "
-								"parse fail "
-								")",
-								m->fd
-								);
+		LogManager::GetLogManager()->Log(
+				LOG_STAT,
+				"RequestManager::HandleRecvMessage( "
+				"m->fd: [%d], "
+				"parse fail "
+				")",
+				m->fd
+				);
 	}
 
-	rootSend["fd"] = m->fd;
+	time = GetTickCount() - start;
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"RequestManager::HandleRecvMessage( "
+			"tid : %d, "
+			"m->fd: [%d], "
+			"querytime : %d ms, "
+			"time : %d ms "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd,
+			time
+			);
+
 	rootSend["ret"] = ret;
-	rootSend["count"] = iCount;
+	rootSend["womaninfo"] = womanListNode;
+	rootSend["querytime"] = querytime;
 	rootSend["time"] = time;
-	rootSend["errno"] = errno;
-	rootSend["errmsg"] = errmsg;
+	rootSend["errno"] = iErrno;
+	rootSend["errmsg"] = sErrmsg;
 
 	string param = writer.write(rootSend);
 

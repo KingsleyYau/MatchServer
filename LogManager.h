@@ -13,11 +13,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 
 #include "MessageList.h"
 #include "KThread.h"
 #include "KLog.h"
 #include "LogFile.hpp"
+
+#define DiffGetTickCount(start, end)    ((start) <= (end) ? (end) - (start) : ((unsigned int)(-1)) - (start) + (end))
 
 class LogManager {
 public:

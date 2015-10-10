@@ -1,16 +1,15 @@
-CXXFLAGS =	-O2 -g -Wall -fmessage-length=0
-CXXFLAGS +=	-Ilibev -Isqlite -I. -Wunused-variable
+CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 -Wunused-variable
+CXXFLAGS +=	-Ilibev -I. -I/usr/include/mysql 
 
-LIBS =		libev/.libs/libev.a -lsqlite3 -lpthread 
+LIBS =		libev/.libs/libev.a -lpthread -lsqlite3 -L/usr/lib/mysql -lmysqlclient
 
 JSONOBJS = 	json_reader.o json_value.o json_writer.o md5.o
-OBJS =		server.o KThread.o KLog.o MatchServer.o TcpServer.o MessageList.o \
-			RequestManager.o DBManager.o LogManager.o DataParser.o \
-			DataHttpParser.o LogFile.o MessageMgr.o
+OBJS =		server.o KThread.o KLog.o MatchServer.o TcpServer.o MessageList.o RequestManager.o  \
+			DataParser.o DataHttpParser.o MessageMgr.o DBManager.o DBSpool.o LogManager.o LogFile.o
 OBJS += 	$(JSONOBJS)
 TARGET =	server
 
-DBTEST_OBJS	=	dbtest.o KThread.o DBManager.o DBManagerTest.o 
+DBTEST_OBJS	=	dbtest.o KThread.o DBManager.o DBManagerTest.o DBSpool.o LogManager.o LogFile.o MessageList.o
 DBTEST_TARGET =		dbtest
 
 CLIENTTEST_OBJS	=	client.o KThread.o TcpTestClient.o

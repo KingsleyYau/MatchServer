@@ -8,8 +8,6 @@
 #ifndef DBMANAGER_H_
 #define DBMANAGER_H_
 
-#include "KThread.h"
-
 using namespace std;
 #include <string.h>
 
@@ -20,6 +18,10 @@ using namespace std;
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "KThread.h"
+#include "DBSpool.hpp"
+#include "LogManager.h"
+
 class SyncRunnable;
 class DBManager {
 public:
@@ -27,11 +29,22 @@ public:
 	virtual ~DBManager();
 
 	bool Init(int iMaxMemoryCopy, bool addTestData = false);
+	bool InitSyncDataBase(
+			int iMaxThread,
+			const char* pcHost,
+			short shPort,
+			const char* pcDBname,
+	        const char* pcUser,
+	        const char* pcPasswd
+	        );
 
 	bool Query(char* sql, char*** result, int* iRow, int* iColumn);
 	void FinishQuery(char** result);
 
 	void SyncDataFromDataBase();
+	void Status();
+
+	int GetLastLadyRecordId();
 
 private:
 	int miQueryIndex;
@@ -40,6 +53,10 @@ private:
 	int miLastManRecordId;
 	int miLastLadyRecordId;
 
+	char* mpSqliteHeapBuffer;
+	char* mpSqlitePageBuffer;
+
+	DBSpool mDBSpool;
 	KMutex mIndexMutex;
 	KMutex mBusyMutex;
 	KThread mSyncThread;
@@ -48,6 +65,9 @@ private:
 	bool CreateTable(sqlite3 *db);
 	bool DumpDB(sqlite3 *db);
 	bool InitTestData(sqlite3 *db);
+
+	bool InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int iFields);
+	bool InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, int iFields);
 
 	bool ExecSQL(sqlite3 *db, char* sql, char** msg);
 	bool QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int* iColumn, char** msg);

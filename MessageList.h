@@ -21,11 +21,11 @@
 #include <list>
 using namespace std;
 
-#define MAXLEN 2048
+#define MAXLEN 4096
 typedef struct Message {
 	int		fd;
 	int 	len;
-	unsigned long starttime;
+	unsigned int starttime;
 	int		type;
 	char	buffer[MAXLEN];
 	char    bitBuffer[128];

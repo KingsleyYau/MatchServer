@@ -20,6 +20,7 @@ class KSafeList {
 public:
 	KSafeList() {
 		pthread_rwlock_init(&mLock, NULL);
+		mSize = 0;
 	}
 
 	virtual ~KSafeList() {

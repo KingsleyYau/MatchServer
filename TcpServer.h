@@ -34,12 +34,12 @@
 #include "KSafeList.h"
 
 #define CLOSESOCKET_TIME    1000     // 1秒后关闭
-#define DiffGetTickCount(start, end)    ((start) <= (end) ? (end) - (start) : ((unsigned int)(-1)) - (start) + (end))
 
 //typedef list<ev_io *> WatcherList;
 typedef KSafeList<ev_io *> WatcherList;
 
 class CloseSocketRunnable;
+class SendRunnable;
 class HandleRunnable;
 class MainRunnable;
 class TcpServer;
@@ -71,14 +71,19 @@ public:
 
 	void SendMessage(Message *m);
 
-	bool Disconnect(int fd, ev_io *wr, ev_io *ww);
+	void SendMessageByQueue(Message *m);
+	void SendMessageImmediately(Message *m);
+	void SendAllMessageImmediately();
+
+	bool Disconnect(int fd);
 
 	int GetSocket();
-	MessageList *GetIdleMessageList();
-	MessageList *GetHandleMessageList();
+	MessageList* GetIdleMessageList();
+	MessageList* GetHandleMessageList();
+	MessageList* GetSendImmediatelyMessageList();
+
 	MessageList* GetSendMessageList();
-	MessageList *GetHandleSendMessageList();
-//	Message** GetSendMessageList();
+	MessageList* GetHandleSendMessageList();
 
 	WatcherList *GetWatcherList();
 	ev_async *GetAsyncSendWatcher();
@@ -99,12 +104,15 @@ public:
 
 	void LockWatcherList();
 	void UnLockWatcherList();
+
 private:
+	void StopEvio(ev_io *w);
+
 	/* Thread safe message list */
 	MessageList mIdleMessageList;
 	MessageList mHandleMessageList;
 
-//	MessageList mSendMessageList;
+	MessageList mSendImmediatelyMessageList;
 	MessageList mHandleSendMessageList;
 	MessageList* mpSendMessageList;
 
@@ -134,6 +142,12 @@ private:
 	 */
 	HandleRunnable* mpHandleRunnable;
 	KThread** mpHandleThread;
+
+	/**
+	 * 发送线程
+	 */
+	SendRunnable* mpSendRunnable;
+	KThread* mpSendThread;
 
 	/**
 	 * 处理线程数

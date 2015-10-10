@@ -189,6 +189,7 @@ void recv_callback(struct ev_loop *loop, ev_io *w, int revents) {
 			/* push this message into handle queue */
 			m->len = ret;
 			m->type = 0;
+			m->starttime = pTcpServer->GetTickCount();
 			pTcpServer->GetHandleMessageList()->PushBack(m);
 
 			if( ret != MAXLEN - 1 ) {
@@ -478,6 +479,26 @@ private:
 	TcpServer *mContainer;
 };
 
+/* send thread */
+class SendRunnable : public KRunnable {
+public:
+	SendRunnable(TcpServer *container) {
+		mContainer = container;
+	}
+	virtual ~SendRunnable() {
+		mContainer = NULL;
+	}
+protected:
+	void onRun() {
+		while( mContainer->IsRunning() ) {
+			mContainer->SendAllMessageImmediately();
+			sleep(1);
+		}
+	}
+private:
+	TcpServer *mContainer;
+};
+
 /* accept thread */
 class MainRunnable : public KRunnable {
 public:
@@ -587,6 +608,7 @@ TcpServer::TcpServer() {
 	mpCloseSocketRunnable = new CloseSocketRunnable(this);
 	mpHandleRunnable = new HandleRunnable(this);
 	mpMainRunnable = new MainRunnable(this);
+	mpSendRunnable = new SendRunnable(this);
 
 }
 
@@ -608,6 +630,10 @@ TcpServer::~TcpServer() {
 		delete mpHandleRunnable;
 	}
 
+	if( mpSendRunnable != NULL ) {
+		delete mpSendRunnable;
+	}
+
 	if( mpDisconnecting != NULL ) {
 		delete mpDisconnecting;
 	}
@@ -623,9 +649,18 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	miMaxThreadHandle = maxThreadHandle;
 	miMaxConnection = maxConnection;
 
+	LogManager::GetLogManager()->Log(LOG_WARNING, "TcpServer::Start( "
+			"maxConnection : %d, "
+			"maxThreadHandle : %d "
+			" )",
+			maxConnection,
+			maxThreadHandle
+			);
+
 	/* bind server socket */
 	struct sockaddr_in ac_addr;
 	if ((mServer = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+		LogManager::GetLogManager()->Log(LOG_ERR_SYS, "TcpServer::Start( Create socket error )");
 		printf("# Create socket error \n");
 		return -1;
 	}
@@ -639,11 +674,13 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	ac_addr.sin_addr.s_addr = INADDR_ANY;
 
 	if ( bind(mServer, (struct sockaddr *) &ac_addr, sizeof(struct sockaddr))== -1 ) {
+		LogManager::GetLogManager()->Log(LOG_ERR_SYS, "TcpServer::Start( Bind socket error )");
 		printf("# Bind socket error \n");
 		return false;
 	}
 
 	if ( listen(mServer, 1024) == -1 ) {
+		LogManager::GetLogManager()->Log(LOG_ERR_SYS, "TcpServer::Start( Listen socket error )");
 		printf("# Listen socket error \n");
 		return false;
 	}
@@ -651,31 +688,33 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	/* create watchers */
 	for(int i = 0 ; i < 3 * maxConnection; i++) {
 		ev_io *w = (ev_io *)malloc(sizeof(ev_io));
-		mWatcherList.PushBack(w);
+		if( w != NULL ) {
+			mWatcherList.PushBack(w);
+		}
 	}
-	printf("# create watchers ok \n");
+	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create watchers ok, mWatcherList : %d )", mWatcherList.Size());
+	printf("# Create watchers ok \n");
 
 	for(int i = 0; i < maxConnection; i++) {
 		/* create idle buffers */
 		Message *m = new Message();
 		mIdleMessageList.PushBack(m);
-
-		if( i % 20 == 0 ) {
-			usleep(100);
-		}
 	}
-	printf("# create idle buffers ok \n");
+	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create idle buffers ok )");
+	printf("# Create idle buffers ok \n");
 
 	/* init send message list */
 	mpSendMessageList = new MessageList[2 * maxConnection];
-	printf("# init send message list ok \n");
+	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Init send message list ok )");
+	printf("# Init send message list ok \n");
 
 	mpDisconnecting = new bool[2 * maxConnection];
 	for(int i = 0; i < 2 * maxConnection; i++) {
 		/* init disconnecting flag */
 		mpDisconnecting[i] = false;
 	}
-	printf("# init disconnecting flag ok \n");
+	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Init disconnecting flag ok )");
+	printf("# Init disconnecting flag ok \n");
 
 	mIsRunning = true;
 
@@ -684,12 +723,14 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	/* close socket thread */
 	mpCloseSocketThread = new KThread(mpCloseSocketRunnable);
 	if( mpCloseSocketThread->start() != -1 ) {
+		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create close socket thread ok )");
 		printf("# Create close socket thread ok \n");
 	}
 
 	/* start main thread */
 	mpMainThread = new KThread(mpMainRunnable);
 	if( mpMainThread->start() != -1 ) {
+		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create main thread ok )");
 		printf("# Create main thread ok \n");
 	}
 
@@ -698,8 +739,16 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	for( int i = 0; i < miMaxThreadHandle; i++ ) {
 		mpHandleThread[i] = new KThread(mpHandleRunnable);
 		if( mpHandleThread[i]->start() != -1 ) {
+			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create handle thread[%d] ok )", i);
 			printf("# Create handle thread[%d] ok \n", i);
 		}
+	}
+
+	/* start send thread */
+	mpSendThread = new KThread(mpSendRunnable);
+	if( mpSendThread->start() != -1 ) {
+		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create send thread ok )");
+		printf("# Create send thread ok \n");
 	}
 
 	return true;
@@ -768,6 +817,7 @@ void TcpServer::SendMessage(Message *m) {
 	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
 				"tid : %d, "
 				"m->fd : [%d] "
+				"ok"
 				")",
 				(int)syscall(SYS_gettid),
 				m->fd
@@ -780,9 +830,145 @@ void TcpServer::SendMessage(Message *m) {
 	/* signal main thread to send resopne */
 	ev_async_send(mLoop, &mAsync_send_watcher);
 	UnLockWatcherList();
+
+	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
+				"tid : %d, "
+				"m->fd : [%d] "
+				"end "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd
+				);
 }
 
-bool TcpServer::Disconnect(int fd, ev_io *wr, ev_io *ww) {
+void TcpServer::SendMessageByQueue(Message *m) {
+	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessageByQueue( "
+				"tid : %d, "
+				"m->fd : [%d] "
+				"start"
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd
+				);
+
+	GetSendImmediatelyMessageList()->PushBack(m);
+
+	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessageByQueue( "
+				"tid : %d, "
+				"m->fd : [%d] "
+				"end"
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd
+				);
+}
+
+void TcpServer::SendMessageImmediately(Message *m) {
+	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessageImmediately( "
+				"tid : %d, "
+				"m->fd : [%d] "
+				"start "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd
+				);
+
+	char *buffer = m->buffer;
+	int len = m->len;
+	int index = 0;
+	int fd = m->fd;
+
+	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
+			"tid : %d, "
+			"fd : [%d], "
+			"message : \n%s\n "
+			")",
+			(int)syscall(SYS_gettid),
+			fd,
+			buffer + index
+			);
+
+	do {
+		int ret = send(fd, buffer + index, len - index, 0);
+		if( ret > 0 ) {
+			index += ret;
+			if( index == len ) {
+				LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
+						"tid : %d, "
+						"fd : [%d], "
+						"send finish "
+						")",
+						(int)syscall(SYS_gettid),
+						fd
+						);
+
+				/* send finish */
+
+				/* push this message into handle queue */
+				m->len = 0;
+				m->ww = NULL;
+				GetHandleMessageList()->PushBack(m);
+
+				break;
+			}
+		} else if( ret == 0 ) {
+			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
+					"tid : %d, "
+					"fd : [%d], "
+					"normal closed "
+					")",
+					(int)syscall(SYS_gettid),
+					m->fd
+					);
+			Disconnect(fd);
+			GetIdleMessageList()->PushBack(m);
+			break;
+		} else {
+			if(errno == EAGAIN || errno == EWOULDBLOCK) {
+				LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
+						"tid : %d, "
+						"errno == EAGAIN || errno == EWOULDBLOCK continue "
+						")",
+						(int)syscall(SYS_gettid)
+						);
+				continue;
+			} else {
+				LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
+						"tid : %d, "
+						"fd : [%d], "
+						"error closed "
+						")",
+						(int)syscall(SYS_gettid),
+						fd
+						);
+				Disconnect(fd);
+				GetIdleMessageList()->PushBack(m);
+				break;
+			}
+		}
+	} while(true);
+	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessageImmediately( "
+				"tid : %d, "
+				"m->fd : [%d] "
+				"end "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd
+				);
+}
+
+void TcpServer::SendAllMessageImmediately() {
+	do {
+		Message *m = GetSendImmediatelyMessageList()->PopFront();
+		if( m == NULL ) {
+			break;
+		}
+
+		SendMessageImmediately(m);
+	}while(true);
+}
+
+bool TcpServer::Disconnect(int fd) {
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
 							"tid : %d, "
 							"fd : [%d], "
@@ -800,41 +986,41 @@ bool TcpServer::Disconnect(int fd, ev_io *wr, ev_io *ww) {
 
 		result = true;
 
+//		if( wr != NULL ) {
+//			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
+//										"tid : %d, "
+//										"fd : [%d], "
+//										"wr != NULL "
+//										")",
+//										(int)syscall(SYS_gettid),
+//										fd
+//										);
+//
+//			LockWatcherList();
+//			ev_io_stop(mLoop, wr);
+//			UnLockWatcherList();
+//
+//			mWatcherList.PushBack(wr);
+//		}
+//
+//		if( ww != NULL ) {
+//			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
+//							"tid : %d, "
+//							"fd : [%d], "
+//							"ww != NULL "
+//							")",
+//							(int)syscall(SYS_gettid),
+//							fd
+//							);
+//
+//			LockWatcherList();
+//			ev_io_stop(mLoop, ww);
+//			UnLockWatcherList();
+//
+//			mWatcherList.PushBack(ww);
+//		}
+
 		shutdown(fd, SHUT_RDWR);
-
-		if( wr != NULL ) {
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
-										"tid : %d, "
-										"fd : [%d], "
-										"wr != NULL "
-										")",
-										(int)syscall(SYS_gettid),
-										fd
-										);
-
-			LockWatcherList();
-			ev_io_stop(mLoop, wr);
-			UnLockWatcherList();
-
-			mWatcherList.PushBack(wr);
-		}
-
-		if( ww != NULL ) {
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
-							"tid : %d, "
-							"fd : [%d], "
-							"ww != NULL "
-							")",
-							(int)syscall(SYS_gettid),
-							fd
-							);
-
-			LockWatcherList();
-			ev_io_stop(mLoop, ww);
-			UnLockWatcherList();
-
-			mWatcherList.PushBack(ww);
-		}
 
 		TCloseSocketItem closeSocketItem;
 		closeSocketItem.iFd = fd;
@@ -869,6 +1055,23 @@ bool TcpServer::Disconnect(int fd, ev_io *wr, ev_io *ww) {
 	return result;
 }
 
+void TcpServer::StopEvio(ev_io *w) {
+	if( w != NULL ) {
+		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::StopEvio( "
+						"tid : %d, "
+						"w != NULL "
+						")",
+						(int)syscall(SYS_gettid)
+						);
+
+		LockWatcherList();
+		ev_io_stop(mLoop, w);
+		UnLockWatcherList();
+
+		mWatcherList.PushBack(w);
+	}
+}
+
 MessageList *TcpServer::GetIdleMessageList() {
 	return &mIdleMessageList;
 }
@@ -877,9 +1080,9 @@ MessageList *TcpServer::GetHandleMessageList() {
 	return &mHandleMessageList;
 }
 
-//MessageList *TcpServer::GetSendMessageList() {
-//	return &mSendMessageList;
-//}
+MessageList *TcpServer::GetSendImmediatelyMessageList() {
+	return &mSendImmediatelyMessageList;
+}
 
 MessageList *TcpServer::GetHandleSendMessageList() {
 	return &mHandleSendMessageList;
@@ -910,7 +1113,19 @@ struct ev_loop *TcpServer::GetEvLoop() {
 }
 
 void TcpServer::OnDisconnect(int fd, Message *m) {
-	bool result = Disconnect(fd, m->wr, m->ww);
+	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::OnDisconnect( "
+							"tid : %d, "
+							"fd : [%d], "
+							"start "
+							")",
+							(int)syscall(SYS_gettid),
+							fd
+							);
+
+	StopEvio(m->wr);
+	StopEvio(m->ww);
+
+	bool result = Disconnect(fd);
 
 	if( m != NULL ) {
 		mIdleMessageList.PushBack(m);
@@ -920,11 +1135,21 @@ void TcpServer::OnDisconnect(int fd, Message *m) {
 		LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::OnDisconnect( "
 					"tid : %d, "
 					"fd : [%d] "
+					"ok "
 					")",
 					(int)syscall(SYS_gettid),
 					fd
 					);
 	}
+
+	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::OnDisconnect( "
+							"tid : %d, "
+							"fd : [%d], "
+							"end "
+							")",
+							(int)syscall(SYS_gettid),
+							fd
+							);
 }
 
 bool TcpServer::OnAccept(Message *m) {
