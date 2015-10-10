@@ -178,7 +178,7 @@ void recv_callback(struct ev_loop *loop, ev_io *w, int revents) {
 			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::recv_callback( "
 					"tid : %d, "
 					"fd : [%d], "
-					"message( ret : %d ) : \n%s\n "
+					"message( ret : %d ) : \n%s\n"
 					")",
 					(int)syscall(SYS_gettid),
 					fd,
@@ -459,26 +459,6 @@ void async_send_callback(struct ev_loop *loop, ev_async *w, int revents) {
 				revents);
 }
 
-/* close socket thread */
-class CloseSocketRunnable : public KRunnable {
-public:
-	CloseSocketRunnable(TcpServer *container) {
-		mContainer = container;
-	}
-	virtual ~CloseSocketRunnable() {
-		mContainer = NULL;
-	}
-protected:
-	void onRun() {
-		while( mContainer->IsRunning() ) {
-			mContainer->HandleCloseQueue();
-		    sleep(1);
-		}
-	}
-private:
-	TcpServer *mContainer;
-};
-
 /* send thread */
 class SendRunnable : public KRunnable {
 public:
@@ -492,7 +472,7 @@ protected:
 	void onRun() {
 		while( mContainer->IsRunning() ) {
 			mContainer->SendAllMessageImmediately();
-			usleep(10);
+			usleep(100000);
 		}
 	}
 private:
@@ -546,14 +526,8 @@ protected:
 					break;
 				}
 
-				if( count < 3000 ) {
-					count += 100;
-				}
-
-				usleep(count);
+				usleep(100000);
 				continue;
-			} else {
-				count = 100;
 			}
 
 			LogManager::GetLogManager()->Log(LOG_STAT, "HandleRunnable::onRun( "
@@ -605,7 +579,6 @@ TcpServer::TcpServer() {
 	mTotalRecvTime = 0;
 	mTotalSendTime = 0;
 
-	mpCloseSocketRunnable = new CloseSocketRunnable(this);
 	mpHandleRunnable = new HandleRunnable(this);
 	mpMainRunnable = new MainRunnable(this);
 	mpSendRunnable = new SendRunnable(this);
@@ -617,10 +590,6 @@ TcpServer::~TcpServer() {
 	Stop();
 
 	mpTcpServerObserver = NULL;
-
-	if( mpCloseSocketRunnable != NULL ) {
-		delete mpCloseSocketRunnable;
-	}
 
 	if( mpMainRunnable != NULL ) {
 		delete mpMainRunnable;
@@ -720,13 +689,6 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 
 	mLoop = EV_DEFAULT;
 
-	/* close socket thread */
-	mpCloseSocketThread = new KThread(mpCloseSocketRunnable);
-	if( mpCloseSocketThread->start() != -1 ) {
-		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create close socket thread ok )");
-		printf("# Create close socket thread ok \n");
-	}
-
 	/* start main thread */
 	mpMainThread = new KThread(mpMainRunnable);
 	if( mpMainThread->start() != -1 ) {
@@ -757,12 +719,6 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 bool TcpServer::Stop() {
 	/* stop log thread */
 	mIsRunning = false;
-
-	/* release closesocket thread */
-	if( mpCloseSocketThread ) {
-		mpCloseSocketThread->stop();
-		delete mpCloseSocketThread;
-	}
 
 	/* release main thread */
 	if( mpMainThread ) {
@@ -968,7 +924,7 @@ void TcpServer::SendAllMessageImmediately() {
 	}while(true);
 }
 
-bool TcpServer::Disconnect(int fd) {
+void TcpServer::Disconnect(int fd) {
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
 							"tid : %d, "
 							"fd : [%d], "
@@ -978,70 +934,7 @@ bool TcpServer::Disconnect(int fd) {
 							fd
 							);
 
-	bool result = false;
-	mDisconnectingMutex.lock();
-	if( !mpDisconnecting[fd] ) {
-		mpDisconnecting[fd] = true;
-		mDisconnectingMutex.unlock();
-
-		result = true;
-
-//		if( wr != NULL ) {
-//			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
-//										"tid : %d, "
-//										"fd : [%d], "
-//										"wr != NULL "
-//										")",
-//										(int)syscall(SYS_gettid),
-//										fd
-//										);
-//
-//			LockWatcherList();
-//			ev_io_stop(mLoop, wr);
-//			UnLockWatcherList();
-//
-//			mWatcherList.PushBack(wr);
-//		}
-//
-//		if( ww != NULL ) {
-//			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
-//							"tid : %d, "
-//							"fd : [%d], "
-//							"ww != NULL "
-//							")",
-//							(int)syscall(SYS_gettid),
-//							fd
-//							);
-//
-//			LockWatcherList();
-//			ev_io_stop(mLoop, ww);
-//			UnLockWatcherList();
-//
-//			mWatcherList.PushBack(ww);
-//		}
-
-		shutdown(fd, SHUT_RDWR);
-
-		TCloseSocketItem closeSocketItem;
-		closeSocketItem.iFd = fd;
-		closeSocketItem.tApplyCloseTime = GetTickCount();
-
-		LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::Disconnect( "
-								"tid : %d, "
-								"fd : [%d], "
-								"push into close queue "
-								")",
-								(int)syscall(SYS_gettid),
-								fd
-								);
-
-		mCloseSocketQueueMutex.lock();
-		mCloseSocketQueue.push_back(closeSocketItem);
-		mCloseSocketQueueMutex.unlock();
-
-	} else {
-		mDisconnectingMutex.unlock();
-	}
+	shutdown(fd, SHUT_RDWR);
 
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
 					"tid : %d, "
@@ -1051,8 +944,6 @@ bool TcpServer::Disconnect(int fd) {
 					(int)syscall(SYS_gettid),
 					fd
 					);
-
-	return result;
 }
 
 void TcpServer::StopEvio(ev_io *w) {
@@ -1125,21 +1016,11 @@ void TcpServer::OnDisconnect(int fd, Message *m) {
 	StopEvio(m->wr);
 	StopEvio(m->ww);
 
-	bool result = Disconnect(fd);
+	Disconnect(fd);
+	close(fd);
 
 	if( m != NULL ) {
 		mIdleMessageList.PushBack(m);
-	}
-
-	if( result ) {
-		LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::OnDisconnect( "
-					"tid : %d, "
-					"fd : [%d] "
-					"ok "
-					")",
-					(int)syscall(SYS_gettid),
-					fd
-					);
 	}
 
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::OnDisconnect( "

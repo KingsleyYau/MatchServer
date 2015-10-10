@@ -75,7 +75,7 @@ public:
 	void SendMessageImmediately(Message *m);
 	void SendAllMessageImmediately();
 
-	bool Disconnect(int fd);
+	void Disconnect(int fd);
 
 	int GetSocket();
 	MessageList* GetIdleMessageList();
@@ -121,12 +121,6 @@ private:
 	/* Thread safe watcher list */
 	WatcherList mWatcherList;
 	KMutex mWatcherListMutex;
-
-	/**
-	 * CloseSocket线程
-	 */
-	CloseSocketRunnable* mpCloseSocketRunnable;
-	KThread* mpCloseSocketThread;
 
 	bool* mpDisconnecting;
 	KMutex mDisconnectingMutex;
