@@ -492,7 +492,7 @@ protected:
 	void onRun() {
 		while( mContainer->IsRunning() ) {
 			mContainer->SendAllMessageImmediately();
-			sleep(1);
+			usleep(10);
 		}
 	}
 private:

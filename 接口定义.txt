@@ -13,6 +13,7 @@ SITEID	当前站点Id
 例子 http://127.0.0.1:986/QUERY?MANID=1000&SITEID=1
 
 返回json
+{"womaninfo": [{"女士Id": 答案相同的问题数量}...}
 {
     "womaninfo": [
         {

@@ -30,8 +30,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	Json::FastWriter writer;
 	Json::Value rootSend, womanListNode, womanNode;
 
-	int iErrno = 0;
-	char sErrmsg[1024] = {'\0'};
 	int start = 0;
 	int time = 0;
 	int querytime = 0;
@@ -45,8 +43,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 		if( m->buffer != NULL ) {
 			ret = dataHttpParser.ParseData(m->buffer);
 		}
-	} else {
-		snprintf(sErrmsg, MAXLEN - 1, "query timeout");
 	}
 
 	start = GetTickCount();
@@ -205,10 +201,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			}
 		} else {
 			ret = -1;
-			iErrno = 1001;
-			sprintf(sErrmsg, "param not found");
 		}
-
 	} else {
 		LogManager::GetLogManager()->Log(
 				LOG_STAT,
@@ -234,12 +227,10 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			time
 			);
 
-	rootSend["ret"] = ret;
+	rootSend["fd"] = m->fd;
 	rootSend["womaninfo"] = womanListNode;
 	rootSend["querytime"] = querytime;
 	rootSend["time"] = time;
-	rootSend["errno"] = iErrno;
-	rootSend["errmsg"] = sErrmsg;
 
 	string param = writer.write(rootSend);
 
