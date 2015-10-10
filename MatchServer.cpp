@@ -81,7 +81,7 @@ void MatchServer::Run(int iMaxClient, int iMaxMemoryCopy, int iMaxHandleThread) 
 
 	/* db manager */
 	mDBManager.Init(iMaxMemoryCopy, false);
-	mDBManager.InitSyncDataBase(4, "192.168.70.129", 3306, "qpidnetwork", "root", "123456");
+	mDBManager.InitSyncDataBase(4, "192.168.169.128", 3306, "qpidnetwork", "root", "123456");
 
 	/* request manager */
 	mRequestManager.Init(&mDBManager);
