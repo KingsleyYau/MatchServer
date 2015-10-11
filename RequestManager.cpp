@@ -280,6 +280,7 @@ int RequestManager::HandleTimeoutMessage(Message *m, Message *sm) {
 	rootSend["querytime"] = querytime;
 	rootSend["time"] = time;
 	rootSend["totaltime"] = sm->totaltime;
+	rootSend["womaninfo"] = womanListNode;
 
 	string param = writer.write(rootSend);
 

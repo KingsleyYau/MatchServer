@@ -104,6 +104,9 @@ void MatchServer::Run(int iMaxClient, int iMaxMemoryCopy, int iMaxHandleThread) 
 	/* match server */
 	mClientTcpServer.SetTcpServerObserver(this);
 	mClientTcpServer.Start(miMaxClient, PORT, iMaxHandleThread);
+	/**
+	 * 预估相应时间,内存数目*超时间隔*每秒处理的任务
+	 */
 	mClientTcpServer.SetHandleSize(iMaxMemoryCopy * 5 * 10);
 	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( TcpServer Start ok, port : %d )", PORT);
 
