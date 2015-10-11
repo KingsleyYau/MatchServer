@@ -30,9 +30,9 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	Json::FastWriter writer;
 	Json::Value rootSend, womanListNode, womanNode;
 
-	int start = 0;
-	int time = 0;
-	int querytime = 0;
+	unsigned int start = 0;
+	unsigned int time = 0;
+	unsigned int querytime = 0;
 
 	if( m == NULL ) {
 		return ret;
@@ -48,21 +48,24 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	start = GetTickCount();
 
 	if( ret == 1 ) {
+		const char* pPath = dataHttpParser.GetPath();
 		const char* pManId = dataHttpParser.GetParam("MANID");
 		LogManager::GetLogManager()->Log(
 				LOG_MSG,
 				"RequestManager::HandleRecvMessage( "
 				"tid : %d, "
-				"m->fd: %d, "
+				"m->fd: [%d], "
+				"pPath : %s, "
 				"manid : %s, "
-				"parse ok "
+				"parse "
 				")",
 				(int)syscall(SYS_gettid),
 				m->fd,
+				pPath,
 				pManId
 				);
 
-		if( pManId != NULL ) {
+		if( pManId != NULL && strcmp(pPath, "/QUERY") == 0 ) {
 			// 执行查询
 			char sql[2048] = {'\0'};
 
@@ -106,20 +109,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			if( bResult && result && iRow > 0 ) {
 				for( int i = 1; i < (iRow + 1); i++ ) {
 					gettimeofday(&tStart, NULL);
-
-//					for( int j = 0; j < iColumn ; j++ ) {
-//						LogManager::GetLogManager()->Log(LOG_MSG, "RequestManager::HandleRecvMessage( "
-//										"tid : %d, "
-//										"m->fd: %d, "
-//										"result[%d * iColumn + %d] : %s "
-//										")",
-//										(int)syscall(SYS_gettid),
-//										m->fd,
-//										i,
-//										j,
-//										result[i * iColumn + j]
-//										);
-//					}
 
 					qid = atoi(result[i * iColumn + 1]);
 					aid = atoi(result[i * iColumn + 4]);
@@ -174,7 +163,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 								LOG_STAT,
 								"RequestManager::HandleRecvMessage( "
 								"tid : %d, "
-								"m->fd: %d, "
+								"m->fd: [%d], "
 								"size : %d, "
 								"iIndex : %d "
 								")",
@@ -198,13 +187,15 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					womanNode[itr->first] = itr->second;
 					womanListNode.append(womanNode);
 				}
+
+				rootSend["womaninfo"] = womanListNode;
 			}
 		} else {
 			ret = -1;
 		}
 	} else {
 		LogManager::GetLogManager()->Log(
-				LOG_STAT,
+				LOG_MSG,
 				"RequestManager::HandleRecvMessage( "
 				"m->fd: [%d], "
 				"parse fail "
@@ -214,23 +205,81 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	}
 
 	time = GetTickCount() - start;
+	sm->totaltime = GetTickCount() - m->starttime;
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
 			"RequestManager::HandleRecvMessage( "
 			"tid : %d, "
 			"m->fd: [%d], "
-			"querytime : %d ms, "
-			"time : %d ms "
+			"querytime : %u ms, "
+			"time : %u ms, "
+			"totaltime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
-			time
+			time,
+			sm->totaltime
 			);
 
 	rootSend["fd"] = m->fd;
-	rootSend["womaninfo"] = womanListNode;
 	rootSend["querytime"] = querytime;
 	rootSend["time"] = time;
+	rootSend["totaltime"] = sm->totaltime;
+
+	string param = writer.write(rootSend);
+
+	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 200 ok\r\nContext-Length:%d\r\n\r\n%s",
+								param.length(), param.c_str());
+	sm->len = strlen(sm->buffer);
+
+	return ret;
+}
+
+int RequestManager::HandleTimeoutMessage(Message *m, Message *sm) {
+	int ret = -1;
+
+	Json::FastWriter writer;
+	Json::Value rootSend, womanListNode, womanNode;
+
+	unsigned int start = 0;
+	unsigned int time = 0;
+	unsigned int querytime = 0;
+
+	if( m == NULL ) {
+		return ret;
+	}
+
+	DataHttpParser dataHttpParser;
+	if( m->buffer != NULL ) {
+		ret = dataHttpParser.ParseData(m->buffer);
+	}
+
+	start = GetTickCount();
+
+	if( ret == 1 ) {
+
+	}
+
+	time = GetTickCount() - start;
+	sm->totaltime = GetTickCount() - m->starttime;
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"RequestManager::HandleTimeoutMessage( "
+			"tid : %d, "
+			"m->fd: [%d], "
+			"querytime : %u ms, "
+			"time : %u ms, "
+			"totaltime : %u ms "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd,
+			time,
+			sm->totaltime
+			);
+	rootSend["fd"] = m->fd;
+	rootSend["querytime"] = querytime;
+	rootSend["time"] = time;
+	rootSend["totaltime"] = sm->totaltime;
 
 	string param = writer.write(rootSend);
 

@@ -92,7 +92,7 @@ bool Connnect(int i) {
 		char sendBuffer[2048] = {'\0'};
 		memset(sendBuffer, '\0', 2048);
 		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
-									"/?MANID=1000",
+									"/QUERY?MANID=1000",
 									strlen(msg),
 									"Keep-alive",
 									msg

@@ -37,7 +37,7 @@ public:
 	 *	return : -1:close/0:recv again/1:ok
 	 */
 	int HandleRecvMessage(Message *m, Message *sm);
-
+	int HandleTimeoutMessage(Message *m, Message *sm);
 protected:
 	unsigned int GetTickCount();
 

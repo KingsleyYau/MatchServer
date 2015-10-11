@@ -30,11 +30,13 @@ public:
 	int ParseData(char* buffer);
 
 	const char* GetParam(const char* key);
+	const char* GetPath();
 
 private:
 	HttpType mHttpType;
 	int miContentLength;
 	Parameters mParameters;
+	char mPath[1024];
 
 	void ParseFirstLine(char* buffer);
 	void ParseParameters(char* buffer);

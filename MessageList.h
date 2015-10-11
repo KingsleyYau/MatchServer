@@ -21,11 +21,12 @@
 #include <list>
 using namespace std;
 
-#define MAXLEN 4096
+#define MAXLEN 2048
 typedef struct Message {
 	int		fd;
 	int 	len;
-	unsigned int starttime;
+	unsigned int 	starttime;
+	unsigned int	totaltime;
 	int		type;
 	char	buffer[MAXLEN];
 	char    bitBuffer[128];
@@ -35,6 +36,7 @@ typedef struct Message {
 	void Reset() {
 		len = 0;
 		starttime = 0;
+		totaltime = 0;
 		memset(buffer, '\0', sizeof(buffer));
 		memset(bitBuffer, '\0', sizeof(bitBuffer));
 		wr = NULL;

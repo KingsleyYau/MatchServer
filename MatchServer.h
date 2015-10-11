@@ -29,6 +29,11 @@ public:
 	void OnRecvMessage(TcpServer *ts, Message *m);
 	void OnSendMessage(TcpServer *ts, Message *m);
 	void OnDisconnect(TcpServer *ts, int fd);
+	void OnTimeoutMessage(TcpServer *ts, Message *m);
+
+	unsigned int GetTotal();
+	unsigned int GetHit();
+	unsigned int GetIgn();
 
 private:
 	unsigned int GetTickCount();
@@ -49,6 +54,10 @@ private:
 	 */
 	StateRunnable* mpStateRunnable;
 	KThread* mpStateThread;
+
+	unsigned int mTotal;
+	unsigned int mHit;
+	unsigned int mIgn;
 };
 
 #endif /* MatchServer_H_ */

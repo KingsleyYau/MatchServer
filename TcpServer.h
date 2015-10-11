@@ -38,19 +38,18 @@
 //typedef list<ev_io *> WatcherList;
 typedef KSafeList<ev_io *> WatcherList;
 
-class CloseSocketRunnable;
 class SendRunnable;
 class HandleRunnable;
 class MainRunnable;
 class TcpServer;
 
-/// -----=== fgx 2012-12-12 ===----
-/// 延迟closesocket，延长socket值重用时间
-typedef struct _tagCloseSocketItem {
-    int     iFd;
-    time_t  tApplyCloseTime;
-} TCloseSocketItem;
-typedef deque<TCloseSocketItem> CloseSocketQueue;
+///// -----=== fgx 2012-12-12 ===----
+///// 延迟closesocket，延长socket值重用时间
+//typedef struct _tagCloseSocketItem {
+//    int     iFd;
+//    time_t  tApplyCloseTime;
+//} TCloseSocketItem;
+//typedef deque<TCloseSocketItem> CloseSocketQueue;
 
 class TcpServerObserver {
 public:
@@ -58,6 +57,7 @@ public:
 	virtual void OnRecvMessage(TcpServer *ts, Message *m) = 0;
 	virtual void OnSendMessage(TcpServer *ts, Message *m) = 0;
 	virtual void OnDisconnect(TcpServer *ts, int fd) = 0;
+	virtual void OnTimeoutMessage(TcpServer *ts, Message *m) = 0;
 };
 class TcpServer {
 public:
@@ -94,16 +94,20 @@ public:
 	void OnRecvMessage(Message *m);
 	void OnSendMessage(Message *m);
 	void OnDisconnect(int fd, Message *m);
+	void OnTimeoutMessage(Message *m);
 
 	void AddRecvTime(unsigned long time);
 	void AddSendTime(unsigned long time);
 
 	unsigned int GetTickCount();
 
-	void HandleCloseQueue();
+//	void HandleCloseQueue();
 
 	void LockWatcherList();
 	void UnLockWatcherList();
+
+	void SetHandleSize(unsigned int size);
+	unsigned int GetHandleSize();
 
 private:
 	void StopEvio(ev_io *w);
@@ -113,6 +117,7 @@ private:
 	MessageList mHandleMessageList;
 
 	MessageList mSendImmediatelyMessageList;
+
 	MessageList mHandleSendMessageList;
 	MessageList* mpSendMessageList;
 
@@ -168,36 +173,38 @@ private:
 //	int mCurrentConnection;
 //	KMutex mConnectionMutex;
 
-	/**
-	 * 关闭socket队列
-	 */
-	CloseSocketQueue mCloseSocketQueue;
-	KMutex mCloseSocketQueueMutex;
+//	/**
+//	 * 关闭socket队列
+//	 */
+//	CloseSocketQueue mCloseSocketQueue;
+//	KMutex mCloseSocketQueueMutex;
 
 	/**
 	 * 总接收包处理时间
 	 */
-	unsigned long mTotalHandleRecvTime;
+	unsigned int mTotalHandleRecvTime;
 
 	/**
 	 * 总发送包处理时间
 	 */
-	unsigned long mTotalHandleSendTime;
+	unsigned int mTotalHandleSendTime;
 
 	/**
 	 * 总接收包时间
 	 */
-	unsigned long mTotalRecvTime;
+	unsigned int mTotalRecvTime;
 
 	/**
 	 * 总发送包时间
 	 */
-	unsigned long mTotalSendTime;
+	unsigned int mTotalSendTime;
 
 	/**
 	 * 总时间
 	 */
-	unsigned long mTotalTime;
+	unsigned int mTotalTime;
+
+	unsigned int mHandleSize;
 };
 
 #endif /* TCPSERVER_H_ */

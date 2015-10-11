@@ -76,6 +76,10 @@ const char* DataHttpParser::GetParam(const char* key) {
 	return result;
 }
 
+const char* DataHttpParser::GetPath() {
+	return mPath;
+}
+
 void DataHttpParser::ParseFirstLine(char* buffer) {
 	char* p = NULL;
 	int j = 0;
@@ -95,10 +99,17 @@ void DataHttpParser::ParseFirstLine(char* buffer) {
 		}break;
 		case 1:{
 			// path and parameters
+			int len = strlen(p);
 			char* pPath = strstr(p, "?");
 			if( pPath != NULL && ((pPath + 1) != NULL) ) {
+				len = pPath - p;
+				memcpy(mPath, p, len);
 				ParseParameters(pPath + 1);
+			} else {
+				len = strlen(p);
+				memcpy(mPath, p, len);
 			}
+			mPath[len] = '\0';
 		}break;
 		default:break;
 		};
