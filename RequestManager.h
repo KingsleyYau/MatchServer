@@ -31,7 +31,6 @@ class RequestManagerCallback {
 public:
 	virtual ~RequestManagerCallback(){};
 	virtual void OnReload(RequestManager* pRequestManager) = 0;
-	virtual void OnSync(RequestManager* pRequestManager) = 0;
 };
 
 class RequestManager {

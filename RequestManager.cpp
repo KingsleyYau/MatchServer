@@ -340,13 +340,51 @@ int RequestManager::HandleInsideRecvMessage(Message *m, Message *sm) {
 				);
 
 		if( strcmp(pPath, "/SYNC") == 0 ) {
-			if( mpRequestManagerCallback != NULL ) {
-				mpRequestManagerCallback->OnSync(this);
-			}
+			mpDBManager->SyncForce();
 		} else if( strcmp(pPath, "/RELOAD") == 0 ) {
 			if( mpRequestManagerCallback != NULL ) {
 				mpRequestManagerCallback->OnReload(this);
 			}
+		} else if( strcmp(pPath, "/QUERY") == 0 ) {
+			char* sql = (char*)dataHttpParser.GetParam("SQL");
+			bool bResult = false;
+			char** result = NULL;
+			int iRow = 0;
+			int iColumn = 0;
+
+			Json::Value jsonNode, jsonList;
+			char row[32];
+			string column = "";
+
+			bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn);
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"RequestManager::HandleInsideRecvMessage( "
+					"tid : %d, "
+					"m->fd: [%d], "
+					"iRow : %d, "
+					"iColumn : %d "
+					")",
+					(int)syscall(SYS_gettid),
+					m->fd,
+					iRow,
+					iColumn
+					);
+			if( bResult && result && iRow > 0 ) {
+				for( int i = 1; i < (iRow + 1); i++ ) {
+					sprintf(row, "%d", i);
+					column = "";
+					for( int j = 0; j < iColumn; j++ ) {
+						column += result[i * iColumn + j];
+						column += ",";
+					}
+					column = column.substr(0, column.length() -1);
+					jsonNode[row] = column;
+					jsonList.append(jsonNode);
+				}
+			}
+
+			rootSend["result"] = jsonList;
 		} else {
 			ret = -1;
 		}

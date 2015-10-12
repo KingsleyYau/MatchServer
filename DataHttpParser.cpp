@@ -6,6 +6,7 @@
  */
 
 #include "DataHttpParser.h"
+#include "Arithmetic.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,6 +82,7 @@ const char* DataHttpParser::GetPath() {
 }
 
 void DataHttpParser::ParseFirstLine(char* buffer) {
+	char temp[1024];
 	char* p = NULL;
 	int j = 0;
 
@@ -99,15 +101,17 @@ void DataHttpParser::ParseFirstLine(char* buffer) {
 		}break;
 		case 1:{
 			// path and parameters
+			Arithmetic ari;
 			int len = strlen(p);
-			char* pPath = strstr(p, "?");
+			len = ari.decode_url(p, len, temp);
+			char* pPath = strstr(temp, "?");
 			if( pPath != NULL && ((pPath + 1) != NULL) ) {
-				len = pPath - p;
-				memcpy(mPath, p, len);
+				len = pPath - temp;
+				memcpy(mPath, temp, len);
 				ParseParameters(pPath + 1);
 			} else {
-				len = strlen(p);
-				memcpy(mPath, p, len);
+				len = strlen(temp);
+				memcpy(mPath, temp, len);
 			}
 			mPath[len] = '\0';
 		}break;

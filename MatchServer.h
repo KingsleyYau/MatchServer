@@ -47,7 +47,6 @@ public:
 
 	/* callback by RequestManagerCallback */
 	void OnReload(RequestManager* pRequestManager);
-	void OnSync(RequestManager* pRequestManager);
 
 	unsigned int GetTotal();
 	unsigned int GetHit();

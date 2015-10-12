@@ -336,10 +336,6 @@ void MatchServer::OnReload(RequestManager* pRequestManager) {
 	Reload();
 }
 
-void MatchServer::OnSync(RequestManager* pRequestManager) {
-	mDBManager.SyncForce();
-}
-
 unsigned int MatchServer::GetTotal() {
 	return mTotal;
 }
