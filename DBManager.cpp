@@ -16,9 +16,9 @@ public:
 	}
 protected:
 	void onRun() {
+		int i = 0;
 		while( true ) {
-			sleep(300);
-			mpDBManager->SyncDataFromDataBase();
+			mpDBManager->HandleSyncDatabase();
 		}
 	}
 	DBManager* mpDBManager;
@@ -28,9 +28,14 @@ DBManager::DBManager() {
 	// TODO Auto-generated constructor stub
 	miQueryIndex = 0;
 	miMaxMemoryCopy = 1;
+
 	miLastManRecordId = 0;
 	miLastLadyRecordId = 0;
+	miLastUpdateMan = 0;
+	miLastUpdateLady = 0;;
 
+	mbSyncForce = false;
+	mSyncDataTime = 30 * 1000;
 	mpSyncRunnable = new SyncRunnable(this);
 
 	sqlite3_config(SQLITE_CONFIG_MEMSTATUS, false);
@@ -192,9 +197,9 @@ void DBManager::SyncDataFromDataBase() {
 	gettimeofday(&tStart, NULL);
 
 	sprintf(sql,
-			"SELECT * FROM mq_man_answer WHERE id > %d"
+			"SELECT `id`, `q_id`, `question_status`, `content`, `manid`, `manname`, `country`, `answer_id`, `answer`, `q_concat`, `answer_time`, UNIX_TIMESTAMP(`last_update`), `ip`, `siteid` FROM mq_man_answer WHERE UNIX_TIMESTAMP(`last_update`) > %lld"
 			";",
-			miLastManRecordId
+			miLastUpdateMan
 	);
 	LogManager::GetLogManager()->Log(
 			LOG_WARNING,
@@ -232,7 +237,7 @@ void DBManager::SyncDataFromDataBase() {
 
 			for( int i = 0; i < miMaxMemoryCopy; i++ ) {
 				ExecSQL( mdbs[i], "BEGIN;", NULL );
-				sprintf(sql, "INSERT INTO man("
+				sprintf(sql, "REPLACE INTO man("
 						"`id`, "
 						"`qid`, "
 						"`question_status`, "
@@ -291,9 +296,9 @@ void DBManager::SyncDataFromDataBase() {
 	mDBSpool.ReleaseConnection(shIdt);
 
 	sprintf(sql,
-			"SELECT * FROM mq_woman_answer WHERE id > %d"
+			"SELECT `id`,`q_id`, `question_status`, `content`, `womanid`, `womanname`, `agent`, `answer_id`, `answer`, `q_concat`, `answer_time`, UNIX_TIMESTAMP(`last_update`), `siteid` FROM mq_woman_answer WHERE UNIX_TIMESTAMP(`last_update`) > %lld"
 			";",
-			miLastLadyRecordId
+			miLastUpdateLady
 	);
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
@@ -327,7 +332,7 @@ void DBManager::SyncDataFromDataBase() {
 
 			for( int i = 0; i < miMaxMemoryCopy; i++ ) {
 				ExecSQL( mdbs[i], "BEGIN;", NULL );
-				sprintf(sql, "INSERT INTO woman("
+				sprintf(sql, "REPLACE INTO woman("
 						"`id`, "
 						"`qid`, "
 						"`question_status`, "
@@ -392,10 +397,6 @@ void DBManager::SyncDataFromDataBase() {
 			);
 }
 
-int DBManager::GetLastLadyRecordId() {
-	return miLastManRecordId;
-}
-
 void DBManager::Status() {
 	sqlite3* db;
 	int current;
@@ -428,6 +429,14 @@ void DBManager::Status() {
 		printf("# db[%d] SQLITE_STATUS_PARSER_STACK, current : %d, highwater : %d \n", i, current, highwater);
 	}
 
+}
+
+int DBManager::GetSyncDataTime() {
+	return mSyncDataTime;
+}
+
+void DBManager::SetSyncDataTime(int second) {
+	mSyncDataTime = second;
 }
 
 bool DBManager::DumpDB(sqlite3 *db) {
@@ -500,7 +509,7 @@ bool DBManager::CreateTable(sqlite3 *db) {
 			"CREATE TABLE man("
 //						"ID INTEGER PRIMARY KEY AUTOINCREMENT,"
 						"id INT PRIMARY KEY,"
-						"qid INT,"
+						"qid BIGINT,"
 						"question_status INT,"
 						"manid VARCHAR(12),"
 						"aid INT,"
@@ -553,7 +562,7 @@ bool DBManager::CreateTable(sqlite3 *db) {
 			"CREATE TABLE woman("
 //						"ID INTEGER PRIMARY KEY AUTOINCREMENT,"
 						"id INT PRIMARY KEY,"
-						"qid INT,"
+						"qid BIGINT,"
 						"question_status INT,"
 						"womanid VARCHAR(50),"
 						"aid INT,"
@@ -570,10 +579,10 @@ bool DBManager::CreateTable(sqlite3 *db) {
 	}
 	printf("# Create table woman ok \n");
 
-	// 建女士表索引(QID, AID)
+	// 建女士表索引(qid, aid, question_status)
 	sprintf(sql,
-			"CREATE INDEX womanindex_qid_aid "
-			"ON woman (qid, aid)"
+			"CREATE INDEX womanindex_qid_aid_question_status "
+			"ON woman (qid, aid, question_status)"
 			";"
 	);
 
@@ -621,17 +630,17 @@ bool DBManager::InitTestData(sqlite3 *db) {
 
 	bFlag = ExecSQL( db, "BEGIN;", &msg );
 
-	sprintf(sql, "INSERT INTO man(`manid`, `qid`, `aid`) VALUES(?, ?, ?)");
+	sprintf(sql, "INSERT INTO man(`id`, `qid`, `question_status`, `manid`, `aid`, `siteid`) VALUES(?, ?, 1, ?, ?, 1)");
 	sqlite3_prepare_v2(db, sql, strlen(sql), &stmtMan, 0);
 
-	sprintf(sql, "INSERT INTO woman(`womanid`, `qid`, `aid`) VALUES(?, ?, ?)");
+	sprintf(sql, "INSERT INTO woman(`id`, `qid`, `question_status`, `womanid`, `aid`, `siteid`) VALUES(?, ?, 1, ?, ?, 1)");
 	sqlite3_prepare_v2(db, sql, strlen(sql), &stmtLady, 0);
 
 	// 插入表
 	gettimeofday(&tStart, NULL);
 	for( int i = 0; i < 40000; i++ ) {
 
-		sprintf(id, "man-%d", i);
+		sprintf(id, "%d", i);
 		sprintf(idlady, "%d", i);
 
 		for( int j = 0; j < 30; j++ ) {
@@ -648,9 +657,10 @@ bool DBManager::InitTestData(sqlite3 *db) {
 //
 //			bFlag = ExecSQL( db, sql, NULL );
 			sqlite3_reset(stmtMan);
-			sqlite3_bind_text(stmtMan, 1, id, strlen(id), NULL);
+			sqlite3_bind_int(stmtMan, 1, miLastManRecordId);
 			sqlite3_bind_int(stmtMan, 2, j);
-			sqlite3_bind_int(stmtMan, 3, r);
+			sqlite3_bind_text(stmtMan, 3, id, strlen(id), NULL);
+			sqlite3_bind_int(stmtMan, 4, r);
 			sqlite3_step(stmtMan);
 			miLastManRecordId++;
 
@@ -665,15 +675,16 @@ bool DBManager::InitTestData(sqlite3 *db) {
 //					);
 //			bFlag = ExecSQL( db, sql, NULL );
 			sqlite3_reset(stmtLady);
-			sqlite3_bind_text(stmtLady, 1, idlady, strlen(idlady), NULL);
+			sqlite3_bind_int(stmtLady, 1, miLastLadyRecordId);
 			sqlite3_bind_int(stmtLady, 2, j);
-			sqlite3_bind_int(stmtLady, 3, r);
+			sqlite3_bind_text(stmtLady, 3, idlady, strlen(idlady), NULL);
+			sqlite3_bind_int(stmtLady, 4, r);
 			sqlite3_step(stmtLady);
 			miLastLadyRecordId++;
 
-			if( miLastLadyRecordId % 60 == 0 ) {
-				usleep(10);
-			}
+//			if( miLastLadyRecordId % 60 == 0 ) {
+//				usleep(10);
+//			}
 		}
 	}
 	sqlite3_finalize(stmtMan);
@@ -732,14 +743,15 @@ bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int
 	sqlite3_reset(stmtMan);
 
 	if( iFields == 14 ) {
-
 		// id
 		if( row[0] ) {
 			sqlite3_bind_int(stmtMan, 1, atoi(row[0]));
 		}
 		// q_id -> qid
 		if( row[1] ) {
-			sqlite3_bind_int(stmtMan, 2, atoi(row[1]));
+			string qid = row[1];
+			qid = qid.substr(2, qid.length() - 2);
+			sqlite3_bind_int(stmtMan, 2, atoll(qid.c_str()));
 		}
 		// question_status
 		if( row[2] ) {
@@ -771,16 +783,25 @@ bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int
 //		}
 		// q_concat -> aid
 		if( row[9] ) {
-			sqlite3_bind_int(stmtMan, 5, atoi(row[9]));
+			string straid = row[9];
+			std::string::size_type pos = straid.find('-', 0);
+			if( pos != std::string::npos && pos != (straid.length() - 1) ) {
+				straid = straid.substr(pos + 1, straid.length() - (pos + 1));
+				sqlite3_bind_int(stmtMan, 5, atoi(straid.c_str()));
+			}
 		}
 //		// answer_time
 //		if( row[10] ) {
 //			sqlite3_bind_text(stmtMan, 11, row[10], strlen(row[10]), NULL);
 //		}
-//		// last_update
-//		if( row[11] ) {
+		// last_update
+		if( row[11] ) {
+			int timestamp = atoll(row[11]);
+			if( miLastUpdateMan < timestamp ) {
+				miLastUpdateMan = timestamp;
+			}
 //			sqlite3_bind_text(stmtMan, 12, row[11], strlen(row[11]), NULL);
-//		}
+		}
 //		// ip
 //		if( row[12] ) {
 //			sqlite3_bind_text(stmtMan, 13, row[12], strlen(row[12]), NULL);
@@ -809,7 +830,9 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 		}
 		// q_id -> qid
 		if( row[1] ) {
-			sqlite3_bind_int(stmtLady, 2, atoi(row[1]));
+			string qid = row[1];
+			qid = qid.substr(2, qid.length() - 2);
+			sqlite3_bind_int(stmtLady, 2, atoll(qid.c_str()));
 		}
 		// question_status
 		if( row[2] ) {
@@ -841,16 +864,25 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 //		}
 		// q_concat -> aid
 		if( row[9] ) {
-			sqlite3_bind_int(stmtLady, 5, atoi(row[9]));
+			string straid = row[9];
+			std::string::size_type pos = straid.find('-', 0);
+			if( pos != std::string::npos && pos != (straid.length() - 1) ) {
+				straid = straid.substr(pos + 1, straid.length() - (pos + 1));
+				sqlite3_bind_int(stmtLady, 5, atoi(straid.c_str()));
+			}
 		}
 //		// answer_time
 //		if( row[10] ) {
 //			sqlite3_bind_text(stmtLady, 11, row[10], strlen(row[10]), NULL);
 //		}
-//		// last_update
-//		if( row[11] ) {
+		// last_update
+		if( row[11] ) {
+			int timestamp = atoll(row[11]);
+			if( miLastUpdateLady < timestamp ) {
+				miLastUpdateLady = timestamp;
+			}
 //			sqlite3_bind_text(stmtLady, 12, row[11], strlen(row[11]), NULL);
-//		}
+		}
 		// siteid
 		if( row[12] ) {
 			sqlite3_bind_int(stmtLady, 6, atoi(row[12]));
@@ -862,4 +894,31 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 	}
 
 	return true;
+}
+
+void DBManager::SyncForce() {
+	mSyncMutex.lock();
+	mbSyncForce = true;
+	mSyncMutex.unlock();
+}
+
+void DBManager::HandleSyncDatabase() {
+	int i = 0;
+	mSyncMutex.lock();
+	if( mbSyncForce ) {
+		mbSyncForce = false;
+		mSyncMutex.unlock();
+
+		SyncDataFromDataBase();
+		i = 0;
+	} else {
+		mSyncMutex.unlock();
+
+		if( i > GetSyncDataTime() ) {
+			SyncDataFromDataBase();
+			i = 0;
+		}
+	}
+	i++;
+	sleep(1);
 }

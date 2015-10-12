@@ -8,6 +8,8 @@
 
 #include "TcpServer.h"
 
+//static struct ev_loop *gLoop = NULL;
+
 void accept_callback(struct ev_loop *loop, ev_io *w, int revents);
 void recv_callback(struct ev_loop *loop, ev_io *w, int revents);
 void send_callback(struct ev_loop *loop, ev_io *w, int revents);
@@ -580,6 +582,7 @@ protected:
 };
 TcpServer::TcpServer() {
 	// TODO Auto-generated constructor stub
+	mLoop = NULL;
 	mIsRunning = false;
 	mpTcpServerObserver = NULL;
 
@@ -667,7 +670,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	}
 
 	/* create watchers */
-	for(int i = 0 ; i < 3 * maxConnection; i++) {
+	for(int i = 0 ; i < 2 * maxConnection; i++) {
 		ev_io *w = (ev_io *)malloc(sizeof(ev_io));
 		if( w != NULL ) {
 			mWatcherList.PushBack(w);
@@ -699,7 +702,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 
 	mIsRunning = true;
 
-	mLoop = EV_DEFAULT;
+	mLoop = ev_loop_new(EVFLAG_AUTO);//EV_DEFAULT;
 
 	/* start main thread */
 	mpMainThread = new KThread(mpMainRunnable);
@@ -760,6 +763,10 @@ bool TcpServer::Stop() {
 		delete m;
 	}
 
+	if( mLoop ) {
+		ev_loop_destroy(mLoop);
+	}
+
 	return true;
 }
 
@@ -786,7 +793,7 @@ void TcpServer::SendMessage(Message *m) {
 
 	LockWatcherList();
 	/* signal main thread to send resopne */
-	ev_async_send(mLoop, &mAsync_send_watcher);
+	ev_async_send(GetEvLoop(), &mAsync_send_watcher);
 	UnLockWatcherList();
 
 	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
@@ -965,7 +972,7 @@ void TcpServer::StopEvio(ev_io *w) {
 						);
 
 		LockWatcherList();
-		ev_io_stop(mLoop, w);
+		ev_io_stop(GetEvLoop(), w);
 		UnLockWatcherList();
 
 		mWatcherList.PushBack(w);
@@ -1176,44 +1183,3 @@ void TcpServer::SetHandleSize(unsigned int size) {
 unsigned int TcpServer::GetHandleSize() {
 	return mHandleSize;
 }
-
-//void TcpServer::HandleCloseQueue() {
-//	TCloseSocketItem item;
-//
-//	while ( true ) {
-//		mCloseSocketQueueMutex.lock();
-//		if( !mCloseSocketQueue.empty() ) {
-//			item = mCloseSocketQueue.front();
-//			mCloseSocketQueue.pop_front();
-//			mCloseSocketQueueMutex.unlock();
-//
-//			if ( DiffGetTickCount(item.tApplyCloseTime, GetTickCount()) >= CLOSESOCKET_TIME ) {
-//
-//				LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::HandleCloseQueue( tid : %d, fd : [%d], timeout )",
-//														(int)syscall(SYS_gettid),
-//														item.iFd
-//														);
-//
-//				if( mpTcpServerObserver != NULL ) {
-//					mpTcpServerObserver->OnDisconnect(this, item.iFd);
-//				}
-//
-//				mDisconnectingMutex.lock();
-//				if( mpDisconnecting[item.iFd] ) {
-//					mpDisconnecting[item.iFd] = false;
-//					mDisconnectingMutex.unlock();
-//				} else {
-//					mDisconnectingMutex.unlock();
-//				}
-//
-//				close(item.iFd);
-//			} else {
-//				// 没到时间
-//				break;
-//			}
-//		} else {
-//			mCloseSocketQueueMutex.unlock();
-//			break;
-//		}
-//	}
-//}

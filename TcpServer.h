@@ -43,14 +43,6 @@ class HandleRunnable;
 class MainRunnable;
 class TcpServer;
 
-///// -----=== fgx 2012-12-12 ===----
-///// 延迟closesocket，延长socket值重用时间
-//typedef struct _tagCloseSocketItem {
-//    int     iFd;
-//    time_t  tApplyCloseTime;
-//} TCloseSocketItem;
-//typedef deque<TCloseSocketItem> CloseSocketQueue;
-
 class TcpServerObserver {
 public:
 	virtual bool OnAccept(TcpServer *ts, Message *m) = 0;
@@ -121,8 +113,6 @@ private:
 	MessageList mHandleSendMessageList;
 	MessageList* mpSendMessageList;
 
-//	Message **mpSendMessageList;
-
 	/* Thread safe watcher list */
 	WatcherList mWatcherList;
 	KMutex mWatcherListMutex;
@@ -172,12 +162,6 @@ private:
 //	 */
 //	int mCurrentConnection;
 //	KMutex mConnectionMutex;
-
-//	/**
-//	 * 关闭socket队列
-//	 */
-//	CloseSocketQueue mCloseSocketQueue;
-//	KMutex mCloseSocketQueueMutex;
 
 	/**
 	 * 总接收包处理时间

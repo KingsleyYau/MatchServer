@@ -26,23 +26,34 @@
 #include <map>
 using namespace std;
 
+class RequestManager;
+class RequestManagerCallback {
+public:
+	virtual ~RequestManagerCallback(){};
+	virtual void OnReload(RequestManager* pRequestManager) = 0;
+	virtual void OnSync(RequestManager* pRequestManager) = 0;
+};
+
 class RequestManager {
 public:
 	RequestManager();
 	virtual ~RequestManager();
 
 	bool Init(DBManager* pDBManager);
+	void SetRequestManagerCallback(RequestManagerCallback* pRequestManagerCallback);
 
 	/*
 	 *	return : -1:close/0:recv again/1:ok
 	 */
 	int HandleRecvMessage(Message *m, Message *sm);
 	int HandleTimeoutMessage(Message *m, Message *sm);
+	int HandleInsideRecvMessage(Message *m, Message *sm);
 protected:
 	unsigned int GetTickCount();
 
 private:
 	DBManager* mpDBManager;
+	RequestManagerCallback* mpRequestManagerCallback;
 };
 
 #endif /* CLIENTMANAGER_H_ */

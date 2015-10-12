@@ -13,14 +13,28 @@
 #include "TcpServer.h"
 #include "RequestManager.h"
 #include "DBManager.h"
+#include "ConfFile.hpp"
 
 class StateRunnable;
-class MatchServer : public TcpServerObserver {
+class MatchServer : public TcpServerObserver, RequestManagerCallback {
 public:
 	MatchServer();
 	virtual ~MatchServer();
 
-	void Run(int mMaxClient, int iMaxMemoryCopy = 1, int iMaxHandleThread = 1);
+	void Run(const string& config);
+	void Run(
+			short iPort,
+			int mMaxClient,
+			int iMaxMemoryCopy,
+			int iMaxHandleThread,
+			const string& host,
+			short dbPort,
+			const string& dbName,
+			const string& user,
+			const string& passwd,
+			int iMaxDatabaseThread
+			);
+	void Reload();
 	bool IsRunning();
 	TcpServer* GetTcpServer();
 
@@ -31,18 +45,22 @@ public:
 	void OnDisconnect(TcpServer *ts, int fd);
 	void OnTimeoutMessage(TcpServer *ts, Message *m);
 
+	/* callback by RequestManagerCallback */
+	void OnReload(RequestManager* pRequestManager);
+	void OnSync(RequestManager* pRequestManager);
+
 	unsigned int GetTotal();
 	unsigned int GetHit();
 	unsigned int GetIgn();
 
 private:
 	unsigned int GetTickCount();
+
 	TcpServer mClientTcpServer;
 	RequestManager mRequestManager;
 	DBManager mDBManager;
 
-	int miMaxClient;
-	int miMaxMemoryCopy;
+	TcpServer mClientTcpInsideServer;
 
 	/**
 	 * 是否运行
@@ -58,6 +76,8 @@ private:
 	unsigned int mTotal;
 	unsigned int mHit;
 	unsigned int mIgn;
+
+	string mConfigFile;
 };
 
 #endif /* MatchServer_H_ */

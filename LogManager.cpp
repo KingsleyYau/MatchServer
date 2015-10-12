@@ -16,7 +16,7 @@
 #include <string.h>
 
 // Just 4 log
-#include "MessageMgr.hpp"
+//#include "MessageMgr.hpp"
 static int g_bCreated = false;              //create flag
 SYS_CONF g_SysConf;
 

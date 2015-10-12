@@ -41,17 +41,27 @@ public:
 	bool Query(char* sql, char*** result, int* iRow, int* iColumn);
 	void FinishQuery(char** result);
 
+	int GetSyncDataTime();
+	void SetSyncDataTime(int second);
 	void SyncDataFromDataBase();
 	void Status();
 
-	int GetLastLadyRecordId();
+	void SyncForce();
+	void HandleSyncDatabase();
 
 private:
 	int miQueryIndex;
 	int miMaxMemoryCopy;
 	sqlite3** mdbs;
+
 	int miLastManRecordId;
 	int miLastLadyRecordId;
+	long long miLastUpdateMan;
+	long long miLastUpdateLady;
+
+	int mSyncDataTime;
+	bool mbSyncForce;
+	KMutex mSyncMutex;
 
 	char* mpSqliteHeapBuffer;
 	char* mpSqlitePageBuffer;

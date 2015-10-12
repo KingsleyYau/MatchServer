@@ -13,6 +13,7 @@
 
 RequestManager::RequestManager() {
 	// TODO Auto-generated constructor stub
+	mpRequestManagerCallback = NULL;
 }
 
 RequestManager::~RequestManager() {
@@ -22,6 +23,10 @@ RequestManager::~RequestManager() {
 bool RequestManager::Init(DBManager* pDBManager) {
 	mpDBManager = pDBManager;
 	return true;
+}
+
+void RequestManager::SetRequestManagerCallback(RequestManagerCallback* pRequestManagerCallback) {
+	mpRequestManagerCallback = pRequestManagerCallback;
 }
 
 int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
@@ -281,6 +286,67 @@ int RequestManager::HandleTimeoutMessage(Message *m, Message *sm) {
 	rootSend["time"] = time;
 	rootSend["totaltime"] = sm->totaltime;
 	rootSend["womaninfo"] = womanListNode;
+
+	string param = writer.write(rootSend);
+
+	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 200 ok\r\nContext-Length:%d\r\n\r\n%s",
+								param.length(), param.c_str());
+	sm->len = strlen(sm->buffer);
+
+	return ret;
+}
+
+int RequestManager::HandleInsideRecvMessage(Message *m, Message *sm) {
+	int ret = -1;
+
+	Json::FastWriter writer;
+	Json::Value rootSend, womanListNode, womanNode;
+
+	unsigned int start = 0;
+	unsigned int time = 0;
+	unsigned int querytime = 0;
+
+	if( m == NULL ) {
+		return ret;
+	}
+
+	DataHttpParser dataHttpParser;
+	if( m->buffer != NULL ) {
+		ret = dataHttpParser.ParseData(m->buffer);
+	}
+
+	start = GetTickCount();
+
+	if( ret == 1 ) {
+		const char* pPath = dataHttpParser.GetPath();
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"RequestManager::HandleInsideRecvMessage( "
+				"tid : %d, "
+				"m->fd: [%d], "
+				"pPath : %s, "
+				"parse "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd,
+				pPath
+				);
+
+		if( strcmp(pPath, "/SYNC") == 0 ) {
+			if( mpRequestManagerCallback != NULL ) {
+				mpRequestManagerCallback->OnSync(this);
+			}
+		} else if( strcmp(pPath, "/RELOAD") == 0 ) {
+			if( mpRequestManagerCallback != NULL ) {
+				mpRequestManagerCallback->OnReload(this);
+			}
+		} else {
+			ret = -1;
+		}
+	}
+
+	rootSend["fd"] = m->fd;
+	rootSend["ret"] = ret;
 
 	string param = writer.write(rootSend);
 

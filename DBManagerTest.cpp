@@ -19,7 +19,7 @@ protected:
 		char sql[2048] = {'\0'};
 		char sql2[2048] = {'\0'};
 //		sprintf(sql, "SELECT COUNT(DISTINCT LADY.ID) FROM LADY JOIN MAN ON MAN.QID = LADY.QID AND MAN.AID = LADY.AID WHERE MAN.MANID = 'man-10000';");
-		sprintf(sql, "SELECT * FROM MAN WHERE MANID = 'man-100';"); // 78us
+		sprintf(sql, "SELECT * FROM man WHERE manid = '100';"); // 78us
 
 		timeval tStart;
 		timeval tEnd;
@@ -47,20 +47,20 @@ protected:
 			long usec1 = (1000 * 1000 * tEnd1.tv_sec + tEnd1.tv_usec - (1000 * 1000 * tStart1.tv_sec + tStart1.tv_usec));
 			usleep(usec1);
 //			printf("iRow %d, iColumn : %d, result : %p \n", iRow, iColumn, result);
-			if( bResult && result ) {
-				for( int j = 0; j < (iRow + 1); j++ ) {
+			if( bResult && result && iRow > 0 ) {
+				for( int j = 1; j < (iRow + 1); j++ ) {
 //					for( int k = 0; k < iColumn; k++ ) {
 //						printf("%8s |", result[j * iColumn + k]);
 //					}
 //					printf("\n");
 					gettimeofday(&tStart2, NULL);
-					qid = atoi(result[j * iColumn + 2]);
-					aid = atoi(result[j * iColumn + 3]);
-					sprintf(sql2, "SELECT COUNT(DISTINCT ID) FROM WOMAN WHERE QID = %d AND AID = %d;", qid, aid);
+					qid = atoi(result[j * iColumn + 1]);
+					aid = atoi(result[j * iColumn + 4]);
+					sprintf(sql2, "SELECT * FROM woman WHERE qid = %d AND aid = %d AND question_status=1;", qid, aid);
 //					printf("sql2 : %s \n", sql2);
 					bResult = mpDBManagerTest->mDBManager.Query(sql2, &result2, &iRow2, &iColumn2);
 //					printf("iRow2 %d, iColumn2 : %d, result2 : %p \n", iRow2, iColumn2, result2);
-					if( bResult && result2 ) {
+					if( bResult && result2 && iRow2 > 0 ) {
 //						for( int j2 = 0; j2 < (iRow2 + 1); j2++ ) {
 //							for( int k = 0; k < iColumn2; k++ ) {
 //								printf("%8s |", result2[j2 * iColumn2 + k]);
@@ -170,7 +170,7 @@ void DBManagerTest::StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery)
 //					miSleep
 					);
 
-			mDBManager.Status();
+//			mDBManager.Status();
 			break;
 		}
 	}
