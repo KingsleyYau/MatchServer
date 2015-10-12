@@ -171,8 +171,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 						continue;
 					}
 
-					iItem++;
-					if( iItem > 29 ) {
+					if( iItem++ >= 30 ) {
 						break;
 					}
 
