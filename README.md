@@ -9,7 +9,7 @@
 基本域</br>
 [BASE]</br>
 外部端口</br>
-PORT=9876
+PORT=9876</br>
 最大连接数</br>
 MAXCLIENT=100000</br>
 内存副本数目</br>
