@@ -13,7 +13,7 @@ PORT=9876</br>
 最大连接数</br>
 MAXCLIENT=100000</br>
 内存副本数目</br>
-MAXMEMORYCOPY=1</br>     
+MAXMEMORYCOPY=1</br>
 接收处理线程</br>
 MAXHANDLETHREAD=2</br>
 日志级别</br>
