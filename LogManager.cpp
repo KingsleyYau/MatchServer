@@ -16,9 +16,7 @@
 #include <string.h>
 
 // Just 4 log
-//#include "MessageMgr.hpp"
 static int g_bCreated = false;              //create flag
-SYS_CONF g_SysConf;
 
 void LogManager::LogSetFlushBuffer(unsigned int iLen) {
     SetFlushBuffer(iLen);
@@ -118,15 +116,14 @@ bool LogManager::Log(LOG_LEVEL nLevel, const char *format, ...) {
                 delete g_pFileCtrl;
             }
             g_pFileCtrl = NULL;
-            g_pFileCtrl = new CFileCtrl(g_SysConf.strLogPath.c_str(), "Log", 128);
+            g_pFileCtrl = new CFileCtrl(mLogDir.c_str(), "Log", 128);
             if (!g_pFileCtrl) {
                 return -1;
             }
             g_pFileCtrl->Initialize();
             g_pFileCtrl->OpenLogFile();
 	    }
-//	    LPMESSAGE_DATA pMsg = GetIdleMsgBuff();
-//	    pMsg->pData->ReSet();
+
         Message *lm = mIdleMessageList.PopFront();
         if( lm != NULL ) {
             lm->Reset();
@@ -147,7 +144,6 @@ bool LogManager::Log(LOG_LEVEL nLevel, const char *format, ...) {
             strcat(lm->buffer, "\n");
             g_pFileCtrl->LogMsg(lm->buffer, (int)strlen(lm->buffer), lm->bitBuffer);
 
-    //        PutIdleMsgBuff(pMsg);
             mIdleMessageList.PushBack(lm);
         }
 
@@ -157,7 +153,7 @@ bool LogManager::Log(LOG_LEVEL nLevel, const char *format, ...) {
 	return true;
 }
 
-bool LogManager::Start(int maxIdle, LOG_LEVEL nLevel) {
+bool LogManager::Start(int maxIdle, LOG_LEVEL nLevel, const string& dir) {
 	/* create log buffers */
 	for(int i = 0; i < maxIdle; i++) {
 		Message *m = new Message();
@@ -168,7 +164,8 @@ bool LogManager::Start(int maxIdle, LOG_LEVEL nLevel) {
 
 	// Just 4 log
 	g_iLogLevel = nLevel;
-    MkDir(g_SysConf.strLogPath.c_str());
+    MkDir(dir.c_str());
+    mLogDir = dir;
 //    MkDir(g_SysConf.strTempPath.c_str());
 //    InitMsgList(maxIdle);
 //    KLog::SetLogDirectory(g_SysConf.strLogPath.c_str());

@@ -5,7 +5,7 @@ LIBS =		libev/.libs/libev.a -lpthread -L. -lsqlite3 -L/usr/lib64/mysql -L/usr/li
 
 JSONOBJS = 	json_reader.o json_value.o json_writer.o md5.o
 OBJS =		server.o KThread.o KLog.o MatchServer.o TcpServer.o MessageList.o RequestManager.o  \
-			DataParser.o DataHttpParser.o MessageMgr.o DBManager.o DBSpool.o LogManager.o LogFile.o \
+			DataParser.o DataHttpParser.o DBManager.o DBSpool.o LogManager.o LogFile.o \
 			ConfFile.o Arithmetic.o 
 OBJS += 	$(JSONOBJS)
 TARGET =	server

@@ -8,14 +8,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "LogFile.hpp"
-#include "MessageMgr.hpp"
 
 LOG_LEVEL g_iLogLevel = LOG_MSG;
 CFileCtrl *g_pFileCtrl = NULL;              //Log class
 //static int g_bCreated = false;              //create flag
 static unsigned g_iMemSize = 0;
 pthread_mutex_t m_hMutexBuffer;
-extern SYS_CONF g_SysConf;
 
 void SetFlushBuffer(unsigned int iLen)
 {

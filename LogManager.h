@@ -33,7 +33,7 @@ public:
 	LogManager();
 	virtual ~LogManager();
 
-	bool Start(int maxIdle, LOG_LEVEL nLevel = LOG_STAT);
+	bool Start(int maxIdle, LOG_LEVEL nLevel = LOG_STAT, const string& dir = "log");
 	bool Stop();
 	bool IsRunning();
 	bool Log(LOG_LEVEL nLevel, const char *format, ...);
@@ -49,6 +49,8 @@ public:
 private:
 	KThread *mpLogThread;
 	bool mIsRunning;
+
+	string mLogDir;
 };
 
 #endif /* LOGMANAGER_H_ */

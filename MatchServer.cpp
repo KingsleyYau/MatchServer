@@ -108,11 +108,12 @@ void MatchServer::Run(const string& config) {
 		int iMaxDatabaseThread = atoi(conf->GetPrivate("DB", "MAXDATABASETHREAD", "4").c_str());
 		int iSyncDataTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZETIME", "30").c_str());
 		mDBManager.SetSyncDataTime(iSyncDataTime * 60);
+		string dir = conf->GetPrivate("DB", "LOGDIR", "log");
 
 		/* log system */
 		LogManager::LogSetFlushBuffer(5 * BUFFER_SIZE_1K * BUFFER_SIZE_1K);
 //		LogManager::LogSetFlushBuffer(0);
-		LogManager::GetLogManager()->Start(1000, iLogLevel);
+		LogManager::GetLogManager()->Start(1000, iLogLevel, dir);
 
 		delete conf;
 		Run(iPort, iMaxClient, iMaxMemoryCopy, iMaxHandleThread, host, dbPort, dbName, user, passwd, iMaxDatabaseThread);
@@ -157,14 +158,20 @@ void MatchServer::Run(
 			passwd.c_str(),
 			iMaxDatabaseThread
 			);
+	bool bFlag = false;
 
 	mTotal = 0;
 	mIgn = 0;
 	mHit = 0;
 
 	/* db manager */
-	mDBManager.Init(iMaxMemoryCopy, false);
-	mDBManager.InitSyncDataBase(iMaxDatabaseThread, host.c_str(), dbPort, dbName.c_str(), user.c_str(), passwd.c_str());
+	bFlag = mDBManager.Init(iMaxMemoryCopy, false);
+	bFlag = bFlag && mDBManager.InitSyncDataBase(iMaxDatabaseThread, host.c_str(), dbPort, dbName.c_str(), user.c_str(), passwd.c_str());
+
+	if( !bFlag ) {
+		LogManager::GetLogManager()->Log(LOG_ERR_SYS, "MatchServer::Run( database init error )");
+		return;
+	}
 
 	/* request manager */
 	mRequestManager.Init(&mDBManager);

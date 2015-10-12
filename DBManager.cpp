@@ -39,16 +39,6 @@ DBManager::DBManager() {
 	mpSyncRunnable = new SyncRunnable(this);
 
 	sqlite3_config(SQLITE_CONFIG_MEMSTATUS, false);
-
-//	int size = 200 * 1024 * 1024;
-//	mpSqliteHeapBuffer = new char[size];
-//	sqlite3_config(SQLITE_CONFIG_HEAP, mpSqliteHeapBuffer, size, 2);
-//
-//	int size = 1024 * 1024 * 1024;
-//	mpSqlitePageBuffer = new char[size];
-//	sqlite3_config(SQLITE_CONFIG_PAGECACHE, mpSqlitePageBuffer, 4, 256 * 1024 * 1024);
-//
-//	sqlite3_config(SQLITE_CONFIG_LOOKASIDE, 1024, 1024);
 }
 
 DBManager::~DBManager() {

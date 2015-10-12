@@ -36,8 +36,8 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	Json::Value rootSend, womanListNode, womanNode;
 
 	unsigned int start = 0;
-	unsigned int time = 0;
-	unsigned int querytime = 0;
+	unsigned int iHandleTime = 0;
+	unsigned int iQueryTime = 0;
 
 	if( m == NULL ) {
 		return ret;
@@ -153,35 +153,23 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					gettimeofday(&tEnd, NULL);
 					long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
 					usleep(usec);
-					querytime += usec / 1000;
+					iQueryTime += usec / 1000;
 				}
 
 				mpDBManager->FinishQuery(result);
 
-				int size = womanidMap.size();// - 30;
-//				size = (size > 0)?size:0;
+				int iStartMap = GetTickCount();
+				int iMapSize = womanidMap.size() - 30;
+				iMapSize = (iMapSize > 0)?iMapSize:0;
 
-				int iIndex = 0;//rand() % size;
+				int iIndex = rand() % iMapSize;
 				int iCount = 0;
 				int iItem = 0;
-				LogManager::GetLogManager()->Log(
-								LOG_STAT,
-								"RequestManager::HandleRecvMessage( "
-								"tid : %d, "
-								"m->fd: [%d], "
-								"size : %d, "
-								"iIndex : %d "
-								")",
-								(int)syscall(SYS_gettid),
-								m->fd,
-								size,
-								iIndex
-								);
 				for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
-//					iCount++;
-//					if( iCount < iIndex ) {
-//						continue;
-//					}
+					iCount++;
+					if( iCount < iIndex ) {
+						continue;
+					}
 
 					iItem++;
 					if( iItem > 29 ) {
@@ -192,7 +180,27 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					womanNode[itr->first] = itr->second;
 					womanListNode.append(womanNode);
 				}
+				int iRandTime = GetTickCount() - iStartMap;
+				LogManager::GetLogManager()->Log(
+								LOG_STAT,
+								"RequestManager::HandleRecvMessage( "
+								"tid : %d, "
+								"m->fd: [%d], "
+								"iMapSize : %d, "
+								"iIndex : %d, "
+								"iRandTime: %d "
+								")",
+								(int)syscall(SYS_gettid),
+								m->fd,
+								iMapSize,
+								iIndex,
+								iRandTime
+								);
 
+				rootSend["iQueryTime"] = iQueryTime;
+//				rootSend["iIndex"] = iIndex;
+//				rootSend["iMapSize"] = iMapSize;
+//				rootSend["iRandTime"] = iRandTime;
 				rootSend["womaninfo"] = womanListNode;
 			}
 		} else {
@@ -209,26 +217,26 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				);
 	}
 
-	time = GetTickCount() - start;
+	iHandleTime = GetTickCount() - start;
 	sm->totaltime = GetTickCount() - m->starttime;
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
 			"RequestManager::HandleRecvMessage( "
 			"tid : %d, "
 			"m->fd: [%d], "
-			"querytime : %u ms, "
-			"time : %u ms, "
+			"iQueryTime : %u ms, "
+			"iHandleTime : %u ms, "
 			"totaltime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
-			time,
+			iQueryTime,
+			iHandleTime,
 			sm->totaltime
 			);
 
 	rootSend["fd"] = m->fd;
-	rootSend["querytime"] = querytime;
-	rootSend["time"] = time;
+	rootSend["iHandleTime"] = iHandleTime;
 	rootSend["totaltime"] = sm->totaltime;
 
 	string param = writer.write(rootSend);
