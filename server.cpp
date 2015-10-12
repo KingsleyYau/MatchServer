@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
 	if( sConf.length() > 0 ) {
 		server.Run(sConf);
 	} else {
-		return EXIT_FAILURE;
+		printf("# Usage : ./matchserver -f config \n");
 	}
 
 	return EXIT_SUCCESS;
@@ -53,7 +53,7 @@ bool Parse(int argc, char *argv[]) {
 		}
 	}
 
-	printf("# config : %s \n", sConf.c_str());
+//	printf("# config : %s \n", sConf.c_str());
 
 	return true;
 }
