@@ -17,6 +17,7 @@ public:
 	virtual ~DBManagerTest();
 
 	void StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery);
+	void TestSql(string sql);
 
 	DBManager mDBManager;
 	int miMaxQuery;

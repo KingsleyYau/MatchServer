@@ -90,7 +90,7 @@ bool DBManager::InitSyncDataBase(
 	bFlag = bFlag && mDBSpool.Connect();
 
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_STAT,
 			"DBManager::InitSyncDataBase( "
 			"pcHost : %s, "
 			"shPort : %d, "
@@ -119,7 +119,8 @@ bool DBManager::InitSyncDataBase(
 
 bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn) {
 	LogManager::GetLogManager()->Log(
-							LOG_STAT, "DBManager::Query( "
+							LOG_STAT,
+							"DBManager::Query( "
 							"tid : %d, "
 							"sql : %s "
 							")",
@@ -141,7 +142,8 @@ bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn) {
 	bFlag = QuerySQL( db, sql, result, iRow, iColumn, &msg );
 	if( msg != NULL ) {
 		LogManager::GetLogManager()->Log(
-								LOG_STAT, "DBManager::Query( "
+								LOG_STAT,
+								"DBManager::Query( "
 								"tid : %d, "
 								"Could not select table, msg : %s "
 								")",
@@ -192,7 +194,7 @@ void DBManager::SyncDataFromDataBase() {
 			miLastUpdateMan
 	);
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"DBManager::SyncDataFromDataBase( "
 			"tid : %d, "
 			"sql : %s "
@@ -272,7 +274,30 @@ void DBManager::SyncDataFromDataBase() {
 
 				for( int j = 0; j < miMaxMemoryCopy; j++ ) {
 					// insert man
-					InsertManFromDataBase(stmtMan[j], row, iFields);
+					bool bFlag = InsertManFromDataBase(stmtMan[j], row, iFields);
+					if( !bFlag ) {
+						string value = "[";
+						for( int j = 0; j < iFields; j++ ) {
+							value += row[j];
+							value += ",";
+						}
+						if( value.length() > 1 ) {
+							value = value.substr(0, value.length() - 1);
+						}
+						value += "]";
+						LogManager::GetLogManager()->Log(
+								LOG_ERR_USER,
+								"DBManager::SyncDataFromDataBase( "
+								"tid : %d, "
+								"InsertManFromDataBase fail, "
+								"row : %d, "
+								"value : %s "
+								")",
+								(int)syscall(SYS_gettid),
+								i,
+								value.c_str()
+								);
+					}
 				}
 			}
 
@@ -352,7 +377,30 @@ void DBManager::SyncDataFromDataBase() {
 
 				for( int j = 0; j < miMaxMemoryCopy; j++ ) {
 					// insert lady
-					InsertLadyFromDataBase(stmtLady[j], row, iFields);
+					bool bFlag = InsertLadyFromDataBase(stmtLady[j], row, iFields);
+					if( !bFlag ) {
+						string value = "[";
+						for( int j = 0; j < iFields; j++ ) {
+							value += row[j];
+							value += ",";
+						}
+						if( value.length() > 1 ) {
+							value = value.substr(0, value.length() - 1);
+						}
+						value += "]";
+						LogManager::GetLogManager()->Log(
+								LOG_ERR_USER,
+								"DBManager::SyncDataFromDataBase( "
+								"tid : %d, "
+								"InsertLadyFromDataBase fail, "
+								"row : %d, "
+								"value : %s "
+								")",
+								(int)syscall(SYS_gettid),
+								i,
+								value.c_str()
+								);
+					}
 				}
 			}
 
@@ -569,10 +617,10 @@ bool DBManager::CreateTable(sqlite3 *db) {
 	}
 	printf("# Create table woman ok \n");
 
-	// 建女士表索引(qid, aid, question_status)
+	// 建女士表索引(qid, aid)
 	sprintf(sql,
-			"CREATE INDEX womanindex_qid_aid_question_status "
-			"ON woman (qid, aid, question_status)"
+			"CREATE INDEX womanindex_qid_aid_question_status_siteid "
+			"ON woman (qid, aid, question_status, siteid)"
 			";"
 	);
 
@@ -630,8 +678,8 @@ bool DBManager::InitTestData(sqlite3 *db) {
 	gettimeofday(&tStart, NULL);
 	for( int i = 0; i < 40000; i++ ) {
 
-		sprintf(id, "%d", i);
-		sprintf(idlady, "%d", i);
+		sprintf(id, "CM%d", i);
+		sprintf(idlady, "CM%d", i);
 
 		for( int j = 0; j < 30; j++ ) {
 			sprintf(qid, "%d", j);
@@ -736,16 +784,22 @@ bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int
 		// id
 		if( row[0] ) {
 			sqlite3_bind_int(stmtMan, 1, atoi(row[0]));
+		} else {
+			return false;
 		}
 		// q_id -> qid
 		if( row[1] ) {
 			string qid = row[1];
 			qid = qid.substr(2, qid.length() - 2);
-			sqlite3_bind_int(stmtMan, 2, atoll(qid.c_str()));
+			sqlite3_bind_int64(stmtMan, 2, atoll(qid.c_str()));
+		} else {
+			return false;
 		}
 		// question_status
 		if( row[2] ) {
 			sqlite3_bind_int(stmtMan, 3, atoi(row[2]));
+		} else {
+			return false;
 		}
 //		// content
 //		if( row[3] ) {
@@ -754,6 +808,8 @@ bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int
 		// manid
 		if( row[4] ) {
 			sqlite3_bind_text(stmtMan, 4, row[4], strlen(row[4]), NULL);
+		} else {
+			return false;
 		}
 //		// manname
 //		if( row[5] ) {
@@ -778,7 +834,11 @@ bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int
 			if( pos != std::string::npos && pos != (straid.length() - 1) ) {
 				straid = straid.substr(pos + 1, straid.length() - (pos + 1));
 				sqlite3_bind_int(stmtMan, 5, atoi(straid.c_str()));
+			} else {
+				return false;
 			}
+		} else {
+			return false;
 		}
 //		// answer_time
 //		if( row[10] ) {
@@ -791,6 +851,8 @@ bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int
 				miLastUpdateMan = timestamp;
 			}
 //			sqlite3_bind_text(stmtMan, 12, row[11], strlen(row[11]), NULL);
+		} else {
+			return false;
 		}
 //		// ip
 //		if( row[12] ) {
@@ -799,6 +861,8 @@ bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int
 		// siteid
 		if( row[13] ) {
 			sqlite3_bind_int(stmtMan, 6, atoi(row[13]));
+		} else {
+			return false;
 		}
 
 		int code = sqlite3_step(stmtMan);
@@ -817,16 +881,22 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 		// id
 		if( row[0] ) {
 			sqlite3_bind_int(stmtLady, 1, atoi(row[0]));
+		} else {
+			return false;
 		}
 		// q_id -> qid
 		if( row[1] ) {
 			string qid = row[1];
 			qid = qid.substr(2, qid.length() - 2);
-			sqlite3_bind_int(stmtLady, 2, atoll(qid.c_str()));
+			sqlite3_bind_int64(stmtLady, 2, atoll(qid.c_str()));
+		} else {
+			return false;
 		}
 		// question_status
 		if( row[2] ) {
 			sqlite3_bind_int(stmtLady, 3, atoi(row[2]));
+		} else {
+			return false;
 		}
 //		// content
 //		if( row[3] ) {
@@ -835,6 +905,8 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 		// womanid
 		if( row[4] ) {
 			sqlite3_bind_text(stmtLady, 4, row[4], strlen(row[4]), NULL);
+		} else {
+			return false;
 		}
 //		// womanname
 //		if( row[5] ) {
@@ -859,7 +931,11 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 			if( pos != std::string::npos && pos != (straid.length() - 1) ) {
 				straid = straid.substr(pos + 1, straid.length() - (pos + 1));
 				sqlite3_bind_int(stmtLady, 5, atoi(straid.c_str()));
+			} else {
+				return false;
 			}
+		} else {
+			return false;
 		}
 //		// answer_time
 //		if( row[10] ) {
@@ -872,13 +948,18 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 				miLastUpdateLady = timestamp;
 			}
 //			sqlite3_bind_text(stmtLady, 12, row[11], strlen(row[11]), NULL);
+		} else {
+			return false;
 		}
 		// siteid
 		if( row[12] ) {
 			sqlite3_bind_int(stmtLady, 6, atoi(row[12]));
+		} else {
+			return false;
 		}
 
 		int code = sqlite3_step(stmtLady);
+
 	} else {
 		return false;
 	}

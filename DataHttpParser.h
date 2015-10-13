@@ -9,6 +9,13 @@
 #define DATAHTTPPARSER_H_
 
 #include "DataParser.h"
+#include "Arithmetic.hpp"
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <ctype.h>
+#include <algorithm>
 
 #include <string>
 #include <map>
@@ -36,7 +43,7 @@ private:
 	HttpType mHttpType;
 	int miContentLength;
 	Parameters mParameters;
-	char mPath[1024];
+	string mPath;
 
 	void ParseFirstLine(char* buffer);
 	void ParseParameters(char* buffer);

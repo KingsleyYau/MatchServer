@@ -6,10 +6,6 @@
  */
 
 #include "DataHttpParser.h"
-#include "Arithmetic.hpp"
-
-#include <stdio.h>
-#include <stdlib.h>
 
 DataHttpParser::DataHttpParser() {
 	// TODO Auto-generated constructor stub
@@ -78,7 +74,7 @@ const char* DataHttpParser::GetParam(const char* key) {
 }
 
 const char* DataHttpParser::GetPath() {
-	return mPath;
+	return mPath.c_str();
 }
 
 void DataHttpParser::ParseFirstLine(char* buffer) {
@@ -101,19 +97,22 @@ void DataHttpParser::ParseFirstLine(char* buffer) {
 		}break;
 		case 1:{
 			// path and parameters
+			char path[1025] = {'\0'};
 			Arithmetic ari;
 			int len = strlen(p);
 			len = ari.decode_url(p, len, temp);
 			char* pPath = strstr(temp, "?");
 			if( pPath != NULL && ((pPath + 1) != NULL) ) {
 				len = pPath - temp;
-				memcpy(mPath, temp, len);
+				memcpy(path, temp, len);
 				ParseParameters(pPath + 1);
 			} else {
 				len = strlen(temp);
-				memcpy(mPath, temp, len);
+				memcpy(path, temp, len);
 			}
-			mPath[len] = '\0';
+			path[len] = '\0';
+			mPath = path;
+			transform(mPath.begin(), mPath.end(), mPath.begin(), ::toupper);
 		}break;
 		default:break;
 		};
@@ -126,8 +125,8 @@ void DataHttpParser::ParseFirstLine(char* buffer) {
 void DataHttpParser::ParseParameters(char* buffer) {
 	char* p = NULL;
 	char* param = NULL;
-	char* key = NULL;
-	char* value = NULL;
+	string key;
+	string value;
 	int j = 0;
 
 	char *pFirst = NULL;
@@ -135,8 +134,6 @@ void DataHttpParser::ParseParameters(char* buffer) {
 
 	param = strtok_r(buffer, "&", &pFirst);
 	while( param != NULL ) {
-		key = NULL;
-		value = NULL;
 		j = 0;
 		p = strtok_r(param, "=", &pSecond);
 		while( p != NULL ) {
@@ -144,10 +141,12 @@ void DataHttpParser::ParseParameters(char* buffer) {
 			case 0:{
 				// key
 				key = p;
+				transform(key.begin(), key.end(), key.begin(), ::toupper);
 			}break;
 			case 1:{
 				// value
 				value = p;
+				transform(value.begin(), value.end(), value.begin(), ::toupper);
 				mParameters.insert(Parameters::value_type(key, value));
 			}break;
 			default:break;

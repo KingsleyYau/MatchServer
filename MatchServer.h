@@ -32,7 +32,9 @@ public:
 			const string& dbName,
 			const string& user,
 			const string& passwd,
-			int iMaxDatabaseThread
+			int iMaxDatabaseThread,
+			LOG_LEVEL iLogLevel,
+			const string& logDir
 			);
 	void Reload();
 	bool IsRunning();

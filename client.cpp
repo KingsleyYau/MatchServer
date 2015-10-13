@@ -88,17 +88,17 @@ bool Connnect(int i) {
 //		LogManager::GetLogManager()->Log("TcpTestClient::Connnect( connect ok fd : %d )", mClient);
 		printf("# Connnect( connect ok fd : %d ) \n", mClient);
 		char msg[1024] = {'\0'};
-		sprintf(msg, "hello world : %d", i);
+		sprintf(msg, "client : %d", i);
 		char sendBuffer[2048] = {'\0'};
 		memset(sendBuffer, '\0', 2048);
 		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
-									"/QUERY?MANID=1000",
+									"/QUERY?MANID=CM1000&SITEID=1",
 									strlen(msg),
 									"Keep-alive",
 									msg
 									);
 		send(mClient, sendBuffer, strlen(sendBuffer), 0);
-		printf("# Connnect( send ok fd : %d, hello world : %d ) \n", mClient, i);
+		printf("# Connnect( send ok fd : %d, client : %d ) \n", mClient, i);
 //
 //		while( 1 ) {
 //			/* recv from call server */

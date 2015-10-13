@@ -98,7 +98,7 @@ void MatchServer::Run(const string& config) {
 		int iMaxClient = atoi(conf->GetPrivate("BASE", "MAXCLIENT", "100000").c_str());
 		int iMaxMemoryCopy = atoi(conf->GetPrivate("BASE", "MAXMEMORYCOPY", "1").c_str());
 		int iMaxHandleThread = atoi(conf->GetPrivate("BASE", "MAXHANDLETHREAD", "2").c_str());
-		int iLogLevel = atoi(conf->GetPrivate("BASE", "LOGLEVEL", "5").c_str());
+
 
 		string host = conf->GetPrivate("DB", "DBHOST", "localhost");
 		short dbPort = atoi(conf->GetPrivate("DB", "DBPORT", "3306").c_str());
@@ -108,15 +108,12 @@ void MatchServer::Run(const string& config) {
 		int iMaxDatabaseThread = atoi(conf->GetPrivate("DB", "MAXDATABASETHREAD", "4").c_str());
 		int iSyncDataTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZETIME", "30").c_str());
 		mDBManager.SetSyncDataTime(iSyncDataTime * 60);
-		string dir = conf->GetPrivate("DB", "LOGDIR", "log");
 
-		/* log system */
-		LogManager::LogSetFlushBuffer(5 * BUFFER_SIZE_1K * BUFFER_SIZE_1K);
-//		LogManager::LogSetFlushBuffer(0);
-		LogManager::GetLogManager()->Start(1000, iLogLevel, dir);
+		int iLogLevel = atoi(conf->GetPrivate("LOG", "LOGLEVEL", "5").c_str());
+		string dir = conf->GetPrivate("LOG", "LOGDIR", "log");
 
 		delete conf;
-		Run(iPort, iMaxClient, iMaxMemoryCopy, iMaxHandleThread, host, dbPort, dbName, user, passwd, iMaxDatabaseThread);
+		Run(iPort, iMaxClient, iMaxMemoryCopy, iMaxHandleThread, host, dbPort, dbName, user, passwd, iMaxDatabaseThread, iLogLevel, dir);
 	}
 }
 
@@ -130,12 +127,19 @@ void MatchServer::Run(
 		const string& dbName,
 		const string& user,
 		const string& passwd,
-		int iMaxDatabaseThread
+		int iMaxDatabaseThread,
+		LOG_LEVEL iLogLevel,
+		const string& logDir
 		) {
+
+	/* log system */
+	LogManager::LogSetFlushBuffer(5 * BUFFER_SIZE_1K * BUFFER_SIZE_1K);
+//	LogManager::LogSetFlushBuffer(0);
+	LogManager::GetLogManager()->Start(1000, iLogLevel, logDir);
+
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::Run( "
-			"TcpServer Start ok, "
 			"iPort : %d, "
 			"iMaxClient : %d, "
 			"iMaxMemoryCopy : %d, "
@@ -145,7 +149,9 @@ void MatchServer::Run(
 			"dbName : %s, "
 			"user : %s, "
 			"passwd : %s, "
-			"iMaxDatabaseThread : %d "
+			"iMaxDatabaseThread : %d, "
+			"iLogLevel : %d, "
+			"logDir : %s "
 			")",
 			iPort,
 			iMaxClient,
@@ -156,7 +162,9 @@ void MatchServer::Run(
 			dbName.c_str(),
 			user.c_str(),
 			passwd.c_str(),
-			iMaxDatabaseThread
+			iMaxDatabaseThread,
+			iLogLevel,
+			logDir.c_str()
 			);
 	bool bFlag = false;
 
@@ -169,7 +177,7 @@ void MatchServer::Run(
 	bFlag = bFlag && mDBManager.InitSyncDataBase(iMaxDatabaseThread, host.c_str(), dbPort, dbName.c_str(), user.c_str(), passwd.c_str());
 
 	if( !bFlag ) {
-		LogManager::GetLogManager()->Log(LOG_ERR_SYS, "MatchServer::Run( database init error )");
+		LogManager::GetLogManager()->Log(LOG_ERR_SYS, "MatchServer::Run( Database init error )");
 		return;
 	}
 
@@ -182,14 +190,16 @@ void MatchServer::Run(
 	mClientTcpInsideServer.SetTcpServerObserver(this);
 	mClientTcpInsideServer.SetHandleSize(1000);
 	mClientTcpInsideServer.Start(10, iPort + 1, 2);
+	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( Inside TcpServer Init ok )");
 
 	/* match server */
 	mClientTcpServer.SetTcpServerObserver(this);
-	mClientTcpServer.Start(iMaxClient, iPort, iMaxHandleThread);
 	/**
 	 * 预估相应时间,内存数目*超时间隔*每秒处理的任务
 	 */
 	mClientTcpServer.SetHandleSize(iMaxMemoryCopy * 5 * 10);
+	mClientTcpServer.Start(iMaxClient, iPort, iMaxHandleThread);
+	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( TcpServer Init ok )");
 
 	mIsRunning = true;
 
@@ -236,7 +246,7 @@ bool MatchServer::OnAccept(TcpServer *ts, Message *m) {
 }
 
 void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnRecvMessage( "
+	LogManager::GetLogManager()->Log(LOG_MSG, "MatchServer::OnRecvMessage( "
 			"tid : %d, "
 			"m->fd : [%d], "
 			"start "
@@ -268,7 +278,7 @@ void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
 		ts->SendMessageByQueue(sm);
 
 	} else {
-		LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnRecvMessage( "
+		LogManager::GetLogManager()->Log(LOG_MSG, "MatchServer::OnRecvMessage( "
 				"tid : %d, "
 				"m->fd : [%d], "
 				"No idle message can be use "
@@ -279,7 +289,7 @@ void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
 		// 断开连接
 		ts->Disconnect(m->fd);
 	}
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnRecvMessage( "
+	LogManager::GetLogManager()->Log(LOG_MSG, "MatchServer::OnRecvMessage( "
 			"tid : %d, "
 			"m->fd : [%d], "
 			"end "
@@ -290,14 +300,14 @@ void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
 }
 
 void MatchServer::OnSendMessage(TcpServer *ts, Message *m) {
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnSendMessage( tid : %d, m->fd : [%d], start )", (int)syscall(SYS_gettid), m->fd);
+	LogManager::GetLogManager()->Log(LOG_MSG, "MatchServer::OnSendMessage( tid : %d, m->fd : [%d], start )", (int)syscall(SYS_gettid), m->fd);
 	// 发送成功，断开连接
 	ts->Disconnect(m->fd);
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnSendMessage( tid : %d, m->fd : [%d], end )", (int)syscall(SYS_gettid), m->fd);
+	LogManager::GetLogManager()->Log(LOG_MSG, "MatchServer::OnSendMessage( tid : %d, m->fd : [%d], end )", (int)syscall(SYS_gettid), m->fd);
 }
 
 void MatchServer::OnTimeoutMessage(TcpServer *ts, Message *m) {
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnTimeoutMessage( tid : %d, m->fd : [%d], start )", (int)syscall(SYS_gettid), m->fd);
+	LogManager::GetLogManager()->Log(LOG_MSG, "MatchServer::OnTimeoutMessage( tid : %d, m->fd : [%d], start )", (int)syscall(SYS_gettid), m->fd);
 	Message *sm = ts->GetIdleMessageList()->PopFront();
 	if( sm != NULL ) {
 		sm->fd = m->fd;
@@ -322,14 +332,14 @@ void MatchServer::OnTimeoutMessage(TcpServer *ts, Message *m) {
 		// 断开连接
 		ts->Disconnect(m->fd);
 	}
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnTimeoutMessage( tid : %d, m->fd : [%d], end )", (int)syscall(SYS_gettid), m->fd);
+	LogManager::GetLogManager()->Log(LOG_MSG, "MatchServer::OnTimeoutMessage( tid : %d, m->fd : [%d], end )", (int)syscall(SYS_gettid), m->fd);
 }
 
 /**
  * OnDisconnect
  */
 void MatchServer::OnDisconnect(TcpServer *ts, int fd) {
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::OnDisconnect( tid: %d, fd : [%d] )", (int)syscall(SYS_gettid), fd);
+	LogManager::GetLogManager()->Log(LOG_MSG, "MatchServer::OnDisconnect( tid: %d, fd : [%d] )", (int)syscall(SYS_gettid), fd);
 }
 
 void MatchServer::OnReload(RequestManager* pRequestManager) {

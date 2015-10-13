@@ -19,7 +19,7 @@ protected:
 		char sql[2048] = {'\0'};
 		char sql2[2048] = {'\0'};
 //		sprintf(sql, "SELECT COUNT(DISTINCT LADY.ID) FROM LADY JOIN MAN ON MAN.QID = LADY.QID AND MAN.AID = LADY.AID WHERE MAN.MANID = 'man-10000';");
-		sprintf(sql, "SELECT * FROM man WHERE manid = '100';"); // 78us
+		sprintf(sql, "SELECT * FROM man WHERE manid = 'CM100';"); // 78us
 
 		timeval tStart;
 		timeval tEnd;
@@ -36,16 +36,16 @@ protected:
 		char** result2;
 		int iRow2;
 		int iColumn2;
-		int qid = 0;
+		long long qid = 0;
 		int aid = 0;
 
 		for( int i = 0; mpDBManagerTest->miCur < mpDBManagerTest->miMaxQuery; i++ ) {
 			gettimeofday(&tStart, NULL);
-			gettimeofday(&tStart1, NULL);
+//			gettimeofday(&tStart1, NULL);
 			bResult = mpDBManagerTest->mDBManager.Query(sql, &result, &iRow, &iColumn);
-			gettimeofday(&tEnd1, NULL);
-			long usec1 = (1000 * 1000 * tEnd1.tv_sec + tEnd1.tv_usec - (1000 * 1000 * tStart1.tv_sec + tStart1.tv_usec));
-			usleep(usec1);
+//			gettimeofday(&tEnd1, NULL);
+//			long usec1 = (1000 * 1000 * tEnd1.tv_sec + tEnd1.tv_usec - (1000 * 1000 * tStart1.tv_sec + tStart1.tv_usec));
+//			usleep(usec1);
 //			printf("iRow %d, iColumn : %d, result : %p \n", iRow, iColumn, result);
 			if( bResult && result && iRow > 0 ) {
 				for( int j = 1; j < (iRow + 1); j++ ) {
@@ -54,9 +54,10 @@ protected:
 //					}
 //					printf("\n");
 					gettimeofday(&tStart2, NULL);
-					qid = atoi(result[j * iColumn + 1]);
+					qid = atoll(result[j * iColumn + 1]);
 					aid = atoi(result[j * iColumn + 4]);
-					sprintf(sql2, "SELECT * FROM woman WHERE qid = %d AND aid = %d AND question_status=1;", qid, aid);
+					sprintf(sql2, "SELECT * FROM woman WHERE qid = %lld AND aid = %d AND question_status=1 AND siteid = 1;", qid, aid);
+//					sprintf(sql2, "SELECT * FROM woman WHERE qid = %lld AND aid = %d;", qid, aid);
 //					printf("sql2 : %s \n", sql2);
 					bResult = mpDBManagerTest->mDBManager.Query(sql2, &result2, &iRow2, &iColumn2);
 //					printf("iRow2 %d, iColumn2 : %d, result2 : %p \n", iRow2, iColumn2, result2);
@@ -127,9 +128,16 @@ DBManagerTest::~DBManagerTest() {
 void DBManagerTest::StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery) {
 	timeval tStart;
 	timeval tEnd;
+	gettimeofday(&tStart, NULL);
 
 	miMaxQuery = iMaxQuery;
 	mDBManager.Init(iMaxMemoryCopy, true);
+//	mDBManager.InitSyncDataBase(4, "127.0.0.1", 3306, "qpidnetwork", "root", "123456");
+
+	gettimeofday(&tEnd, NULL);
+	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
+	printf("# 同步数据用时 : %ldus\n", usec);
+
 	KThread** threads = new KThread*[iMaxThread];
 	TestRunnable** runnable = new TestRunnable*[iMaxThread];
 
@@ -143,7 +151,7 @@ void DBManagerTest::StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery)
 	gettimeofday(&tStart, NULL);
 
 	while(true) {
-		usleep(100);
+		usleep(1000);
 		if( miCur >= iMaxQuery ) {
 			gettimeofday(&tEnd, NULL);
 			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
@@ -156,7 +164,7 @@ void DBManagerTest::StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery)
 					"# 单次查询平均用时 : %ldus, \n"
 //					"# 每次查询用时总和 : %ldus, \n"
 					"# %d次查询 : %ldus, \n"
-					"# 平均每秒并发查询%ld次 , \n",
+					"# 平均每秒并发查询%ld次  \n",
 //					"# miQuery : %ldus, \n"
 //					"# miSleep : %ldus \n ",
 					miMin,
@@ -184,4 +192,23 @@ void DBManagerTest::StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery)
 	}
 	delete threads;
 	threads = NULL;
+}
+
+void DBManagerTest::TestSql(string sql) {
+	mDBManager.Init(1, true);
+	bool bResult = false;
+	char** result;
+	int iRow;
+	int iColumn;
+	bResult = mDBManager.Query((char*)sql.c_str(), &result, &iRow, &iColumn);
+
+	if( bResult && result && iRow > 0 ) {
+		for( int j = 1; j < (iRow + 1); j++ ) {
+			for( int k = 0; k < iColumn; k++ ) {
+				printf("%8s |", result[j * iColumn + k]);
+			}
+			printf("\n");
+		}
+	}
+
 }

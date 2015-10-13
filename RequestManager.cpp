@@ -9,6 +9,8 @@
 #include "RequestManager.h"
 #include "DataHttpParser.h"
 
+#include <algorithm>
+
 #define UNHANDLE_TIME    5000     // 5秒后丢弃
 
 RequestManager::RequestManager() {
@@ -55,6 +57,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	if( ret == 1 ) {
 		const char* pPath = dataHttpParser.GetPath();
 		const char* pManId = dataHttpParser.GetParam("MANID");
+		const char* pSiteId = dataHttpParser.GetParam("SITEID");
 		LogManager::GetLogManager()->Log(
 				LOG_MSG,
 				"RequestManager::HandleRecvMessage( "
@@ -62,22 +65,30 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				"m->fd: [%d], "
 				"pPath : %s, "
 				"manid : %s, "
+				"siteid : %s, "
 				"parse "
 				")",
 				(int)syscall(SYS_gettid),
 				m->fd,
 				pPath,
-				pManId
+				pManId,
+				pSiteId
 				);
 
 		if( pManId != NULL && strcmp(pPath, "/QUERY") == 0 ) {
 			// 执行查询
 			char sql[2048] = {'\0'};
+			long long qid = 0;
+			int aid = 0;
+			int siteid = -1;
 
 //			sprintf(sql,
 //					"SELECT COUNT(DISTINCT LADY.ID) FROM LADY JOIN MAN ON MAN.QID = LADY.QID AND MAN.AID = LADY.AID WHERE MAN.MANID = '%s';",
 //					pManId);
 			sprintf(sql, "SELECT * FROM man WHERE manid = '%s';", pManId);
+			if( pSiteId != NULL ) {
+				siteid = atoi(pSiteId);
+			}
 
 			bool bResult = false;
 			char** result = NULL;
@@ -87,8 +98,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			char** result2 = NULL;
 			int iRow2;
 			int iColumn2;
-			int qid = 0;
-			int aid = 0;
 
 			timeval tStart;
 			timeval tEnd;
@@ -115,12 +124,16 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				for( int i = 1; i < (iRow + 1); i++ ) {
 					gettimeofday(&tStart, NULL);
 
-					qid = atoi(result[i * iColumn + 1]);
+					qid = atoll(result[i * iColumn + 1]);
 					aid = atoi(result[i * iColumn + 4]);
+					if( siteid == -1 ) {
+						siteid = atoi(result[i * iColumn + 5]);
+					}
 
-					sprintf(sql, "SELECT womanid FROM woman WHERE qid = %d AND aid = %d AND question_status='1';",
+					sprintf(sql, "SELECT womanid FROM woman WHERE qid = %lld AND aid = %d AND question_status='1' AND siteid = %d;",
 							qid,
-							aid
+							aid,
+							siteid
 							);
 					bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2);
 					LogManager::GetLogManager()->Log(
@@ -148,36 +161,39 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 							}
 						}
 					}
-
-					mpDBManager->FinishQuery(result2);
 					gettimeofday(&tEnd, NULL);
 					long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
 					usleep(usec);
 					iQueryTime += usec / 1000;
+					mpDBManager->FinishQuery(result2);
 				}
 
 				mpDBManager->FinishQuery(result);
 
 				int iStartMap = GetTickCount();
 				int iMapSize = womanidMap.size() - 30;
-				iMapSize = (iMapSize > 0)?iMapSize:0;
-
-				int iIndex = rand() % iMapSize;
+				int iIndex = 0;
 				int iCount = 0;
 				int iItem = 0;
-				for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
-					iCount++;
-					if( iCount < iIndex ) {
-						continue;
-					}
 
-					if( iItem++ >= 30 ) {
-						break;
-					}
+				if( iMapSize > 0 ) {
+					iIndex = rand() % iMapSize;
+					iCount = 0;
+					iItem = 0;
+					for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+						iCount++;
+						if( iCount < iIndex ) {
+							continue;
+						}
 
-					Json::Value womanNode;
-					womanNode[itr->first] = itr->second;
-					womanListNode.append(womanNode);
+						if( iItem++ >= 30 ) {
+							break;
+						}
+
+						Json::Value womanNode;
+						womanNode[itr->first] = itr->second;
+						womanListNode.append(womanNode);
+					}
 				}
 				int iRandTime = GetTickCount() - iStartMap;
 				LogManager::GetLogManager()->Log(
@@ -216,10 +232,11 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				);
 	}
 
-	iHandleTime = GetTickCount() - start;
-	sm->totaltime = GetTickCount() - m->starttime;
+	int iEnd = GetTickCount();
+	iHandleTime = iEnd - start;
+	sm->totaltime = iEnd - m->starttime;
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_STAT,
 			"RequestManager::HandleRecvMessage( "
 			"tid : %d, "
 			"m->fd: [%d], "
