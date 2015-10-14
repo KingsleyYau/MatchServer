@@ -4,7 +4,7 @@ USE `qpidnetwork`$$
 
 DROP PROCEDURE IF EXISTS `INSERT_ANWSERS`$$
 
-CREATE DEFINER=`root`@`%` PROCEDURE `INSERT_ANWSERS`()
+CREATE DEFINER=`root`@`127.0.0.1` PROCEDURE `INSERT_ANWSERS`()
 BEGIN
 	DECLARE id VARCHAR(64);
 	DECLARE i INT;
@@ -12,13 +12,12 @@ BEGIN
 	DECLARE r INT;
 	DECLARE qid VARCHAR(64);
 	DECLARE aid VARCHAR(64);
-	SET @dt = '2008-09-10 07:15:30.123456';
 	
 	TRUNCATE TABLE mq_man_answer;
 	TRUNCATE TABLE mq_woman_answer;
 	SET i = 0;
 	WHILE i < 40000 DO
-	    SET id = i;
+	    SET id = CONCAT('CM', i);
 	    SET j = 0;
 	    WHILE j < 30 DO
 		SET qid = CONCAT('QA', j);

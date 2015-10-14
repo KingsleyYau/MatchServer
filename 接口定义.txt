@@ -1,10 +1,36 @@
-﻿同步接口(http get)
+﻿内部接口
+同步接口(http get)
 路径		http://127.0.0.1:9877/SYNC
 返回json
 {
     "ret":1
 }
 
+重新加载配置接口(http get)
+路径		http://127.0.0.1:9877/RELOAD
+返回json
+{
+    "ret":1
+}
+
+执行自定义sql接口(http get)
+路径		http://127.0.0.1:9877/QUERY
+参数
+SQL		自定义sql
+例子 http://127.0.0.1:986/QUERY?SQL=PRAGMA+auto_vacuum%3b
+
+返回json
+{"result": [{"行号": "列1,列2,列3..."}...}
+{
+    "result": [
+        {
+            "1": "0"
+        }
+    ],
+    "ret": 1
+}
+
+外部接口
 查询接口(http get)
 路径		http://127.0.0.1:986/QUERY
 参数

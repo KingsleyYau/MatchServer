@@ -39,6 +39,10 @@ DBManager::DBManager() {
 	mpSyncRunnable = new SyncRunnable(this);
 
 	sqlite3_config(SQLITE_CONFIG_MEMSTATUS, false);
+//	sqlite3_config(SQLITE_CONFIG_SINGLETHREAD);
+//	printf("# sqlite3_threadsafe() : %d \n", sqlite3_threadsafe());
+//	char* pBuf = new char[200 * 1024 * 1024];
+//	sqlite3_config(SQLITE_CONFIG_HEAP, pBuf, 200 * 1024 * 1024, 8);
 }
 
 DBManager::~DBManager() {
@@ -142,7 +146,7 @@ bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn) {
 	bFlag = QuerySQL( db, sql, result, iRow, iColumn, &msg );
 	if( msg != NULL ) {
 		LogManager::GetLogManager()->Log(
-								LOG_STAT,
+								LOG_ERR_USER,
 								"DBManager::Query( "
 								"tid : %d, "
 								"Could not select table, msg : %s "
@@ -253,19 +257,6 @@ void DBManager::SyncDataFromDataBase() {
 				if ((row = mysql_fetch_row(pSQLRes)) == NULL) {
 					break;
 				}
-
-//				for( int j = 0; j < iFields; j++ ) {
-//					LogManager::GetLogManager()->Log(
-//							LOG_STAT,
-//							"DBManager::SyncDataFromDataBase( "
-//							"tid : %d, "
-//							"row[%d] : %s "
-//							")",
-//							(int)syscall(SYS_gettid),
-//							j,
-//							row[j]
-//							);
-//				}
 
 				if( row[0] ) {
 					int temp = atoi(row[0]);
@@ -442,29 +433,39 @@ void DBManager::Status() {
 
 	for( int i = 0; i < miMaxMemoryCopy; i++ ) {
 		sqlite3* db = mdbs[i];
-		sqlite3_db_status(db, SQLITE_STATUS_MEMORY_USED, &current, &highwater, true);
-		printf("# db[%d] SQLITE_STATUS_MEMORY_USED, current : %d, highwater : %d \n", i, current, highwater);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_USED, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_LOOKASIDE_USED, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_STATUS_MALLOC_SIZE, &current, &highwater, true);
-		printf("# db[%d] SQLITE_STATUS_MALLOC_SIZE, current : %d, highwater : %d \n", i, current, highwater);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_HIT, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_LOOKASIDE_HIT, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_STATUS_MALLOC_COUNT, &current, &highwater, true);
-		printf("# db[%d] SQLITE_STATUS_MALLOC_COUNT, current : %d, highwater : %d \n", i, current, highwater);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_STATUS_PAGECACHE_USED, &current, &highwater, true);
-		printf("# db[%d] SQLITE_STATUS_PAGECACHE_USED, current : %d, highwater : %d \n", i, current, highwater);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_STATUS_SCRATCH_USED, &current, &highwater, true);
-		printf("# db[%d] SQLITE_STATUS_SCRATCH_USED, current : %d, highwater : %d \n", i, current, highwater);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_USED, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_CACHE_USED, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_STATUS_SCRATCH_OVERFLOW, &current, &highwater, true);
-		printf("# db[%d] SQLITE_STATUS_SCRATCH_OVERFLOW, current : %d, highwater : %d \n", i, current, highwater);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_SCHEMA_USED, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_SCHEMA_USED, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_STATUS_SCRATCH_SIZE, &current, &highwater, true);
-		printf("# db[%d] SQLITE_STATUS_SCRATCH_SIZE, current : %d, highwater : %d \n", i, current, highwater);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_STMT_USED, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_STMT_USED, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_STATUS_PARSER_STACK, &current, &highwater, true);
-		printf("# db[%d] SQLITE_STATUS_PARSER_STACK, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_HIT, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_CACHE_HIT, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_MISS, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_CACHE_MISS, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_WRITE, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_CACHE_WRITE, current : %d, highwater : %d \n", i, current, highwater);
+
+		sqlite3_db_status(db, SQLITE_DBSTATUS_DEFERRED_FKS, &current, &highwater, true);
+		printf("# db[%d] SQLITE_DBSTATUS_DEFERRED_FKS, current : %d, highwater : %d \n", i, current, highwater);
 	}
 
 }
@@ -546,12 +547,12 @@ bool DBManager::CreateTable(sqlite3 *db) {
 	sprintf(sql,
 			"CREATE TABLE man("
 //						"ID INTEGER PRIMARY KEY AUTOINCREMENT,"
-						"id INT PRIMARY KEY,"
+						"id INTEGER PRIMARY KEY,"
 						"qid BIGINT,"
-						"question_status INT,"
-						"manid VARCHAR(12),"
-						"aid INT,"
-						"siteid INT"
+						"question_status INTEGER,"
+						"manid TEXT,"
+						"aid INTEGER,"
+						"siteid INTEGER"
 						");"
 	);
 
@@ -579,32 +580,32 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		return false;
 	}
 
-	// 建男士表索引(qid, aid)
-	sprintf(sql,
-			"CREATE INDEX manindex_qid_aid "
-			"ON man (qid, aid)"
-			";"
-	);
-
-	ExecSQL( db, sql, &msg );
-	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table man index, msg: %s \n", msg);
-		sqlite3_free(msg);
-		msg = NULL;
-		return false;
-	}
+//	// 建男士表索引(qid, aid)
+//	sprintf(sql,
+//			"CREATE INDEX manindex_qid_aid "
+//			"ON man (qid, aid)"
+//			";"
+//	);
+//
+//	ExecSQL( db, sql, &msg );
+//	if( msg != NULL ) {
+//		fprintf(stderr, "# Could not create table man index, msg: %s \n", msg);
+//		sqlite3_free(msg);
+//		msg = NULL;
+//		return false;
+//	}
 	printf("# Create table man index ok \n");
 
 	// 建女士表
 	sprintf(sql,
 			"CREATE TABLE woman("
 //						"ID INTEGER PRIMARY KEY AUTOINCREMENT,"
-						"id INT PRIMARY KEY,"
+						"id INTEGER PRIMARY KEY,"
 						"qid BIGINT,"
-						"question_status INT,"
-						"womanid VARCHAR(50),"
-						"aid INT,"
-						"siteid INT"
+						"question_status INTEGER,"
+						"womanid TEXT,"
+						"aid INTEGER,"
+						"siteid INTEGER"
 						");"
 	);
 
@@ -632,20 +633,20 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		return false;
 	}
 
-	// 建女士表索引(LADYID, QID, AID)
-	sprintf(sql,
-			"CREATE INDEX womanindex_womanid_qid_aid "
-			"ON woman (womanid, qid, aid)"
-			";"
-	);
-
-	ExecSQL( db, sql, &msg );
-	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table woman index, msg: %s \n", msg);
-		sqlite3_free(msg);
-		msg = NULL;
-		return false;
-	}
+//	// 建女士表索引(womanid, qid, aid)
+//	sprintf(sql,
+//			"CREATE INDEX womanindex_womanid_qid_aid "
+//			"ON woman (womanid, qid, aid)"
+//			";"
+//	);
+//
+//	ExecSQL( db, sql, &msg );
+//	if( msg != NULL ) {
+//		fprintf(stderr, "# Could not create table woman index, msg: %s \n", msg);
+//		sqlite3_free(msg);
+//		msg = NULL;
+//		return false;
+//	}
 	printf("# Create table woman index ok \n");
 
 	return true;

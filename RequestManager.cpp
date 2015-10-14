@@ -80,12 +80,12 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			char sql[2048] = {'\0'};
 			long long qid = 0;
 			int aid = 0;
-			int siteid = -1;
+			int siteid = 0;
 
 //			sprintf(sql,
 //					"SELECT COUNT(DISTINCT LADY.ID) FROM LADY JOIN MAN ON MAN.QID = LADY.QID AND MAN.AID = LADY.AID WHERE MAN.MANID = '%s';",
 //					pManId);
-			sprintf(sql, "SELECT * FROM man WHERE manid = '%s';", pManId);
+			sprintf(sql, "SELECT qid, aid FROM man WHERE manid = '%s';", pManId);
 			if( pSiteId != NULL ) {
 				siteid = atoi(pSiteId);
 			}
@@ -124,11 +124,8 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				for( int i = 1; i < (iRow + 1); i++ ) {
 					gettimeofday(&tStart, NULL);
 
-					qid = atoll(result[i * iColumn + 1]);
-					aid = atoi(result[i * iColumn + 4]);
-					if( siteid == -1 ) {
-						siteid = atoi(result[i * iColumn + 5]);
-					}
+					qid = atoll(result[i * iColumn]);
+					aid = atoi(result[i * iColumn + 1]);
 
 					sprintf(sql, "SELECT womanid FROM woman WHERE qid = %lld AND aid = %d AND question_status='1' AND siteid = %d;",
 							qid,

@@ -633,7 +633,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	miMaxConnection = maxConnection;
 	mHandleSize = maxConnection;
 
-	LogManager::GetLogManager()->Log(LOG_WARNING, "TcpServer::Start( "
+	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::Start( "
 			"maxConnection : %d, "
 			"maxThreadHandle : %d "
 			" )",

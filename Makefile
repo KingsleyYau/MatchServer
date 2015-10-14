@@ -1,7 +1,8 @@
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 -Wunused-variable
 CXXFLAGS +=	-Ilibev -I. -I/usr/include/mysql 
 
-LIBS =		libev/.libs/libev.a -lpthread -L. -lsqlite3 -L/usr/lib64/mysql -L/usr/lib/mysql -lmysqlclient
+LIBS =		-lpthread -L. -Llibev/.libs/ -lev -Lsqlite/.libs -lsqlite3 -lmysqlclient
+LDFLAGS +=  -static
 
 JSONOBJS = 	json_reader.o json_value.o json_writer.o md5.o
 OBJS =		server.o KThread.o KLog.o MatchServer.o TcpServer.o MessageList.o RequestManager.o  \
