@@ -29,7 +29,9 @@ CLEAN_DEPS := $(addprefix _clean_, $(DEPDIRS))
 $(TARGET):	deps $(OBJS)
 	$(CXX) -o $(TARGET) $(OBJS) $(LIBS)
 	@echo '################################################################'
+	@echo ''
 	@echo '# Bulid matchserver completed!'
+	@echo ''
 	@echo '################################################################'
 
 $(DEPDIRS):
