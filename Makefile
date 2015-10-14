@@ -3,8 +3,9 @@ export MAKE	:=	make
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 -Wunused-variable
 CXXFLAGS +=	-Ilibev -I. -I/usr/include/mysql 
 
-LIBS =		-L. -Llibev/.libs -Wl,-Bstatic -lev -Lsqlite/.libs \
-			-Wl,-Bstatic -lsqlite3 \
+LIBS =		-L. \
+			-Wl,-Bstatic -Llibev/.libs -lev \
+			-Wl,-Bstatic -Lsqlite/.libs -lsqlite3 \
 			-Wl,-Bdynamic -L/usr/lib64/mysql -L/usr/lib/mysql -lmysqlclient \
 			-Wl,-Bdynamic -ldl -lz -lpthread 
 
