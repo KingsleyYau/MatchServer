@@ -84,3 +84,7 @@ $RECYCLE.BIN/
 
 .cproject
 .settings/org.eclipse.cdt.codan.core.prefs
+
+.project
+
+*.prefs

@@ -433,38 +433,38 @@ void DBManager::Status() {
 
 	for( int i = 0; i < miMaxMemoryCopy; i++ ) {
 		sqlite3* db = mdbs[i];
-		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_USED, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_USED, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_LOOKASIDE_USED, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_HIT, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_HIT, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_LOOKASIDE_HIT, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_USED, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_USED, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_CACHE_USED, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_SCHEMA_USED, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_SCHEMA_USED, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_SCHEMA_USED, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_STMT_USED, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_STMT_USED, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_STMT_USED, current : %d, highwater : %d \n", i, current, highwater);
 
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_HIT, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_HIT, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_CACHE_HIT, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_MISS, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_MISS, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_CACHE_MISS, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_WRITE, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_CACHE_WRITE, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_CACHE_WRITE, current : %d, highwater : %d \n", i, current, highwater);
 
-		sqlite3_db_status(db, SQLITE_DBSTATUS_DEFERRED_FKS, &current, &highwater, true);
+		sqlite3_db_status(db, SQLITE_DBSTATUS_DEFERRED_FKS, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_DEFERRED_FKS, current : %d, highwater : %d \n", i, current, highwater);
 	}
 

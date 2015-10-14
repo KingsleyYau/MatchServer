@@ -1,9 +1,11 @@
+export MAKE	:=	make
+
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 -Wunused-variable
 CXXFLAGS +=	-Ilibev -I. -I/usr/include/mysql 
 
 LIBS =		-L. -Llibev/.libs -Wl,-Bstatic -lev -Lsqlite/.libs \
 			-Wl,-Bstatic -lsqlite3 \
-			-Wl,-Bstatic -L/usr/lib64/mysql -L/usrlib/mysql -lmysqlclient \
+			-Wl,-Bdynamic -L/usr/lib64/mysql -L/usr/lib/mysql -lmysqlclient \
 			-Wl,-Bdynamic -ldl -lz -lpthread 
 
 JSONOBJS = 	json_reader.o json_value.o json_writer.o md5.o
@@ -19,16 +21,54 @@ DBTEST_TARGET =		dbtest
 CLIENTTEST_OBJS	=	client.o KThread.o TcpTestClient.o
 CLIENTTEST_TARGET =		client
 
-all:	$(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
+DEPDIRS	:= sqlite libev
+CLEAN_DEPS := $(addprefix _clean_, $(DEPDIRS))
 
-$(TARGET):	$(OBJS)
+.PHONY: all deps clean cleanall $(DEPDIRS) $(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
+
+$(TARGET):	deps $(OBJS)
 	$(CXX) -o $(TARGET) $(OBJS) $(LIBS)
+	@echo '################################################################'
+	@echo '# Bulid matchserver completed!'
+	@echo '################################################################'
 
+$(DEPDIRS):
+	$(MAKE) -C $@
+	
+$(CLEAN_DEPS):	
+	$(MAKE) -C $(patsubst _clean_%, %, $@) clean
+	
 $(DBTEST_TARGET):	$(DBTEST_OBJS)
 	$(CXX) -o $(DBTEST_TARGET) $(DBTEST_OBJS) $(LIBS)
+	@echo '################################################################'
+	@echo ''
+	@echo '# Bulid dbtest completed!'
+	@echo ''
+	@echo '################################################################'
 
 $(CLIENTTEST_TARGET):	$(CLIENTTEST_OBJS)
 	$(CXX) -o $(CLIENTTEST_TARGET) $(CLIENTTEST_OBJS) $(LIBS)
+	@echo '################################################################'
+	@echo ''
+	@echo '# Bulid client completed!'
+	@echo ''
+	@echo '################################################################'
 	
+deps:	$(DEPDIRS)
+	@echo '################################################################'
+	@echo ''
+	@echo '# Bulid deps completed!'
+	@echo ''
+	@echo '################################################################'
+	
+all:	deps $(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
+
 clean:
 	rm -f $(OBJS) $(TARGET) $(DBTEST_TARGET) $(DBTEST_OBJS) $(CLIENTTEST_TARGET) $(CLIENTTEST_OBJS)
+
+cleanall: clean	$(CLEAN_DEPS) 
+	@echo '################################################################'
+	@echo ''
+	@echo '# Clean all finished!'
+	@echo ''
+	@echo '################################################################'

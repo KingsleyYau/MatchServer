@@ -1,0 +1,10 @@
+# !/bin/sh
+cd sqlite &&
+chmod +x configure &&
+./configure &&
+cd ..
+
+cd libev
+chmod +x configure &&
+./configure &&
+cd ..
