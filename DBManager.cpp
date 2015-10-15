@@ -75,7 +75,6 @@ bool DBManager::Init(int iMaxMemoryCopy, bool addTestData) {
 		}
 	}
 	printf("# DBManager initialize OK. \n");
-
 	return bFlag;
 }
 
@@ -87,6 +86,8 @@ bool DBManager::InitSyncDataBase(
 	        const char* pcUser,
 	        const char* pcPasswd
 	        ) {
+	printf("# DBManager synchronizing... \n");
+
 	bool bFlag = false;
 
 	bFlag = mDBSpool.SetConnection(iMaxThread);
@@ -119,6 +120,7 @@ bool DBManager::InitSyncDataBase(
 		mSyncThread.start(mpSyncRunnable);
 	}
 
+	printf("# DBManager synchronizie OK. \n");
 	return bFlag;
 }
 
