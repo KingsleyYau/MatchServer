@@ -132,8 +132,8 @@ void DBManagerTest::StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery)
 	gettimeofday(&tStart, NULL);
 
 	miMaxQuery = iMaxQuery;
-	mDBManager.Init(iMaxMemoryCopy, false);
-	mDBManager.InitSyncDataBase(4, "127.0.0.1", 3306, "qpidnetwork", "root", "123456");
+	mDBManager.Init(iMaxMemoryCopy, true);
+//	mDBManager.InitSyncDataBase(4, "127.0.0.1", 3306, "qpidnetwork", "root", "123456");
 
 	gettimeofday(&tEnd, NULL);
 	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));

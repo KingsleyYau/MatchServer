@@ -98,7 +98,7 @@ void MatchServer::Run(const string& config) {
 		int iMaxClient = atoi(conf->GetPrivate("BASE", "MAXCLIENT", "100000").c_str());
 		int iMaxMemoryCopy = atoi(conf->GetPrivate("BASE", "MAXMEMORYCOPY", "1").c_str());
 		int iMaxHandleThread = atoi(conf->GetPrivate("BASE", "MAXHANDLETHREAD", "2").c_str());
-
+		int iMaxQueryPerThread = atoi(conf->GetPrivate("BASE", "MAXQUERYPERCOPY", "10").c_str());
 
 		string host = conf->GetPrivate("DB", "DBHOST", "localhost");
 		short dbPort = atoi(conf->GetPrivate("DB", "DBPORT", "3306").c_str());
@@ -113,7 +113,7 @@ void MatchServer::Run(const string& config) {
 		string dir = conf->GetPrivate("LOG", "LOGDIR", "log");
 
 		delete conf;
-		Run(iPort, iMaxClient, iMaxMemoryCopy, iMaxHandleThread, host, dbPort, dbName, user, passwd, iMaxDatabaseThread, iLogLevel, dir);
+		Run(iPort, iMaxClient, iMaxMemoryCopy, iMaxHandleThread, iMaxQueryPerThread, host, dbPort, dbName, user, passwd, iMaxDatabaseThread, iLogLevel, dir);
 	}
 }
 
@@ -122,6 +122,7 @@ void MatchServer::Run(
 		int iMaxClient,
 		int iMaxMemoryCopy,
 		int iMaxHandleThread,
+		int iMaxQueryPerThread,
 		const string& host,
 		short dbPort,
 		const string& dbName,
@@ -144,6 +145,7 @@ void MatchServer::Run(
 			"iMaxClient : %d, "
 			"iMaxMemoryCopy : %d, "
 			"iMaxHandleThread : %d, "
+			"iMaxQueryPerThread : %d, "
 			"host : %s, "
 			"dbPort : %d, "
 			"dbName : %s, "
@@ -157,6 +159,7 @@ void MatchServer::Run(
 			iMaxClient,
 			iMaxMemoryCopy,
 			iMaxHandleThread,
+			iMaxQueryPerThread,
 			host.c_str(),
 			dbPort,
 			dbName.c_str(),
@@ -197,7 +200,7 @@ void MatchServer::Run(
 	/**
 	 * 预估相应时间,内存数目*超时间隔*每秒处理的任务
 	 */
-	mClientTcpServer.SetHandleSize(iMaxMemoryCopy * 5 * 10);
+	mClientTcpServer.SetHandleSize(iMaxMemoryCopy * 5 * iMaxQueryPerThread);
 	mClientTcpServer.Start(iMaxClient, iPort, iMaxHandleThread);
 	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( TcpServer Init ok )");
 
@@ -205,8 +208,10 @@ void MatchServer::Run(
 
 	mpStateThread = new KThread(mpStateRunnable);
 	if( mpStateThread->start() != -1 ) {
-		printf("# Create state thread ok \n");
+//		printf("# Create state thread ok \n");
 	}
+
+	printf("# MatchServer::Run() \n");
 
 	/* call server */
 	while( true ) {

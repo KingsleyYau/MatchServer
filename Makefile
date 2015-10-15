@@ -1,7 +1,15 @@
+# Copyright (C) 2015 The QpidNetwork
+# MatchServer Makefile
+#
+# Created on: 2015/10/10
+# Author: Max.Chiu
+# Email: Kingsleyyau@gmail.com
+#
+
 export MAKE	:=	make
 
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 -Wunused-variable
-CXXFLAGS +=	-Ilibev -I. -I/usr/include/mysql 
+CXXFLAGS +=	-I. -Isqlite -Ilibev -I/usr/include/mysql 
 
 LIBS =		-L. \
 			-Wl,-Bstatic -Llibev/.libs -lev \

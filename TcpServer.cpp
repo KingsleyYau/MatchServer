@@ -587,6 +587,7 @@ TcpServer::TcpServer() {
 	mpTcpServerObserver = NULL;
 
 //	mCurrentConnection = 0;
+	mHandleSize = 1000;
 	mTotalHandleRecvTime = 0;
 	mTotalHandleSendTime = 0;
 	mTotalRecvTime = 0;
@@ -631,9 +632,10 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	mTotalSendTime = 0;
 	miMaxThreadHandle = maxThreadHandle;
 	miMaxConnection = maxConnection;
-	mHandleSize = maxConnection;
 
-	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::Start( "
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"TcpServer::Start( "
 			"maxConnection : %d, "
 			"maxThreadHandle : %d "
 			" )",
@@ -677,7 +679,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 		}
 	}
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create watchers ok, mWatcherList : %d )", mWatcherList.Size());
-	printf("# Create watchers ok \n");
+//	printf("# Create watchers ok \n");
 
 	for(int i = 0; i < maxConnection; i++) {
 		/* create idle buffers */
@@ -685,7 +687,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 		mIdleMessageList.PushBack(m);
 	}
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create idle buffers ok )");
-	printf("# Create idle buffers ok \n");
+//	printf("# Create idle buffers ok \n");
 
 //	/* init send message list */
 //	mpSendMessageList = new MessageList[2 * maxConnection];
@@ -708,7 +710,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	mpMainThread = new KThread(mpMainRunnable);
 	if( mpMainThread->start() != -1 ) {
 		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create main thread ok )");
-		printf("# Create main thread ok \n");
+//		printf("# Create main thread ok \n");
 	}
 
 	/* start handle thread */
@@ -717,7 +719,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 		mpHandleThread[i] = new KThread(mpHandleRunnable);
 		if( mpHandleThread[i]->start() != -1 ) {
 			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create handle thread[%d] ok )", i);
-			printf("# Create handle thread[%d] ok \n", i);
+//			printf("# Create handle thread[%d] ok \n", i);
 		}
 	}
 
@@ -725,9 +727,16 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	mpSendThread = new KThread(mpSendRunnable);
 	if( mpSendThread->start() != -1 ) {
 		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create send thread ok )");
-		printf("# Create send thread ok \n");
+//		printf("# Create send thread ok \n");
 	}
-
+	printf("# "
+			"TcpServer::Start( "
+			"maxConnection : %d, "
+			"maxThreadHandle : %d "
+			" ) \n",
+			maxConnection,
+			maxThreadHandle
+			);
 	return true;
 }
 

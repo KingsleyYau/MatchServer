@@ -77,7 +77,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 
 		if( pManId != NULL && strcmp(pPath, "/QUERY") == 0 ) {
 			// 执行查询
-			char sql[2048] = {'\0'};
+			char sql[1024] = {'\0'};
 			long long qid = 0;
 			int aid = 0;
 			int siteid = 0;
@@ -165,8 +165,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					mpDBManager->FinishQuery(result2);
 				}
 
-				mpDBManager->FinishQuery(result);
-
 				int iStartMap = GetTickCount();
 				int iMapSize = womanidMap.size() - 30;
 				int iIndex = 0;
@@ -213,8 +211,8 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 //				rootSend["iIndex"] = iIndex;
 //				rootSend["iMapSize"] = iMapSize;
 //				rootSend["iRandTime"] = iRandTime;
-				rootSend["womaninfo"] = womanListNode;
 			}
+			mpDBManager->FinishQuery(result);
 		} else {
 			ret = -1;
 		}
@@ -251,6 +249,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	rootSend["fd"] = m->fd;
 	rootSend["iHandleTime"] = iHandleTime;
 	rootSend["totaltime"] = sm->totaltime;
+	rootSend["womaninfo"] = womanListNode;
 
 	string param = writer.write(rootSend);
 

@@ -563,7 +563,6 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		msg = NULL;
 		return false;
 	}
-	printf("# Create table man ok \n");
 
 	// 建男士表索引(manid, qid, aid)
 	sprintf(sql,
@@ -594,7 +593,6 @@ bool DBManager::CreateTable(sqlite3 *db) {
 //		msg = NULL;
 //		return false;
 //	}
-	printf("# Create table man index ok \n");
 
 	// 建女士表
 	sprintf(sql,
@@ -616,7 +614,6 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		msg = NULL;
 		return false;
 	}
-	printf("# Create table woman ok \n");
 
 	// 建女士表索引(qid, aid)
 	sprintf(sql,
@@ -647,7 +644,7 @@ bool DBManager::CreateTable(sqlite3 *db) {
 //		msg = NULL;
 //		return false;
 //	}
-	printf("# Create table woman index ok \n");
+	printf("# DBManager::CreateTable() \n");
 
 	return true;
 }

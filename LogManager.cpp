@@ -173,9 +173,9 @@ bool LogManager::Start(int maxIdle, LOG_LEVEL nLevel, const string& dir) {
 	/* start log thread */
 	mpLogThread = new KThread(new LogRunnable(this));
 	if( mpLogThread->start() != 0 ) {
-		printf("# Create log thread ok \n");
+//		printf("# Create log thread ok \n");
 	}
-
+	printf("# LogManager::Start() \n");
 	return true;
 }
 
