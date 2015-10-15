@@ -24,7 +24,7 @@ protected:
 	void onRun() {
 		int iCount = 0;
 		while( mContainer->IsRunning() ) {
-			if ( iCount < 30 ) {
+			if ( iCount < 1 ) {
 				iCount++;
 			} else {
 				iCount = 0;

@@ -120,11 +120,13 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					iRow,
 					iColumn
 					);
+
 			gettimeofday(&tStart, NULL);
+
 			if( bResult && result && iRow > 0 ) {
 				// 随机起始查询问题位置
 				int iManIndex = (rand() % iRow) + 1;
-
+				bool bEnougthLady = false;
 				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
 
 //					LogManager::GetLogManager()->Log(
@@ -139,8 +141,8 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 //										i
 //										);
 
-					if( iCount == 0 ) {
-						// first time query
+					if( !bEnougthLady ) {
+						// query more lady
 						sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND question_status = 1 AND siteid = %d;",
 								result[i * iColumn],
 								result[i * iColumn + 1],
@@ -169,9 +171,14 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 //											);
 						if( bResult && result2 && iRow2 > 0 ) {
 							int iLadyIndex = 1;
-							if( iRow2 > 30 ) {
-								iLadyIndex = iRow2 - 30;
-								iLadyIndex = (rand() % iLadyIndex) + 1;
+							int iLadyCount = 0;
+
+							if( iRow2 + womanidMap.size() >= 30 ) {
+								bEnougthLady = true;
+								iLadyCount = 30 - womanidMap.size();
+								iLadyIndex = (rand() % (iRow2 -iLadyCount)) + 1;
+							} else {
+								iLadyCount = iRow2;
 							}
 //							LogManager::GetLogManager()->Log(
 //												LOG_STAT,
@@ -184,7 +191,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 //												m->fd,
 //												iLadyIndex
 //												);
-							for( int j = iLadyIndex, k = 0; (j < iRow2 + 1) && (k < 30); k++, j++ ) {
+							for( int j = iLadyIndex, k = 0; (j < iRow2 + 1) && (k < iLadyCount); k++, j++ ) {
 								// find womanid
 								womanid = result2[j * iColumn2];
 								womanidMap.insert(map<string, int>::value_type(womanid, 1));

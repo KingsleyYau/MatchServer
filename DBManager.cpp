@@ -123,15 +123,15 @@ bool DBManager::InitSyncDataBase(
 }
 
 bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn) {
-	LogManager::GetLogManager()->Log(
-							LOG_STAT,
-							"DBManager::Query( "
-							"tid : %d, "
-							"sql : %s "
-							")",
-							(int)syscall(SYS_gettid),
-							sql
-							);
+//	LogManager::GetLogManager()->Log(
+//							LOG_STAT,
+//							"DBManager::Query( "
+//							"tid : %d, "
+//							"sql : %s "
+//							")",
+//							(int)syscall(SYS_gettid),
+//							sql
+//							);
 	int index;
 	char *msg = NULL;
 	bool bFlag = true;
