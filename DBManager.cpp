@@ -817,27 +817,29 @@ bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int
 //		if( row[6] ) {
 //			sqlite3_bind_text(stmtMan, 7, row[6], strlen(row[6]), NULL);
 //		}
-//		// answer_id
-//		if( row[7] ) {
-//			sqlite3_bind_int(stmtMan, 8, atoi(row[7]));
-//		}
+		// answer_id
+		if( row[7] ) {
+			sqlite3_bind_int(stmtMan, 5, atoi(row[7]));
+		} else {
+			return false;
+		}
 //		// answer
 //		if( row[8] ) {
 //			sqlite3_bind_text(stmtMan, 9, row[8], strlen(row[8]), NULL);
 //		}
-		// q_concat -> aid
-		if( row[9] ) {
-			string straid = row[9];
-			std::string::size_type pos = straid.find('-', 0);
-			if( pos != std::string::npos && pos != (straid.length() - 1) ) {
-				straid = straid.substr(pos + 1, straid.length() - (pos + 1));
-				sqlite3_bind_int(stmtMan, 5, atoi(straid.c_str()));
-			} else {
-				return false;
-			}
-		} else {
-			return false;
-		}
+//		// q_concat -> aid
+//		if( row[9] ) {
+//			string straid = row[9];
+//			std::string::size_type pos = straid.find('-', 0);
+//			if( pos != std::string::npos && pos != (straid.length() - 1) ) {
+//				straid = straid.substr(pos + 1, straid.length() - (pos + 1));
+//				sqlite3_bind_int(stmtMan, 5, atoi(straid.c_str()));
+//			} else {
+//				return false;
+//			}
+//		} else {
+//			return false;
+//		}
 //		// answer_time
 //		if( row[10] ) {
 //			sqlite3_bind_text(stmtMan, 11, row[10], strlen(row[10]), NULL);
@@ -914,27 +916,29 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 //		if( row[6] ) {
 //			sqlite3_bind_text(stmtLady, 7, row[6], strlen(row[6]), NULL);
 //		}
-//		// answer_id
-//		if( row[7] ) {
-//			sqlite3_bind_int(stmtLady, 8, atoi(row[7]));
-//		}
+		// answer_id
+		if( row[7] ) {
+			sqlite3_bind_int(stmtLady, 5, atoi(row[7]));
+		} else {
+			return false;
+		}
 //		// answer
 //		if( row[8] ) {
 //			sqlite3_bind_text(stmtLady, 9, row[8], strlen(row[8]), NULL);
 //		}
-		// q_concat -> aid
-		if( row[9] ) {
-			string straid = row[9];
-			std::string::size_type pos = straid.find('-', 0);
-			if( pos != std::string::npos && pos != (straid.length() - 1) ) {
-				straid = straid.substr(pos + 1, straid.length() - (pos + 1));
-				sqlite3_bind_int(stmtLady, 5, atoi(straid.c_str()));
-			} else {
-				return false;
-			}
-		} else {
-			return false;
-		}
+//		// q_concat -> aid
+//		if( row[9] ) {
+//			string straid = row[9];
+//			std::string::size_type pos = straid.find('-', 0);
+//			if( pos != std::string::npos && pos != (straid.length() - 1) ) {
+//				straid = straid.substr(pos + 1, straid.length() - (pos + 1));
+//				sqlite3_bind_int(stmtLady, 5, atoi(straid.c_str()));
+//			} else {
+//				return false;
+//			}
+//		} else {
+//			return false;
+//		}
 //		// answer_time
 //		if( row[10] ) {
 //			sqlite3_bind_text(stmtLady, 11, row[10], strlen(row[10]), NULL);

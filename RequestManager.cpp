@@ -226,19 +226,19 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 //												iColumn3
 //												);
 							if( bResult && result3 && iRow3 > 0 ) {
-//								LogManager::GetLogManager()->Log(
-//													LOG_STAT,
-//													"RequestManager::HandleRecvMessage( "
-//													"tid : %d, "
-//													"m->fd: [%d], "
-//													"result3[1 * iColumn3] : %s, "
-//													"itr->second : %d "
-//													")",
-//													(int)syscall(SYS_gettid),
-//													m->fd,
-//													result3[1 * iColumn3],
-//													itr->second
-//													);
+								LogManager::GetLogManager()->Log(
+													LOG_STAT,
+													"RequestManager::HandleRecvMessage( "
+													"tid : %d, "
+													"m->fd: [%d], "
+													"result3[1 * iColumn3] : %s, "
+													"itr->second : %d "
+													")",
+													(int)syscall(SYS_gettid),
+													m->fd,
+													result3[1 * iColumn3],
+													itr->second
+													);
 								if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
 									itr->second++;
 								}
@@ -249,7 +249,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 
 					i++;
 					i = ((i - 1) % iRow) + 1;
-
 				}
 
 				gettimeofday(&tEnd, NULL);
