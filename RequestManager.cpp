@@ -120,12 +120,12 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					iRow,
 					iColumn
 					);
+			gettimeofday(&tStart, NULL);
 			if( bResult && result && iRow > 0 ) {
 				// 随机起始查询问题位置
 				int iManIndex = (rand() % iRow) + 1;
 
 				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
-					gettimeofday(&tStart, NULL);
 
 					LogManager::GetLogManager()->Log(
 										LOG_STAT,
@@ -243,10 +243,11 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					i++;
 					i = ((i - 1) % iRow) + 1;
 
-//					gettimeofday(&tEnd, NULL);
-//					long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
-//					usleep(usec);
 				}
+
+				gettimeofday(&tEnd, NULL);
+				long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
+				usleep(usec);
 
 				iQueryTime = GetTickCount() - iQueryTime;
 				rootSend["iQueryTime"] = iQueryTime;
