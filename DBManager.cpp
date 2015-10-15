@@ -74,6 +74,7 @@ bool DBManager::Init(int iMaxMemoryCopy, bool addTestData) {
 			}
 		}
 	}
+	printf("# DBManager initialize OK. \n");
 
 	return bFlag;
 }
@@ -630,21 +631,20 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		return false;
 	}
 
-//	// 建女士表索引(womanid, qid, aid)
-//	sprintf(sql,
-//			"CREATE INDEX womanindex_womanid_qid_aid "
-//			"ON woman (womanid, qid, aid)"
-//			";"
-//	);
-//
-//	ExecSQL( db, sql, &msg );
-//	if( msg != NULL ) {
-//		fprintf(stderr, "# Could not create table woman index, msg: %s \n", msg);
-//		sqlite3_free(msg);
-//		msg = NULL;
-//		return false;
-//	}
-	printf("# DBManager::CreateTable() \n");
+	// 建女士表索引(womanid, qid, aid)
+	sprintf(sql,
+			"CREATE UNIQUE INDEX womanindex_womanid_qid_aid_question_status_siteid "
+			"ON woman (womanid, qid, aid, question_status, siteid)"
+			";"
+	);
+
+	ExecSQL( db, sql, &msg );
+	if( msg != NULL ) {
+		fprintf(stderr, "# Could not create table woman index, msg: %s \n", msg);
+		sqlite3_free(msg);
+		msg = NULL;
+		return false;
+	}
 
 	return true;
 }
@@ -748,7 +748,7 @@ bool DBManager::ExecSQL(sqlite3 *db, char* sql, char** msg) {
 			sleep(1);
 		}
 		if( ret != SQLITE_OK ) {
-			printf("# DBManager::ExecSQL( ret : %d )", ret);
+			printf("# DBManager::ExecSQL( ret != SQLITE_OK, ret : %d ) \n", ret);
 		}
 	} while( ret == SQLITE_BUSY );
 

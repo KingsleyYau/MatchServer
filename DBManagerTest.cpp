@@ -57,7 +57,7 @@ protected:
 //					qid = atoll(result[j * iColumn + 1]);
 					qid = atoll(result[j * iColumn]);
 					aid = atoi(result[j * iColumn + 1]);
-					sprintf(sql2, "SELECT womanid FROM woman WHERE qid = %lld AND aid = %d AND question_status=1 AND siteid = 1;", qid, aid);
+					sprintf(sql2, "SELECT womanid FROM woman WHERE qid = %lld AND aid = %d AND question_status = 1 AND siteid = 1;", qid, aid);
 //					sprintf(sql2, "SELECT womanid FROM woman WHERE qid = %lld AND aid = %d;", qid, aid);
 //					printf("sql2 : %s \n", sql2);
 					bResult = mpDBManagerTest->mDBManager.Query(sql2, &result2, &iRow2, &iColumn2);

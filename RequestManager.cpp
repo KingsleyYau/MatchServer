@@ -8,6 +8,7 @@
 
 #include "RequestManager.h"
 #include "DataHttpParser.h"
+#include "TimeProc.hpp"
 
 #include <algorithm>
 
@@ -81,6 +82,8 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			long long qid = 0;
 			int aid = 0;
 			int siteid = 0;
+			string womanIds = "";
+			string where = "";
 
 //			sprintf(sql,
 //					"SELECT COUNT(DISTINCT LADY.ID) FROM LADY JOIN MAN ON MAN.QID = LADY.QID AND MAN.AID = LADY.AID WHERE MAN.MANID = '%s';",
@@ -95,10 +98,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			int iRow = 0;
 			int iColumn = 0;
 
-			char** result2 = NULL;
-			int iRow2;
-			int iColumn2;
-
 			timeval tStart;
 			timeval tEnd;
 
@@ -106,6 +105,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			map<string, int>::iterator itr;
 			string womanid;
 
+			iQueryTime = GetTickCount();
 			bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn);
 			LogManager::GetLogManager()->Log(
 					LOG_STAT,
@@ -121,96 +121,141 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					iColumn
 					);
 			if( bResult && result && iRow > 0 ) {
-				for( int i = 1; i < (iRow + 1); i++ ) {
+				// 随机起始查询问题位置
+				int iManIndex = (rand() % iRow) + 1;
+
+				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
 					gettimeofday(&tStart, NULL);
 
-					qid = atoll(result[i * iColumn]);
-					aid = atoi(result[i * iColumn + 1]);
-
-					sprintf(sql, "SELECT womanid FROM woman WHERE qid = %lld AND aid = %d AND question_status='1' AND siteid = %d;",
-							qid,
-							aid,
-							siteid
-							);
-					bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2);
 					LogManager::GetLogManager()->Log(
 										LOG_STAT,
 										"RequestManager::HandleRecvMessage( "
 										"tid : %d, "
 										"m->fd: [%d], "
-										"iRow2 : %d, "
-										"iColumn2 : %d "
+										"i : %d "
 										")",
 										(int)syscall(SYS_gettid),
 										m->fd,
-										iRow2,
-										iColumn2
+										i
 										);
-					if( bResult && result2 && iRow2 > 0 ) {
-						for( int k = 1; k < (iRow2 + 1); k++ ) {
-							// find womanid
-							womanid = result2[k * iColumn2];
-							itr = womanidMap.find(womanid);
-							if( itr != womanidMap.end() ) {
-								itr->second++;
-							} else {
+
+					if( iCount == 0 ) {
+						// first time query
+						sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND question_status = 1 AND siteid = %d;",
+								result[i * iColumn],
+								result[i * iColumn + 1],
+								siteid
+								);
+
+						char** result2 = NULL;
+						int iRow2;
+						int iColumn2;
+
+						bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2);
+						LogManager::GetLogManager()->Log(
+											LOG_STAT,
+											"RequestManager::HandleRecvMessage( "
+											"tid : %d, "
+											"m->fd: [%d], "
+											"iManIndex : %d, "
+											"iRow2 : %d, "
+											"iColumn2 : %d "
+											")",
+											(int)syscall(SYS_gettid),
+											m->fd,
+											iManIndex,
+											iRow2,
+											iColumn2
+											);
+						if( bResult && result2 && iRow2 > 0 ) {
+							int iLadyIndex = 1;
+							if( iRow2 > 30 ) {
+								iLadyIndex = iRow2 - 30;
+								iLadyIndex = (rand() % iLadyIndex) + 1;
+							}
+							LogManager::GetLogManager()->Log(
+												LOG_STAT,
+												"RequestManager::HandleRecvMessage( "
+												"tid : %d, "
+												"m->fd: [%d], "
+												"iLadyIndex : %d "
+												")",
+												(int)syscall(SYS_gettid),
+												m->fd,
+												iLadyIndex
+												);
+							for( int j = iLadyIndex, k = 0; (j < iRow2 + 1) && (k < 30); k++, j++ ) {
+								// find womanid
+								womanid = result2[j * iColumn2];
 								womanidMap.insert(map<string, int>::value_type(womanid, 1));
 							}
 						}
+						mpDBManager->FinishQuery(result2);
+					} else {
+						for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+							char** result3 = NULL;
+							int iRow3;
+							int iColumn3;
+
+							sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND question_status = 1 AND siteid = %d;",
+									itr->first.c_str(),
+									result[i * iColumn],
+									result[i * iColumn + 1],
+									siteid
+									);
+
+							bResult = mpDBManager->Query(sql, &result3, &iRow3, &iColumn3);
+							LogManager::GetLogManager()->Log(
+												LOG_STAT,
+												"RequestManager::HandleRecvMessage( "
+												"tid : %d, "
+												"m->fd: [%d], "
+												"iRow3 : %d, "
+												"iColumn3 : %d, "
+												")",
+												(int)syscall(SYS_gettid),
+												m->fd,
+												iRow3,
+												iColumn3
+												);
+							if( bResult && result3 && iRow3 > 0 ) {
+								LogManager::GetLogManager()->Log(
+													LOG_STAT,
+													"RequestManager::HandleRecvMessage( "
+													"tid : %d, "
+													"m->fd: [%d], "
+													"result3[1 * iColumn3] : %s, "
+													"itr->second : %d "
+													")",
+													(int)syscall(SYS_gettid),
+													m->fd,
+													result3[1 * iColumn3],
+													itr->second
+													);
+								if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
+									itr->second++;
+								}
+							}
+							mpDBManager->FinishQuery(result3);
+						}
 					}
-					gettimeofday(&tEnd, NULL);
-					long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
-					usleep(usec);
-					iQueryTime += usec / 1000;
-					mpDBManager->FinishQuery(result2);
+
+					i++;
+					i = ((i - 1) % iRow) + 1;
+
+//					gettimeofday(&tEnd, NULL);
+//					long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
+//					usleep(usec);
 				}
 
-				int iStartMap = GetTickCount();
-				int iMapSize = womanidMap.size() - 30;
-				int iIndex = 0;
-				int iCount = 0;
-				int iItem = 0;
-
-				if( iMapSize > 0 ) {
-					iIndex = rand() % iMapSize;
-					iCount = 0;
-					iItem = 0;
-					for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
-						iCount++;
-						if( iCount < iIndex ) {
-							continue;
-						}
-
-						if( iItem++ >= 30 ) {
-							break;
-						}
-
-						Json::Value womanNode;
-						womanNode[itr->first] = itr->second;
-						womanListNode.append(womanNode);
-					}
-				}
-				int iRandTime = GetTickCount() - iStartMap;
-				LogManager::GetLogManager()->Log(
-								LOG_STAT,
-								"RequestManager::HandleRecvMessage( "
-								"tid : %d, "
-								"m->fd: [%d], "
-								"iMapSize : %d, "
-								"iIndex : %d, "
-								"iRandTime: %d "
-								")",
-								(int)syscall(SYS_gettid),
-								m->fd,
-								iMapSize,
-								iIndex,
-								iRandTime
-								);
-
+				iQueryTime = GetTickCount() - iQueryTime;
 				rootSend["iQueryTime"] = iQueryTime;
-//				rootSend["iIndex"] = iIndex;
-//				rootSend["iMapSize"] = iMapSize;
-//				rootSend["iRandTime"] = iRandTime;
+
+				for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+					Json::Value womanNode;
+					womanNode[itr->first] = itr->second;
+					womanListNode.append(womanNode);
+				}
 			}
 			mpDBManager->FinishQuery(result);
 		} else {
@@ -413,14 +458,4 @@ int RequestManager::HandleInsideRecvMessage(Message *m, Message *sm) {
 	sm->len = strlen(sm->buffer);
 
 	return ret;
-}
-
-unsigned int RequestManager::GetTickCount() {
-	timeval tNow;
-	gettimeofday(&tNow, NULL);
-	if (tNow.tv_usec != 0) {
-		return (tNow.tv_sec * 1000 + (unsigned int)(tNow.tv_usec / 1000));
-	} else{
-		return (tNow.tv_sec * 1000);
-	}
 }

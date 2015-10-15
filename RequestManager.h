@@ -48,7 +48,6 @@ public:
 	int HandleTimeoutMessage(Message *m, Message *sm);
 	int HandleInsideRecvMessage(Message *m, Message *sm);
 protected:
-	unsigned int GetTickCount();
 
 private:
 	DBManager* mpDBManager;

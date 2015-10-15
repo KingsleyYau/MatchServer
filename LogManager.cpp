@@ -175,7 +175,7 @@ bool LogManager::Start(int maxIdle, LOG_LEVEL nLevel, const string& dir) {
 	if( mpLogThread->start() != 0 ) {
 //		printf("# Create log thread ok \n");
 	}
-	printf("# LogManager::Start() \n");
+	printf("# LogManager start OK. \n");
 	return true;
 }
 

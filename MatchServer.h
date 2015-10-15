@@ -56,7 +56,6 @@ public:
 	unsigned int GetIgn();
 
 private:
-	unsigned int GetTickCount();
 
 	TcpServer mClientTcpServer;
 	RequestManager mRequestManager;

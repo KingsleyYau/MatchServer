@@ -7,6 +7,7 @@
  */
 
 #include "MatchServer.h"
+#include "TimeProc.hpp"
 
 #include <sys/syscall.h>
 
@@ -23,7 +24,7 @@ protected:
 	void onRun() {
 		int iCount = 0;
 		while( mContainer->IsRunning() ) {
-			if ( iCount < 10 ) {
+			if ( iCount < 30 ) {
 				iCount++;
 			} else {
 				iCount = 0;
@@ -111,9 +112,17 @@ void MatchServer::Run(const string& config) {
 
 		int iLogLevel = atoi(conf->GetPrivate("LOG", "LOGLEVEL", "5").c_str());
 		string dir = conf->GetPrivate("LOG", "LOGDIR", "log");
+		int iDebugMode = atoi(conf->GetPrivate("LOG", "DEBUGMODE", "0").c_str());
+		if( iDebugMode == 1 ) {
+			LogManager::LogSetFlushBuffer(0);
+		} else {
+			LogManager::LogSetFlushBuffer(5 * BUFFER_SIZE_1K * BUFFER_SIZE_1K);
+		}
 
 		delete conf;
 		Run(iPort, iMaxClient, iMaxMemoryCopy, iMaxHandleThread, iMaxQueryPerThread, host, dbPort, dbName, user, passwd, iMaxDatabaseThread, iLogLevel, dir);
+	} else {
+		printf("# No config file can be use exit \n");
 	}
 }
 
@@ -134,10 +143,7 @@ void MatchServer::Run(
 		) {
 
 	/* log system */
-	LogManager::LogSetFlushBuffer(5 * BUFFER_SIZE_1K * BUFFER_SIZE_1K);
-//	LogManager::LogSetFlushBuffer(0);
 	LogManager::GetLogManager()->Start(1000, iLogLevel, logDir);
-
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
 			"MatchServer::Run( "
@@ -211,7 +217,7 @@ void MatchServer::Run(
 //		printf("# Create state thread ok \n");
 	}
 
-	printf("# MatchServer::Run() \n");
+	printf("# MatchServer running... \n");
 
 	/* call server */
 	while( true ) {
@@ -361,14 +367,4 @@ unsigned int MatchServer::GetHit() {
 
 unsigned int MatchServer::GetIgn() {
 	return mIgn;
-}
-
-unsigned int MatchServer::GetTickCount() {
-	timeval tNow;
-	gettimeofday(&tNow, NULL);
-	if (tNow.tv_usec != 0) {
-		return (tNow.tv_sec * 1000 + (unsigned int)(tNow.tv_usec / 1000));
-	} else{
-		return (tNow.tv_sec * 1000);
-	}
 }

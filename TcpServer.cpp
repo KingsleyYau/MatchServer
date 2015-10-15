@@ -7,6 +7,7 @@
  */
 
 #include "TcpServer.h"
+#include "TimeProc.hpp"
 
 //static struct ev_loop *gLoop = NULL;
 
@@ -139,7 +140,7 @@ void recv_callback(struct ev_loop *loop, ev_io *w, int revents) {
 	/* something can be recv here */
 	int fd = w->fd;
 
-	unsigned long start = pTcpServer->GetTickCount();
+	unsigned long start = GetTickCount();
 	do {
 		Message *m = pTcpServer->GetIdleMessageList()->PopFront();
 		if( m == NULL ) {
@@ -191,13 +192,15 @@ void recv_callback(struct ev_loop *loop, ev_io *w, int revents) {
 			/* push this message into handle queue */
 			m->len = ret;
 			m->type = 0;
-			m->starttime = pTcpServer->GetTickCount();
+			m->starttime = GetTickCount();
 
-			if ( pTcpServer->GetHandleMessageList()->Size() < pTcpServer->GetHandleSize() ) {
-				pTcpServer->GetHandleMessageList()->PushBack(m);
-			} else {
+			if ( pTcpServer->GetHandleSize() > 0 &&
+					pTcpServer->GetHandleMessageList()->Size() > pTcpServer->GetHandleSize() ) {
+				// over handle queue max size, maybe timeout, return at once
 				pTcpServer->OnTimeoutMessage(m);
 				pTcpServer->GetIdleMessageList()->PushBack(m);
+			} else {
+				pTcpServer->GetHandleMessageList()->PushBack(m);
 			}
 
 			if( ret != MAXLEN - 1 ) {
@@ -237,7 +240,7 @@ void recv_callback(struct ev_loop *loop, ev_io *w, int revents) {
 			}
 		}
 	} while( true );
-	pTcpServer->AddRecvTime(pTcpServer->GetTickCount() - start);
+	pTcpServer->AddRecvTime(GetTickCount() - start);
 
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::recv_callback( "
 				"tid : %d, "
@@ -251,7 +254,7 @@ void recv_callback(struct ev_loop *loop, ev_io *w, int revents) {
 				);
 
 //	if( pTcpServer->GetSlowDown() > 0 ) {
-//		usleep(pTcpServer->GetSlowDown() * 1000 * (pTcpServer->GetTickCount() - start));
+//		usleep(pTcpServer->GetSlowDown() * 1000 * (GetTickCount() - start));
 //	}
 }
 
@@ -315,7 +318,7 @@ void send_callback(struct ev_loop *loop, ev_io *w, int revents) {
 		return;
 	}
 
-	unsigned long start = pTcpServer->GetTickCount();
+	unsigned long start = GetTickCount();
 	do {
 		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::send_callback( "
 				"tid : %d, "
@@ -389,7 +392,7 @@ void send_callback(struct ev_loop *loop, ev_io *w, int revents) {
 			}
 		}
 	} while( true );
-	pTcpServer->AddSendTime(pTcpServer->GetTickCount() - start);
+	pTcpServer->AddSendTime(GetTickCount() - start);
 
 //	pTcpServer->GetSendMessageList()[fd] = NULL;
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::send_callback( "
@@ -587,7 +590,7 @@ TcpServer::TcpServer() {
 	mpTcpServerObserver = NULL;
 
 //	mCurrentConnection = 0;
-	mHandleSize = 1000;
+	mHandleSize = 0;
 	mTotalHandleRecvTime = 0;
 	mTotalHandleSendTime = 0;
 	mTotalRecvTime = 0;
@@ -729,14 +732,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create send thread ok )");
 //		printf("# Create send thread ok \n");
 	}
-	printf("# "
-			"TcpServer::Start( "
-			"maxConnection : %d, "
-			"maxThreadHandle : %d "
-			" ) \n",
-			maxConnection,
-			maxThreadHandle
-			);
+	printf("# TcpServer start OK. \n");
 	return true;
 }
 
@@ -1156,16 +1152,6 @@ void TcpServer::OnTimeoutMessage(Message *m) {
 			);
 	if( mpTcpServerObserver != NULL ) {
 		mpTcpServerObserver->OnTimeoutMessage(this, m);
-	}
-}
-
-unsigned int TcpServer::GetTickCount() {
-	timeval tNow;
-	gettimeofday(&tNow, NULL);
-	if (tNow.tv_usec != 0) {
-		return (tNow.tv_sec * 1000 + (unsigned int)(tNow.tv_usec / 1000));
-	} else{
-		return (tNow.tv_sec * 1000);
 	}
 }
 

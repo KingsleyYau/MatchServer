@@ -91,8 +91,6 @@ public:
 	void AddRecvTime(unsigned long time);
 	void AddSendTime(unsigned long time);
 
-	unsigned int GetTickCount();
-
 //	void HandleCloseQueue();
 
 	void LockWatcherList();

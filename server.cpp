@@ -23,6 +23,7 @@ bool Parse(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
 	printf("############## Match Server ############## \n");
+	srand(time(0));
 
 	/* Ignore SIGPIPE */
 	struct sigaction sa;
@@ -36,7 +37,8 @@ int main(int argc, char *argv[]) {
 	if( sConf.length() > 0 ) {
 		server.Run(sConf);
 	} else {
-		printf("# Usage : ./matchserver -f config \n");
+		printf("# Usage : ./matchserver [ -f <config file> ] \n");
+		server.Run("/etc/matchserver.config");
 	}
 
 	return EXIT_SUCCESS;

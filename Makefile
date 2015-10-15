@@ -33,7 +33,7 @@ CLIENTTEST_TARGET =		client
 DEPDIRS	:= sqlite libev
 CLEAN_DEPS := $(addprefix _clean_, $(DEPDIRS))
 
-.PHONY: all deps clean cleanall $(DEPDIRS) $(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
+.PHONY: all deps clean cleanall install $(DEPDIRS) $(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
 
 $(TARGET):	deps $(OBJS)
 	$(CXX) -o $(TARGET) $(OBJS) $(LIBS)
@@ -81,5 +81,15 @@ cleanall: clean	$(CLEAN_DEPS)
 	@echo '################################################################'
 	@echo ''
 	@echo '# Clean all finished!'
+	@echo ''
+	@echo '################################################################'
+	
+install: 
+	copy matchserver.config /etc/ -rf
+	copy matchserver /usr/local/bin
+	chmod +x /usr/local/bin/matchserver
+	@echo '################################################################'
+	@echo ''
+	@echo '# Install matcherserver finished!'
 	@echo ''
 	@echo '################################################################'
