@@ -7,9 +7,10 @@
 #
 
 export MAKE	:=	make
+TIME = `date -R`
 
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 -Wunused-variable
-CXXFLAGS +=	-I. -Isqlite -Ilibev -I/usr/include/mysql 
+CXXFLAGS +=	-I. -Isqlite -Ilibev -I/usr/include/mysql
 
 LIBS =		-L. \
 			-Wl,-Bstatic -Llibev/.libs -lev \
