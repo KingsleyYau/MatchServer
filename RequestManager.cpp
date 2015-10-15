@@ -127,17 +127,17 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 
 				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
 
-					LogManager::GetLogManager()->Log(
-										LOG_STAT,
-										"RequestManager::HandleRecvMessage( "
-										"tid : %d, "
-										"m->fd: [%d], "
-										"i : %d "
-										")",
-										(int)syscall(SYS_gettid),
-										m->fd,
-										i
-										);
+//					LogManager::GetLogManager()->Log(
+//										LOG_STAT,
+//										"RequestManager::HandleRecvMessage( "
+//										"tid : %d, "
+//										"m->fd: [%d], "
+//										"i : %d "
+//										")",
+//										(int)syscall(SYS_gettid),
+//										m->fd,
+//										i
+//										);
 
 					if( iCount == 0 ) {
 						// first time query
@@ -152,38 +152,38 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 						int iColumn2;
 
 						bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2);
-						LogManager::GetLogManager()->Log(
-											LOG_STAT,
-											"RequestManager::HandleRecvMessage( "
-											"tid : %d, "
-											"m->fd: [%d], "
-											"iManIndex : %d, "
-											"iRow2 : %d, "
-											"iColumn2 : %d "
-											")",
-											(int)syscall(SYS_gettid),
-											m->fd,
-											iManIndex,
-											iRow2,
-											iColumn2
-											);
+//						LogManager::GetLogManager()->Log(
+//											LOG_STAT,
+//											"RequestManager::HandleRecvMessage( "
+//											"tid : %d, "
+//											"m->fd: [%d], "
+//											"iManIndex : %d, "
+//											"iRow2 : %d, "
+//											"iColumn2 : %d "
+//											")",
+//											(int)syscall(SYS_gettid),
+//											m->fd,
+//											iManIndex,
+//											iRow2,
+//											iColumn2
+//											);
 						if( bResult && result2 && iRow2 > 0 ) {
 							int iLadyIndex = 1;
 							if( iRow2 > 30 ) {
 								iLadyIndex = iRow2 - 30;
 								iLadyIndex = (rand() % iLadyIndex) + 1;
 							}
-							LogManager::GetLogManager()->Log(
-												LOG_STAT,
-												"RequestManager::HandleRecvMessage( "
-												"tid : %d, "
-												"m->fd: [%d], "
-												"iLadyIndex : %d "
-												")",
-												(int)syscall(SYS_gettid),
-												m->fd,
-												iLadyIndex
-												);
+//							LogManager::GetLogManager()->Log(
+//												LOG_STAT,
+//												"RequestManager::HandleRecvMessage( "
+//												"tid : %d, "
+//												"m->fd: [%d], "
+//												"iLadyIndex : %d "
+//												")",
+//												(int)syscall(SYS_gettid),
+//												m->fd,
+//												iLadyIndex
+//												);
 							for( int j = iLadyIndex, k = 0; (j < iRow2 + 1) && (k < 30); k++, j++ ) {
 								// find womanid
 								womanid = result2[j * iColumn2];
@@ -205,33 +205,33 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 									);
 
 							bResult = mpDBManager->Query(sql, &result3, &iRow3, &iColumn3);
-							LogManager::GetLogManager()->Log(
-												LOG_STAT,
-												"RequestManager::HandleRecvMessage( "
-												"tid : %d, "
-												"m->fd: [%d], "
-												"iRow3 : %d, "
-												"iColumn3 : %d, "
-												")",
-												(int)syscall(SYS_gettid),
-												m->fd,
-												iRow3,
-												iColumn3
-												);
+//							LogManager::GetLogManager()->Log(
+//												LOG_STAT,
+//												"RequestManager::HandleRecvMessage( "
+//												"tid : %d, "
+//												"m->fd: [%d], "
+//												"iRow3 : %d, "
+//												"iColumn3 : %d, "
+//												")",
+//												(int)syscall(SYS_gettid),
+//												m->fd,
+//												iRow3,
+//												iColumn3
+//												);
 							if( bResult && result3 && iRow3 > 0 ) {
-								LogManager::GetLogManager()->Log(
-													LOG_STAT,
-													"RequestManager::HandleRecvMessage( "
-													"tid : %d, "
-													"m->fd: [%d], "
-													"result3[1 * iColumn3] : %s, "
-													"itr->second : %d "
-													")",
-													(int)syscall(SYS_gettid),
-													m->fd,
-													result3[1 * iColumn3],
-													itr->second
-													);
+//								LogManager::GetLogManager()->Log(
+//													LOG_STAT,
+//													"RequestManager::HandleRecvMessage( "
+//													"tid : %d, "
+//													"m->fd: [%d], "
+//													"result3[1 * iColumn3] : %s, "
+//													"itr->second : %d "
+//													")",
+//													(int)syscall(SYS_gettid),
+//													m->fd,
+//													result3[1 * iColumn3],
+//													itr->second
+//													);
 								if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
 									itr->second++;
 								}
