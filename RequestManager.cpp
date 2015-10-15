@@ -85,9 +85,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			string womanIds = "";
 			string where = "";
 
-//			sprintf(sql,
-//					"SELECT COUNT(DISTINCT LADY.ID) FROM LADY JOIN MAN ON MAN.QID = LADY.QID AND MAN.AID = LADY.AID WHERE MAN.MANID = '%s';",
-//					pManId);
 			sprintf(sql, "SELECT qid, aid FROM man WHERE manid = '%s';", pManId);
 			if( pSiteId != NULL ) {
 				siteid = atoi(pSiteId);
@@ -128,19 +125,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				int iManIndex = (rand() % iRow) + 1;
 				bool bEnougthLady = false;
 				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
-
-//					LogManager::GetLogManager()->Log(
-//										LOG_STAT,
-//										"RequestManager::HandleRecvMessage( "
-//										"tid : %d, "
-//										"m->fd: [%d], "
-//										"i : %d "
-//										")",
-//										(int)syscall(SYS_gettid),
-//										m->fd,
-//										i
-//										);
-
 					if( !bEnougthLady ) {
 						// query more lady
 						sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND question_status = 1 AND siteid = %d;",
@@ -226,19 +210,19 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 //												iColumn3
 //												);
 							if( bResult && result3 && iRow3 > 0 ) {
-								LogManager::GetLogManager()->Log(
-													LOG_STAT,
-													"RequestManager::HandleRecvMessage( "
-													"tid : %d, "
-													"m->fd: [%d], "
-													"result3[1 * iColumn3] : %s, "
-													"itr->second : %d "
-													")",
-													(int)syscall(SYS_gettid),
-													m->fd,
-													result3[1 * iColumn3],
-													itr->second
-													);
+//								LogManager::GetLogManager()->Log(
+//													LOG_STAT,
+//													"RequestManager::HandleRecvMessage( "
+//													"tid : %d, "
+//													"m->fd: [%d], "
+//													"result3[1 * iColumn3] : %s, "
+//													"itr->second : %d "
+//													")",
+//													(int)syscall(SYS_gettid),
+//													m->fd,
+//													result3[1 * iColumn3],
+//													itr->second
+//													);
 								if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
 									itr->second++;
 								}

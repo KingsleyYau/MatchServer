@@ -580,21 +580,6 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		return false;
 	}
 
-//	// 建男士表索引(qid, aid)
-//	sprintf(sql,
-//			"CREATE INDEX manindex_qid_aid "
-//			"ON man (qid, aid)"
-//			";"
-//	);
-//
-//	ExecSQL( db, sql, &msg );
-//	if( msg != NULL ) {
-//		fprintf(stderr, "# Could not create table man index, msg: %s \n", msg);
-//		sqlite3_free(msg);
-//		msg = NULL;
-//		return false;
-//	}
-
 	// 建女士表
 	sprintf(sql,
 			"CREATE TABLE woman("
