@@ -188,17 +188,19 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 											"RequestManager::HandleRecvMessage( "
 											"tid : %d, "
 											"m->fd: [%d], "
+											"Query iQueryTime : %d, "
+											"iQueryIndex : %d, "
 											"iRow : %d, "
 											"iColumn : %d, "
-											"Query iQueryTime : %d, "
-											"iQueryIndex : %d "
+											"sql : %s "
 											")",
 											(int)syscall(SYS_gettid),
 											m->fd,
+											iQueryTime,
+											iQueryIndex,
 											iRow,
 											iColumn,
-											iQueryTime,
-											iQueryIndex
+											sql
 											);
 
 						if( bResult && result2 && iRow2 > 0 ) {
@@ -272,9 +274,9 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				);
 	}
 
-	unsigned int iEnd = GetTickCount();
-	iHandleTime = iEnd - iHandleTime;
-	usleep(1000 * iHandleTime);
+	usleep(1000 * (GetTickCount() - iHandleTime));
+	iHandleTime = GetTickCount() - iHandleTime;
+
 	sm->totaltime = iEnd - m->starttime;
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
