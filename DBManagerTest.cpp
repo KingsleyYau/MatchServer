@@ -19,162 +19,17 @@ public:
 	}
 protected:
 	void onRun() {
-		char sql[2048] = {'\0'};
-		char sql2[2048] = {'\0'};
-//		sprintf(sql, "SELECT COUNT(DISTINCT LADY.ID) FROM LADY JOIN MAN ON MAN.QID = LADY.QID AND MAN.AID = LADY.AID WHERE MAN.MANID = 'man-10000';");
-		sprintf(sql, "SELECT qid, aid FROM man WHERE manid = 'CM100';"); // 78us
 
 		timeval tStart;
 		timeval tEnd;
-		timeval tStart1;
-		timeval tEnd1;
-		timeval tStart2;
-		timeval tEnd2;
-
-		bool bResult = false;
-		char** result;
-		int iRow;
-		int iColumn;
-
-		char** result2;
-		int iRow2;
-		int iColumn2;
-		long long qid = 0;
-		int aid = 0;
 
 		for( int i = 0; mpDBManagerTest->miCur < mpDBManagerTest->miMaxQuery; i++ ) {
-			// 执行查询
-			char sql[1024] = {'\0'};
-			string womanIds = "";
-			string where = "";
-
-			sprintf(sql, "SELECT qid, aid FROM man WHERE manid = 'CM1000';");
-
-			bool bResult = false;
-			char** result = NULL;
-			int iRow = 0;
-			int iColumn = 0;
-
-			timeval tStart;
-			timeval tEnd;
-
-			map<string, int> womanidMap;
-			map<string, int>::iterator itr;
-			string womanid;
-
-			bResult = mpDBManagerTest->mDBManager.Query(sql, &result, &iRow, &iColumn);
-
 			gettimeofday(&tStart, NULL);
 
-			if( bResult && result && iRow > 0 ) {
-				// 随机起始查询问题位置
-				int iManIndex = (rand() % iRow) + 1;
-				bool bEnougthLady = false;
-				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
-					if( !bEnougthLady ) {
-						// query more lady
-						sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND question_status = 1 AND siteid = 1;",
-								result[i * iColumn],
-								result[i * iColumn + 1]
-								);
-
-						char** result2 = NULL;
-						int iRow2;
-						int iColumn2;
-
-						bResult = mpDBManagerTest->mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
-						if( bResult && result2 && iRow2 > 0 ) {
-							int iLadyIndex = 1;
-							int iLadyCount = 0;
-
-							if( iRow2 + womanidMap.size() >= 30 ) {
-								bEnougthLady = true;
-								iLadyCount = 30 - womanidMap.size();
-								iLadyIndex = (rand() % (iRow2 -iLadyCount)) + 1;
-							} else {
-								iLadyCount = iRow2;
-							}
-							for( int j = iLadyIndex, k = 0; (j < iRow2 + 1) && (k < iLadyCount); k++, j++ ) {
-								// find womanid
-								womanid = result2[j * iColumn2];
-								womanidMap.insert(map<string, int>::value_type(womanid, 1));
-							}
-						}
-						mpDBManagerTest->mDBManager.FinishQuery(result2);
-					} else {
-						for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
-							char** result3 = NULL;
-							int iRow3;
-							int iColumn3;
-
-							sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND question_status = 1 AND siteid = 1;",
-									itr->first.c_str(),
-									result[i * iColumn],
-									result[i * iColumn + 1]
-									);
-
-							bResult = mpDBManagerTest->mDBManager.Query(sql, &result3, &iRow3, &iColumn3);
-							if( bResult && result3 && iRow3 > 0 ) {
-								if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
-									itr->second++;
-								}
-							}
-							mpDBManagerTest->mDBManager.FinishQuery(result3);
-						}
-					}
-
-					i++;
-					i = ((i - 1) % iRow) + 1;
-				}
-
-			}
-			mpDBManagerTest->mDBManager.FinishQuery(result);
-
-
-
-//			gettimeofday(&tStart, NULL);
-////			gettimeofday(&tStart1, NULL);
-//			bResult = mpDBManagerTest->mDBManager.Query(sql, &result, &iRow, &iColumn);
-////			gettimeofday(&tEnd1, NULL);
-////			long usec1 = (1000 * 1000 * tEnd1.tv_sec + tEnd1.tv_usec - (1000 * 1000 * tStart1.tv_sec + tStart1.tv_usec));
-////			usleep(usec1);
-////			printf("iRow %d, iColumn : %d, result : %p \n", iRow, iColumn, result);
-//			if( bResult && result && iRow > 0 ) {
-//				for( int j = 1; j < (iRow + 1); j++ ) {
-////					for( int k = 0; k < iColumn; k++ ) {
-////						printf("%8s |", result[j * iColumn + k]);
-////					}
-////					printf("\n");
-//					gettimeofday(&tStart2, NULL);
-////					qid = atoll(result[j * iColumn + 1]);
-//					qid = atoll(result[j * iColumn]);
-//					aid = atoi(result[j * iColumn + 1]);
-//					sprintf(sql2, "SELECT womanid FROM woman WHERE qid = %lld AND aid = %d AND question_status = 1 AND siteid = 1;", qid, aid);
-////					sprintf(sql2, "SELECT womanid FROM woman WHERE qid = %lld AND aid = %d;", qid, aid);
-////					printf("sql2 : %s \n", sql2);
-//					bResult = mpDBManagerTest->mDBManager.Query(sql2, &result2, &iRow2, &iColumn2);
-////					printf("iRow2 %d, iColumn2 : %d, result2 : %p \n", iRow2, iColumn2, result2);
-//					if( bResult && result2 && iRow2 > 0 ) {
-////						for( int j2 = 0; j2 < (iRow2 + 1); j2++ ) {
-////							for( int k = 0; k < iColumn2; k++ ) {
-////								printf("%8s |", result2[j2 * iColumn2 + k]);
-////							}
-////							printf("\n");
-////						}
-//					}
-//					mpDBManagerTest->mDBManager.FinishQuery(result2);
-//
-//					gettimeofday(&tEnd2, NULL);
-//					long usec2 = (1000 * 1000 * tEnd2.tv_sec + tEnd2.tv_usec - (1000 * 1000 * tStart2.tv_sec + tStart2.tv_usec));
-//
-//					gettimeofday(&tStart2, NULL);
-//					usleep(usec2);
-//					gettimeofday(&tEnd2, NULL);
-//
-//				}
-//			}
-//			mpDBManagerTest->mDBManager.FinishQuery(result);
-
+//			mpDBManagerTest->Test1();
+//			mpDBManagerTest->Test2();
+			mpDBManagerTest->Test3();
+//			mpDBManagerTest->Test4();
 
 			gettimeofday(&tEnd, NULL);
 			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
@@ -222,7 +77,7 @@ void DBManagerTest::StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery)
 
 	gettimeofday(&tEnd, NULL);
 	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
-	printf("# 同步数据用时 : %ldus\n", usec);
+	printf("# 同步数据用时 : %lds\n", usec / 1000 / 1000);
 
 	KThread** threads = new KThread*[iMaxThread];
 	TestRunnable** runnable = new TestRunnable*[iMaxThread];
@@ -297,4 +152,343 @@ void DBManagerTest::TestSql(string sql) {
 		}
 	}
 
+}
+
+void DBManagerTest::Test1() {
+	char sql[1024] = {'\0'};
+	bool bResult = false;
+	char** result;
+	int iRow;
+	int iColumn;
+
+	char** result2;
+	int iRow2;
+	int iColumn2;
+
+	timeval tStart;
+	timeval tEnd;
+
+	sprintf(sql, "SELECT qid, aid FROM man WHERE manid = 'CM100';"); // 78us
+
+	gettimeofday(&tStart, NULL);
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn);
+	if( bResult && result && iRow > 0 ) {
+		for( int j = 1; j < (iRow + 1); j++ ) {
+			gettimeofday(&tStart, NULL);
+			sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;", result[j * iColumn], result[j * iColumn + 1]);
+			bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+//			printf("iRow2 %d, iColumn2 : %d, result2 : %p \n", iRow2, iColumn2, result2);
+			if( bResult && result2 && iRow2 > 0 ) {
+			}
+			mDBManager.FinishQuery(result2);
+
+			gettimeofday(&tEnd, NULL);
+			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
+
+			gettimeofday(&tStart, NULL);
+			usleep(usec);
+			gettimeofday(&tEnd, NULL);
+
+		}
+	}
+	mDBManager.FinishQuery(result);
+}
+
+void DBManagerTest::Test2() {
+	// 执行查询
+	char sql[1024] = {'\0'};
+	string womanIds = "";
+
+	sprintf(sql, "SELECT qid, aid FROM man WHERE manid = 'CM100';");
+
+	bool bResult = false;
+	char** result = NULL;
+	int iRow = 0;
+	int iColumn = 0;
+
+	timeval tStart;
+	timeval tEnd;
+
+	map<string, int> womanidMap;
+	map<string, int>::iterator itr;
+	string womanid;
+
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn);
+
+	if( bResult && result && iRow > 0 ) {
+		// 随机起始查询问题位置
+		int iManIndex = (rand() % iRow) + 1;
+		bool bEnougthLady = false;
+		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
+			gettimeofday(&tStart, NULL);
+			if( !bEnougthLady ) {
+				// query more lady
+				sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;",
+						result[i * iColumn],
+						result[i * iColumn + 1]
+						);
+
+				char** result2 = NULL;
+				int iRow2;
+				int iColumn2;
+
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				if( bResult && result2 && iRow2 > 0 ) {
+					int iLadyIndex = 1;
+					int iLadyCount = 0;
+
+					if( iRow2 + womanidMap.size() >= 30 ) {
+						bEnougthLady = true;
+						iLadyCount = 30 - womanidMap.size();
+						iLadyIndex = (rand() % (iRow2 -iLadyCount)) + 1;
+					} else {
+						iLadyCount = iRow2;
+					}
+
+					for( int j = iLadyIndex, k = 0; (j < iRow2 + 1) && (k < iLadyCount); k++, j++ ) {
+						// find womanid
+						womanid = result2[j * iColumn2];
+						womanidMap.insert(map<string, int>::value_type(womanid, 1));
+					}
+				}
+				mDBManager.FinishQuery(result2);
+			} else {
+				for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+					char** result3 = NULL;
+					int iRow3;
+					int iColumn3;
+
+					sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;",
+							itr->first.c_str(),
+							result[i * iColumn],
+							result[i * iColumn + 1]
+							);
+
+					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3);
+					if( bResult && result3 && iRow3 > 0 ) {
+						if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
+							itr->second++;
+						}
+					}
+					mDBManager.FinishQuery(result3);
+				}
+			}
+
+			i++;
+			i = ((i - 1) % iRow) + 1;
+			gettimeofday(&tEnd, NULL);
+			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
+			usleep(usec);
+		}
+	}
+	mDBManager.FinishQuery(result);
+}
+void DBManagerTest::Test3() {
+	// 执行查询
+	char sql[1024] = {'\0'};
+	string womanIds = "";
+
+	sprintf(sql, "SELECT qid, aid FROM man WHERE manid = 'CM100';");
+
+	bool bResult = false;
+	char** result = NULL;
+	int iRow = 0;
+	int iColumn = 0;
+
+	timeval tStart;
+	timeval tEnd;
+
+	map<string, int> womanidMap;
+	map<string, int>::iterator itr;
+	string womanid;
+
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn);
+	if( bResult && result && iRow > 0 ) {
+		// 随机起始查询问题位置
+		int iManIndex = (rand() % iRow) + 1;
+		bool bEnougthLady = false;
+		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
+			gettimeofday(&tStart, NULL);
+			if( !bEnougthLady ) {
+				// query more lady
+				char** result2 = NULL;
+				int iRow2;
+				int iColumn2;
+
+				int iNum = 0;
+
+				sprintf(sql, "SELECT count(*) FROM woman WHERE qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;",
+										result[i * iColumn],
+										result[i * iColumn + 1]
+										);
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				if( bResult && result2 && iRow2 > 0 ) {
+					iNum = atoi(result2[1 * iColumn2]);
+				}
+				mDBManager.FinishQuery(result2);
+
+				int iLadyIndex = 1;
+				int iLadyCount = 0;
+				if( iNum + womanidMap.size() >= 30 ) {
+					bEnougthLady = true;
+					iLadyCount = 30 - womanidMap.size();
+					iLadyIndex = (rand() % (iNum -iLadyCount)) + 1;
+				} else {
+					iLadyCount = iNum;
+				}
+
+				sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = 1 AND question_status = 1 LIMIT %d OFFSET %d;",
+						result[i * iColumn],
+						result[i * iColumn + 1],
+						iLadyCount,
+						iLadyIndex
+						);
+
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				if( bResult && result2 && iRow2 > 0 ) {
+					for( int j = 1; j < iRow2 + 1; j++ ) {
+						// find womanid
+						womanid = result2[j * iColumn2];
+						womanidMap.insert(map<string, int>::value_type(womanid, 1));
+					}
+				}
+				mDBManager.FinishQuery(result2);
+			} else {
+				for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+					char** result3 = NULL;
+					int iRow3;
+					int iColumn3;
+
+					sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;",
+							itr->first.c_str(),
+							result[i * iColumn],
+							result[i * iColumn + 1]
+							);
+
+					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3);
+					if( bResult && result3 && iRow3 > 0 ) {
+						if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
+							itr->second++;
+						}
+					}
+					mDBManager.FinishQuery(result3);
+				}
+			}
+
+			i++;
+			i = ((i - 1) % iRow) + 1;
+
+			gettimeofday(&tEnd, NULL);
+			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
+			usleep(usec);
+		}
+	}
+	mDBManager.FinishQuery(result);
+}
+void DBManagerTest::Test4() {
+	// 执行查询
+	char sql[1024] = {'\0'};
+	string womanIds = "";
+
+	sprintf(sql, "SELECT qid, aid FROM man WHERE manid = 'CM100';");
+
+	bool bResult = false;
+	char** result = NULL;
+	int iRow = 0;
+	int iColumn = 0;
+
+	timeval tStart;
+	timeval tEnd;
+
+	int iIndex = 0;
+	string sWomanIds[30];
+	int iSameAnswerQuestion[30];
+	string womanid;
+
+//	gettimeofday(&tStart, NULL);
+
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn);
+	if( bResult && result && iRow > 0 ) {
+		// 随机起始查询问题位置
+		int iManIndex = (rand() % iRow) + 1;
+		bool bEnougthLady = false;
+		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
+			if( !bEnougthLady ) {
+				// query more lady
+				char** result2 = NULL;
+				int iRow2;
+				int iColumn2;
+
+				int iNum = 0;
+
+				sprintf(sql, "SELECT count(*) FROM woman WHERE qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;",
+										result[i * iColumn],
+										result[i * iColumn + 1]
+										);
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				if( bResult && result2 && iRow2 > 0 ) {
+					iNum = atoi(result2[1 * iColumn2]);
+				}
+				mDBManager.FinishQuery(result2);
+
+				int iLadyIndex = 1;
+				int iLadyCount = 0;
+				if( iNum + iIndex >= 30 ) {
+					bEnougthLady = true;
+					iLadyCount = 30 - iIndex;
+					iLadyIndex = (rand() % (iNum -iLadyCount)) + 1;
+				} else {
+					iLadyCount = iNum;
+				}
+
+				sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = 1 AND question_status = 1 LIMIT %d OFFSET %d;",
+						result[i * iColumn],
+						result[i * iColumn + 1],
+						iLadyCount,
+						iLadyIndex
+						);
+
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				if( bResult && result2 && iRow2 > 0 ) {
+					for( int j = 1; j < iRow2 + 1; j++ ) {
+						// find womanid
+//						womanid = result2[j * iColumn2];
+						sWomanIds[iIndex] = result2[j * iColumn2];
+						iSameAnswerQuestion[iIndex] = 1;
+						iIndex++;
+					}
+				}
+				mDBManager.FinishQuery(result2);
+			} else {
+				for( int j = 0; j < iIndex; j++ ) {
+					char** result3 = NULL;
+					int iRow3;
+					int iColumn3;
+
+					sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;",
+							sWomanIds[iIndex].c_str(),
+							result[i * iColumn],
+							result[i * iColumn + 1]
+							);
+
+					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3);
+					if( bResult && result3 && iRow3 > 0 ) {
+						if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
+							iSameAnswerQuestion[j]++;
+						}
+					}
+					mDBManager.FinishQuery(result3);
+				}
+			}
+
+			i++;
+			i = ((i - 1) % iRow) + 1;
+		}
+	}
+	mDBManager.FinishQuery(result);
+
+//	usleep(5000);
+//	gettimeofday(&tEnd, NULL);
+//	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
+//	usleep(usec);
 }

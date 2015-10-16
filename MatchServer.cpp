@@ -24,7 +24,7 @@ protected:
 	void onRun() {
 		int iCount = 0;
 		while( mContainer->IsRunning() ) {
-			if ( iCount < 1 ) {
+			if ( iCount < 30 ) {
 				iCount++;
 			} else {
 				iCount = 0;
@@ -95,12 +95,15 @@ void MatchServer::Run(const string& config) {
 			printf("# Match Server can not load config file exit \n");
 		}
 
+		// BASE
 		short iPort = atoi(conf->GetPrivate("BASE", "PORT", "9876").c_str());
 		int iMaxClient = atoi(conf->GetPrivate("BASE", "MAXCLIENT", "100000").c_str());
 		int iMaxMemoryCopy = atoi(conf->GetPrivate("BASE", "MAXMEMORYCOPY", "1").c_str());
 		int iMaxHandleThread = atoi(conf->GetPrivate("BASE", "MAXHANDLETHREAD", "2").c_str());
 		int iMaxQueryPerThread = atoi(conf->GetPrivate("BASE", "MAXQUERYPERCOPY", "10").c_str());
+		int iTimeout = atoi(conf->GetPrivate("BASE", "TIMEOUT", "10").c_str());
 
+		// DB
 		string host = conf->GetPrivate("DB", "DBHOST", "localhost");
 		short dbPort = atoi(conf->GetPrivate("DB", "DBPORT", "3306").c_str());
 		string user = conf->GetPrivate("DB", "DBUSER", "root");
@@ -110,6 +113,7 @@ void MatchServer::Run(const string& config) {
 		int iSyncDataTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZETIME", "30").c_str());
 		mDBManager.SetSyncDataTime(iSyncDataTime * 60);
 
+		// LOG
 		int iLogLevel = atoi(conf->GetPrivate("LOG", "LOGLEVEL", "5").c_str());
 		string dir = conf->GetPrivate("LOG", "LOGDIR", "log");
 		int iDebugMode = atoi(conf->GetPrivate("LOG", "DEBUGMODE", "0").c_str());
@@ -120,7 +124,7 @@ void MatchServer::Run(const string& config) {
 		}
 
 		delete conf;
-		Run(iPort, iMaxClient, iMaxMemoryCopy, iMaxHandleThread, iMaxQueryPerThread, host, dbPort, dbName, user, passwd, iMaxDatabaseThread, iLogLevel, dir);
+		Run(iPort, iMaxClient, iMaxMemoryCopy, iMaxHandleThread, iMaxQueryPerThread, iTimeout, host, dbPort, dbName, user, passwd, iMaxDatabaseThread, iLogLevel, dir);
 	} else {
 		printf("# No config file can be use exit \n");
 	}
@@ -132,6 +136,7 @@ void MatchServer::Run(
 		int iMaxMemoryCopy,
 		int iMaxHandleThread,
 		int iMaxQueryPerThread,
+		int iTimeout,
 		const string& host,
 		short dbPort,
 		const string& dbName,
@@ -206,7 +211,7 @@ void MatchServer::Run(
 	/**
 	 * 预估相应时间,内存数目*超时间隔*每秒处理的任务
 	 */
-	mClientTcpServer.SetHandleSize(iMaxMemoryCopy * 5 * iMaxQueryPerThread);
+	mClientTcpServer.SetHandleSize(iMaxMemoryCopy * iTimeout * iMaxQueryPerThread);
 	mClientTcpServer.Start(iMaxClient, iPort, iMaxHandleThread);
 	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( TcpServer Init ok )");
 

@@ -33,8 +33,6 @@
 #include "LogManager.h"
 #include "KSafeList.h"
 
-#define CLOSESOCKET_TIME    1000     // 1秒后关闭
-
 //typedef list<ev_io *> WatcherList;
 typedef KSafeList<ev_io *> WatcherList;
 
@@ -127,7 +125,7 @@ private:
 	/**
 	 * 处理线程
 	 */
-	HandleRunnable* mpHandleRunnable;
+	HandleRunnable** mpHandleRunnable;
 	KThread** mpHandleThread;
 
 	/**

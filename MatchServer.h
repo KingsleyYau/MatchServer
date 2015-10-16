@@ -28,6 +28,7 @@ public:
 			int iMaxMemoryCopy,
 			int iMaxHandleThread,
 			int iMaxQueryPerThread,
+			int iTimeout,
 			const string& host,
 			short dbPort,
 			const string& dbName,

@@ -124,7 +124,7 @@ bool DBManager::InitSyncDataBase(
 	return bFlag;
 }
 
-bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn) {
+bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn, int index) {
 //	LogManager::GetLogManager()->Log(
 //							LOG_STAT,
 //							"DBManager::Query( "
@@ -134,34 +134,39 @@ bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn) {
 //							(int)syscall(SYS_gettid),
 //							sql
 //							);
-	int index;
+	int i;
 	char *msg = NULL;
 	bool bFlag = true;
 
-	mIndexMutex.lock();
-	index = miQueryIndex++;
-	if( miQueryIndex == miMaxMemoryCopy ) {
-		miQueryIndex = 0;
+	if( index == -1 ) {
+		i = 0;
+//		mIndexMutex.lock();
+//		i = miQueryIndex++;
+//		if( miQueryIndex == miMaxMemoryCopy ) {
+//			miQueryIndex = 0;
+//		}
+//		mIndexMutex.unlock();
+	} else {
+		i = index % miMaxMemoryCopy;
 	}
-	mIndexMutex.unlock();
 
-	sqlite3* db = mdbs[index];
-	bFlag = QuerySQL( db, sql, result, iRow, iColumn, &msg );
-	if( msg != NULL ) {
-		LogManager::GetLogManager()->Log(
-								LOG_ERR_USER,
-								"DBManager::Query( "
-								"tid : %d, "
-								"Could not select table, msg : %s "
-								")",
-								(int)syscall(SYS_gettid),
-								msg
-								);
-		fprintf(stderr, "# Could not select table, msg : %s \n", msg);
-		bFlag = false;
-		sqlite3_free(msg);
-		msg = NULL;
-	}
+	sqlite3* db = mdbs[i];
+	bFlag = QuerySQL( db, sql, result, iRow, iColumn, NULL );
+//	if( msg != NULL ) {
+//		LogManager::GetLogManager()->Log(
+//								LOG_ERR_USER,
+//								"DBManager::Query( "
+//								"tid : %d, "
+//								"Could not select table, msg : %s "
+//								")",
+//								(int)syscall(SYS_gettid),
+//								msg
+//								);
+//		fprintf(stderr, "# Could not select table, msg : %s \n", msg);
+//		bFlag = false;
+//		sqlite3_free(msg);
+//		msg = NULL;
+//	}
 
 	return bFlag;
 }
@@ -603,10 +608,10 @@ bool DBManager::CreateTable(sqlite3 *db) {
 		return false;
 	}
 
-	// 建女士表索引(qid, aid)
+	// 建女士表索引(qid, aid, siteid, question_status)
 	sprintf(sql,
-			"CREATE INDEX womanindex_qid_aid_question_status_siteid "
-			"ON woman (qid, aid, question_status, siteid)"
+			"CREATE INDEX womanindex_qid_aid_siteid_question_status "
+			"ON woman (qid, aid, siteid, question_status)"
 			";"
 	);
 
@@ -620,8 +625,8 @@ bool DBManager::CreateTable(sqlite3 *db) {
 
 	// 建女士表索引(womanid, qid, aid)
 	sprintf(sql,
-			"CREATE UNIQUE INDEX womanindex_womanid_qid_aid_question_status_siteid "
-			"ON woman (womanid, qid, aid, question_status, siteid)"
+			"CREATE UNIQUE INDEX womanindex_womanid_qid_aid_siteid_question_status "
+			"ON woman (womanid, qid, aid, siteid, question_status)"
 			";"
 	);
 
@@ -668,7 +673,7 @@ bool DBManager::InitTestData(sqlite3 *db) {
 
 		for( int j = 0; j < 30; j++ ) {
 			sprintf(qid, "%d", j);
-			int r = rand() % 30;
+			int r = rand() % 4;
 			sprintf(aid, "%d", r);
 
 			// insert man
@@ -688,7 +693,7 @@ bool DBManager::InitTestData(sqlite3 *db) {
 			miLastManRecordId++;
 
 			// insert lady
-			r = rand() % 30;
+			r = rand() % 4;
 			sprintf(aid, "%d", r);
 
 //			sprintf(sql, "INSERT INTO LADY(`LADYID`, `QID`, `AID`) VALUES('%s', %d, %d);",

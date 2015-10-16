@@ -25,6 +25,7 @@ using namespace std;
 typedef struct Message {
 	int		fd;
 	int 	len;
+	int		index;
 	unsigned int 	starttime;
 	unsigned int	totaltime;
 	int		type;

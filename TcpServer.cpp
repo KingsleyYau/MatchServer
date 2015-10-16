@@ -524,8 +524,9 @@ private:
 /* handle thread */
 class HandleRunnable : public KRunnable {
 public:
-	HandleRunnable(TcpServer *container) {
+	HandleRunnable(TcpServer *container, int index) {
 		mContainer = container;
+		mIndex = index;
 	}
 	virtual ~HandleRunnable() {
 		mContainer = NULL;
@@ -549,15 +550,18 @@ protected:
 					"tid: %d, "
 					"m->fd: [%d], "
 					"m->len : %d, "
+					"mIndex : %d "
 					"start "
 					")",
 					(int)syscall(SYS_gettid),
 					m->fd,
-					m->len
+					m->len,
+					mIndex
 					);
 
 			/* handle data here */
 			int len = m->len;
+			m->index = mIndex;
 
 			if( len > 0 ) {
 				/* recv message ok */
@@ -581,7 +585,10 @@ protected:
 			mContainer->GetIdleMessageList()->PushBack(m);
 		}
 	}
+
 	TcpServer *mContainer;
+	int mIndex;
+
 };
 TcpServer::TcpServer() {
 	// TODO Auto-generated constructor stub
@@ -597,7 +604,6 @@ TcpServer::TcpServer() {
 	mTotalSendTime = 0;
 	mTotalTime = 0;
 
-	mpHandleRunnable = new HandleRunnable(this);
 	mpMainRunnable = new MainRunnable(this);
 	mpSendRunnable = new SendRunnable(this);
 
@@ -613,9 +619,9 @@ TcpServer::~TcpServer() {
 		delete mpMainRunnable;
 	}
 
-	if( mpHandleRunnable != NULL ) {
-		delete mpHandleRunnable;
-	}
+//	if( mpHandleRunnable != NULL ) {
+//		delete mpHandleRunnable;
+//	}
 
 	if( mpSendRunnable != NULL ) {
 		delete mpSendRunnable;
@@ -718,8 +724,10 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 
 	/* start handle thread */
 	mpHandleThread = new KThread*[miMaxThreadHandle];
+	mpHandleRunnable = new HandleRunnable*[miMaxThreadHandle];
 	for( int i = 0; i < miMaxThreadHandle; i++ ) {
-		mpHandleThread[i] = new KThread(mpHandleRunnable);
+		mpHandleRunnable[i] = new HandleRunnable(this, i);
+		mpHandleThread[i] = new KThread(mpHandleRunnable[i]);
 		if( mpHandleThread[i]->start() != -1 ) {
 			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create handle thread[%d] ok )", i);
 //			printf("# Create handle thread[%d] ok \n", i);
@@ -748,11 +756,12 @@ bool TcpServer::Stop() {
 
 	/* release handle thread */
 	for( int i = 0; i < miMaxThreadHandle; i++ ) {
-		mpHandleThread[i] = new KThread(mpHandleRunnable);
 		mpHandleThread[i]->stop();
+		delete mpHandleRunnable[i];
 		delete mpHandleThread[i];
 	}
 	delete mpHandleThread;
+	delete mpHandleRunnable;
 
 	close(mServer);
 

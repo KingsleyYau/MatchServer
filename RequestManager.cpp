@@ -35,12 +35,16 @@ void RequestManager::SetRequestManagerCallback(RequestManagerCallback* pRequestM
 int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	int ret = -1;
 
+	int iQueryIndex = m->index;
+
 	Json::FastWriter writer;
 	Json::Value rootSend, womanListNode, womanNode;
 
-	unsigned int start = 0;
 	unsigned int iHandleTime = 0;
 	unsigned int iQueryTime = 0;
+
+	timeval tStart;
+	timeval tEnd;
 
 	if( m == NULL ) {
 		return ret;
@@ -53,7 +57,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 		}
 	}
 
-	start = GetTickCount();
+	iHandleTime = GetTickCount();
 
 	if( ret == 1 ) {
 		const char* pPath = dataHttpParser.GetPath();
@@ -95,87 +99,112 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			int iRow = 0;
 			int iColumn = 0;
 
-			timeval tStart;
-			timeval tEnd;
-
 			map<string, int> womanidMap;
 			map<string, int>::iterator itr;
 			string womanid;
 
-			iQueryTime = GetTickCount();
-			bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn);
+			bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn, iQueryIndex);
 			LogManager::GetLogManager()->Log(
 					LOG_STAT,
 					"RequestManager::HandleRecvMessage( "
 					"tid : %d, "
 					"m->fd: [%d], "
 					"iRow : %d, "
-					"iColumn : %d "
+					"iColumn : %d, "
+					"iQueryIndex : %d "
 					")",
 					(int)syscall(SYS_gettid),
 					m->fd,
 					iRow,
-					iColumn
+					iColumn,
+					iQueryIndex
 					);
-
-			gettimeofday(&tStart, NULL);
 
 			if( bResult && result && iRow > 0 ) {
 				// 随机起始查询问题位置
 				int iManIndex = (rand() % iRow) + 1;
 				bool bEnougthLady = false;
+
 				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
 					if( !bEnougthLady ) {
 						// query more lady
-						sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND question_status = 1 AND siteid = %d;",
-								result[i * iColumn],
-								result[i * iColumn + 1],
-								siteid
-								);
-
 						char** result2 = NULL;
 						int iRow2;
 						int iColumn2;
 
-						bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2);
-//						LogManager::GetLogManager()->Log(
-//											LOG_STAT,
-//											"RequestManager::HandleRecvMessage( "
-//											"tid : %d, "
-//											"m->fd: [%d], "
-//											"iManIndex : %d, "
-//											"iRow2 : %d, "
-//											"iColumn2 : %d "
-//											")",
-//											(int)syscall(SYS_gettid),
-//											m->fd,
-//											iManIndex,
-//											iRow2,
-//											iColumn2
-//											);
-						if( bResult && result2 && iRow2 > 0 ) {
-							int iLadyIndex = 1;
-							int iLadyCount = 0;
+						int iNum = 0;
 
-							if( iRow2 + womanidMap.size() >= 30 ) {
-								bEnougthLady = true;
-								iLadyCount = 30 - womanidMap.size();
-								iLadyIndex = (rand() % (iRow2 -iLadyCount)) + 1;
-							} else {
-								iLadyCount = iRow2;
-							}
-//							LogManager::GetLogManager()->Log(
-//												LOG_STAT,
-//												"RequestManager::HandleRecvMessage( "
-//												"tid : %d, "
-//												"m->fd: [%d], "
-//												"iLadyIndex : %d "
-//												")",
-//												(int)syscall(SYS_gettid),
-//												m->fd,
-//												iLadyIndex
-//												);
-							for( int j = iLadyIndex, k = 0; (j < iRow2 + 1) && (k < iLadyCount); k++, j++ ) {
+						sprintf(sql, "SELECT count(*) FROM woman WHERE qid = %s AND aid = %s AND siteid = %d AND question_status = 1;",
+												result[i * iColumn],
+												result[i * iColumn + 1],
+												siteid
+												);
+
+						iQueryTime = GetTickCount();
+						bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+						if( bResult && result2 && iRow2 > 0 ) {
+							iNum = atoi(result2[1 * iColumn2]);
+						}
+						mpDBManager->FinishQuery(result2);
+
+						iQueryTime = GetTickCount() - iQueryTime;
+						LogManager::GetLogManager()->Log(
+											LOG_STAT,
+											"RequestManager::HandleRecvMessage( "
+											"tid : %d, "
+											"m->fd: [%d], "
+											"Count iQueryTime : %d, "
+											"iQueryIndex : %d "
+											")",
+											(int)syscall(SYS_gettid),
+											m->fd,
+											iQueryTime,
+											iQueryIndex
+											);
+
+						int iLadyIndex = 1;
+						int iLadyCount = 0;
+						if( iNum + womanidMap.size() >= 30 ) {
+							bEnougthLady = true;
+							iLadyCount = 30 - womanidMap.size();
+							iLadyIndex = (rand() % (iNum -iLadyCount)) + 1;
+						} else {
+							iLadyCount = iNum;
+						}
+
+						sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = %d AND question_status = 1 LIMIT %d OFFSET %d;",
+								result[i * iColumn],
+								result[i * iColumn + 1],
+								siteid,
+								iLadyCount,
+								iLadyIndex
+								);
+
+						iQueryTime = GetTickCount();
+						bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+						iQueryTime = GetTickCount() - iQueryTime;
+						LogManager::GetLogManager()->Log(
+											LOG_STAT,
+											"RequestManager::HandleRecvMessage( "
+											"tid : %d, "
+											"m->fd: [%d], "
+											"sql : %s, "
+											"iRow : %d, "
+											"iColumn : %d, "
+											"Query iQueryTime : %d, "
+											"iQueryIndex : %d "
+											")",
+											(int)syscall(SYS_gettid),
+											m->fd,
+											sql,
+											iRow,
+											iColumn,
+											iQueryTime,
+											iQueryIndex
+											);
+
+						if( bResult && result2 && iRow2 > 0 ) {
+							for( int j = 1; j < iRow2 + 1; j++ ) {
 								// find womanid
 								womanid = result2[j * iColumn2];
 								womanidMap.insert(map<string, int>::value_type(womanid, 1));
@@ -188,41 +217,15 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 							int iRow3;
 							int iColumn3;
 
-							sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND question_status = 1 AND siteid = %d;",
+							sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = %d AND question_status = 1;",
 									itr->first.c_str(),
 									result[i * iColumn],
 									result[i * iColumn + 1],
 									siteid
 									);
 
-							bResult = mpDBManager->Query(sql, &result3, &iRow3, &iColumn3);
-//							LogManager::GetLogManager()->Log(
-//												LOG_STAT,
-//												"RequestManager::HandleRecvMessage( "
-//												"tid : %d, "
-//												"m->fd: [%d], "
-//												"iRow3 : %d, "
-//												"iColumn3 : %d, "
-//												")",
-//												(int)syscall(SYS_gettid),
-//												m->fd,
-//												iRow3,
-//												iColumn3
-//												);
+							bResult = mpDBManager->Query(sql, &result3, &iRow3, &iColumn3, iQueryIndex);
 							if( bResult && result3 && iRow3 > 0 ) {
-//								LogManager::GetLogManager()->Log(
-//													LOG_STAT,
-//													"RequestManager::HandleRecvMessage( "
-//													"tid : %d, "
-//													"m->fd: [%d], "
-//													"result3[1 * iColumn3] : %s, "
-//													"itr->second : %d "
-//													")",
-//													(int)syscall(SYS_gettid),
-//													m->fd,
-//													result3[1 * iColumn3],
-//													itr->second
-//													);
 								if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
 									itr->second++;
 								}
@@ -235,12 +238,20 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					i = ((i - 1) % iRow) + 1;
 				}
 
-				gettimeofday(&tEnd, NULL);
-				long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
-				usleep(usec);
-
-				iQueryTime = GetTickCount() - iQueryTime;
-				rootSend["iQueryTime"] = iQueryTime;
+				unsigned int iEnd = GetTickCount();
+				LogManager::GetLogManager()->Log(
+						LOG_STAT,
+						"RequestManager::HandleRecvMessage( "
+						"tid : %d, "
+						"m->fd: [%d], "
+						"Finish iQueryTime : %d, "
+						"iQueryIndex : %d "
+						")",
+						(int)syscall(SYS_gettid),
+						m->fd,
+						iEnd - iHandleTime,
+						iQueryIndex
+						);
 
 				for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
 					Json::Value womanNode;
@@ -263,28 +274,27 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				);
 	}
 
-	int iEnd = GetTickCount();
-	iHandleTime = iEnd - start;
+	unsigned int iEnd = GetTickCount();
+	iHandleTime = iEnd - iHandleTime;
+	usleep(1000 * iHandleTime);
 	sm->totaltime = iEnd - m->starttime;
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
 			"RequestManager::HandleRecvMessage( "
 			"tid : %d, "
 			"m->fd: [%d], "
-			"iQueryTime : %u ms, "
 			"iHandleTime : %u ms, "
-			"totaltime : %u ms "
+			"iTotaltime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
-			iQueryTime,
 			iHandleTime,
 			sm->totaltime
 			);
 
 	rootSend["fd"] = m->fd;
 	rootSend["iHandleTime"] = iHandleTime;
-	rootSend["totaltime"] = sm->totaltime;
+	rootSend["iTotaltime"] = sm->totaltime;
 	rootSend["womaninfo"] = womanListNode;
 
 	string param = writer.write(rootSend);

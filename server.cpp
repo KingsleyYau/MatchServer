@@ -17,7 +17,6 @@ using namespace std;
 
 #include "MatchServer.h"
 
-
 string sConf = "";  // 配置文件
 
 bool Parse(int argc, char *argv[]);
@@ -25,10 +24,7 @@ bool Parse(int argc, char *argv[]);
 int main(int argc, char *argv[]) {
 	printf("############## Match Server ############## \n");
 	printf("# Version : 1.0 \n");
-#ifdef BUILD_DATE
-	if( strlen(BUILD_DATE) > 0 )
-		printf("# Build date : %s \n", BUILD_DATE);
-#endif
+	printf("# Build date : %s %s \n", __DATE__, __TIME__ );
 
 	srand(time(0));
 

@@ -7,9 +7,15 @@
 #
 
 export MAKE	:=	make
-TIME = `date -R`
 
-CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 -Wunused-variable
+debug=1
+ifeq ($(debug), 1)
+CXXFLAGS =	-O2 -g
+else
+CXXFLAGS =  -O3 
+endif
+
+CXXFLAGS +=	-O2 -g -Wall -fmessage-length=0 -Wunused-variable
 CXXFLAGS +=	-I. -Isqlite -Ilibev -I/usr/include/mysql
 
 LIBS =		-L. \
@@ -34,7 +40,7 @@ CLIENTTEST_TARGET =		client
 DEPDIRS	:= sqlite libev
 CLEAN_DEPS := $(addprefix _clean_, $(DEPDIRS))
 
-.PHONY: all deps clean cleanall install $(DEPDIRS) $(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
+.PHONY: all deps test clean cleanall install $(DEPDIRS) $(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
 
 $(TARGET):	deps $(OBJS)
 	$(CXX) -o $(TARGET) $(OBJS) $(LIBS)
@@ -75,6 +81,8 @@ deps:	$(DEPDIRS)
 	
 all:	deps $(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
 
+test:	$(DBTEST_TARGET) $(CLIENTTEST_TARGET)
+	
 clean:
 	rm -f $(OBJS) $(TARGET) $(DBTEST_TARGET) $(DBTEST_OBJS) $(CLIENTTEST_TARGET) $(CLIENTTEST_OBJS)
 
