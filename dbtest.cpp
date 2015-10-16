@@ -11,6 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/syscall.h>
 
 #include <string>
 using namespace std;
