@@ -177,12 +177,12 @@ void MatchServer::Run(
 //		printf("# Create state thread ok \n");
 	}
 
-	printf("# MatchServer OK. \n");
+	printf("# MatchServer start OK. \n");
 
 	/* call server */
 	while( true ) {
 		/* do nothing here */
-		sleep(3);
+		sleep(5);
 	}
 }
 
