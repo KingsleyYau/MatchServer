@@ -303,14 +303,14 @@ void DBManagerTest::Test3(int index) {
 	map<string, int> womanidMap;
 	map<string, int>::iterator itr;
 	string womanid;
-
+	gettimeofday(&tStart, NULL);
 	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn);
 	if( bResult && result && iRow > 0 ) {
 		// 随机起始查询问题位置
 		int iManIndex = (rand() % iRow) + 1;
 		bool bEnougthLady = false;
 		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
-			gettimeofday(&tStart, NULL);
+
 			if( !bEnougthLady ) {
 				// query more lady
 				char** result2 = NULL;
@@ -379,13 +379,13 @@ void DBManagerTest::Test3(int index) {
 
 			i++;
 			i = ((i - 1) % iRow) + 1;
-
-			gettimeofday(&tEnd, NULL);
-			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
-			usleep(usec);
 		}
 	}
 	mDBManager.FinishQuery(result);
+
+	gettimeofday(&tEnd, NULL);
+	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
+	usleep(usec);
 }
 void DBManagerTest::Test4(int index) {
 	// 执行查询
@@ -407,7 +407,7 @@ void DBManagerTest::Test4(int index) {
 	int iSameAnswerQuestion[30];
 	string womanid;
 
-//	gettimeofday(&tStart, NULL);
+	gettimeofday(&tStart, NULL);
 
 	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn, index);
 	if( bResult && result && iRow > 0 ) {
@@ -489,8 +489,7 @@ void DBManagerTest::Test4(int index) {
 	}
 	mDBManager.FinishQuery(result);
 
-//	usleep(5000);
-//	gettimeofday(&tEnd, NULL);
-//	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
-//	usleep(usec);
+	gettimeofday(&tEnd, NULL);
+	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
+	usleep(usec);
 }

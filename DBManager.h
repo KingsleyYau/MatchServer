@@ -38,7 +38,7 @@ public:
 	        const char* pcPasswd
 	        );
 
-	bool Query(char* sql, char*** result, int* iRow, int* iColumn, int index = -1);
+	bool Query(char* sql, char*** result, int* iRow, int* iColumn, int index = 0);
 	void FinishQuery(char** result);
 
 	int GetSyncDataTime();

@@ -125,48 +125,28 @@ bool DBManager::InitSyncDataBase(
 }
 
 bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn, int index) {
-//	LogManager::GetLogManager()->Log(
-//							LOG_STAT,
-//							"DBManager::Query( "
-//							"tid : %d, "
-//							"sql : %s "
-//							")",
-//							(int)syscall(SYS_gettid),
-//							sql
-//							);
-	int i;
 	char *msg = NULL;
 	bool bFlag = true;
 
-	if( index == -1 ) {
-		i = 0;
-//		mIndexMutex.lock();
-//		i = miQueryIndex++;
-//		if( miQueryIndex == miMaxMemoryCopy ) {
-//			miQueryIndex = 0;
-//		}
-//		mIndexMutex.unlock();
-	} else {
-		i = index % miMaxMemoryCopy;
-	}
+	int i = index % miMaxMemoryCopy;
 
 	sqlite3* db = mdbs[i];
 	bFlag = QuerySQL( db, sql, result, iRow, iColumn, NULL );
-//	if( msg != NULL ) {
-//		LogManager::GetLogManager()->Log(
-//								LOG_ERR_USER,
-//								"DBManager::Query( "
-//								"tid : %d, "
-//								"Could not select table, msg : %s "
-//								")",
-//								(int)syscall(SYS_gettid),
-//								msg
-//								);
-//		fprintf(stderr, "# Could not select table, msg : %s \n", msg);
-//		bFlag = false;
-//		sqlite3_free(msg);
-//		msg = NULL;
-//	}
+	if( msg != NULL ) {
+		LogManager::GetLogManager()->Log(
+								LOG_ERR_USER,
+								"DBManager::Query( "
+								"tid : %d, "
+								"Could not select table, msg : %s "
+								")",
+								(int)syscall(SYS_gettid),
+								msg
+								);
+		fprintf(stderr, "# Could not select table, msg : %s \n", msg);
+		bFlag = false;
+		sqlite3_free(msg);
+		msg = NULL;
+	}
 
 	return bFlag;
 }
