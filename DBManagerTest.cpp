@@ -12,8 +12,9 @@ using namespace std;
 
 class TestRunnable : public KRunnable {
 public:
-	TestRunnable(DBManagerTest* pDBManagerTest) {
+	TestRunnable(DBManagerTest* pDBManagerTest, int index) {
 		mpDBManagerTest = pDBManagerTest;
+		mIndex = index;
 	}
 	virtual ~TestRunnable() {
 	}
@@ -26,10 +27,10 @@ protected:
 		for( int i = 0; mpDBManagerTest->miCur < mpDBManagerTest->miMaxQuery; i++ ) {
 			gettimeofday(&tStart, NULL);
 
-//			mpDBManagerTest->Test1();
-//			mpDBManagerTest->Test2();
-			mpDBManagerTest->Test3();
-//			mpDBManagerTest->Test4();
+//			mpDBManagerTest->Test1(mIndex);
+//			mpDBManagerTest->Test2(mIndex);
+			mpDBManagerTest->Test3(mIndex);
+//			mpDBManagerTest->Test4(mIndex);
 
 			gettimeofday(&tEnd, NULL);
 			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
@@ -49,6 +50,7 @@ protected:
 	}
 
 	DBManagerTest* mpDBManagerTest;
+	int mIndex;
 };
 
 DBManagerTest::DBManagerTest() {
@@ -83,7 +85,7 @@ void DBManagerTest::StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery)
 	TestRunnable** runnable = new TestRunnable*[iMaxThread];
 
 	for( int i = 0; i < iMaxThread; i++ ) {
-		runnable[i] = new TestRunnable(this);
+		runnable[i] = new TestRunnable(this, i);
 		KThread *thread = new KThread(runnable[i]);
 		thread->start();
 		threads[i] = thread;
@@ -154,7 +156,7 @@ void DBManagerTest::TestSql(string sql) {
 
 }
 
-void DBManagerTest::Test1() {
+void DBManagerTest::Test1(int index) {
 	char sql[1024] = {'\0'};
 	bool bResult = false;
 	char** result;
@@ -176,7 +178,7 @@ void DBManagerTest::Test1() {
 		for( int j = 1; j < (iRow + 1); j++ ) {
 			gettimeofday(&tStart, NULL);
 			sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;", result[j * iColumn], result[j * iColumn + 1]);
-			bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+			bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, index);
 //			printf("iRow2 %d, iColumn2 : %d, result2 : %p \n", iRow2, iColumn2, result2);
 			if( bResult && result2 && iRow2 > 0 ) {
 			}
@@ -194,7 +196,7 @@ void DBManagerTest::Test1() {
 	mDBManager.FinishQuery(result);
 }
 
-void DBManagerTest::Test2() {
+void DBManagerTest::Test2(int index) {
 	// 执行查询
 	char sql[1024] = {'\0'};
 	string womanIds = "";
@@ -232,7 +234,7 @@ void DBManagerTest::Test2() {
 				int iRow2;
 				int iColumn2;
 
-				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, index);
 				if( bResult && result2 && iRow2 > 0 ) {
 					int iLadyIndex = 1;
 					int iLadyCount = 0;
@@ -264,7 +266,7 @@ void DBManagerTest::Test2() {
 							result[i * iColumn + 1]
 							);
 
-					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3);
+					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3, index);
 					if( bResult && result3 && iRow3 > 0 ) {
 						if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
 							itr->second++;
@@ -283,7 +285,7 @@ void DBManagerTest::Test2() {
 	}
 	mDBManager.FinishQuery(result);
 }
-void DBManagerTest::Test3() {
+void DBManagerTest::Test3(int index) {
 	// 执行查询
 	char sql[1024] = {'\0'};
 	string womanIds = "";
@@ -321,7 +323,7 @@ void DBManagerTest::Test3() {
 										result[i * iColumn],
 										result[i * iColumn + 1]
 										);
-				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, index);
 				if( bResult && result2 && iRow2 > 0 ) {
 					iNum = atoi(result2[1 * iColumn2]);
 				}
@@ -344,7 +346,7 @@ void DBManagerTest::Test3() {
 						iLadyIndex
 						);
 
-				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, index);
 				if( bResult && result2 && iRow2 > 0 ) {
 					for( int j = 1; j < iRow2 + 1; j++ ) {
 						// find womanid
@@ -365,7 +367,7 @@ void DBManagerTest::Test3() {
 							result[i * iColumn + 1]
 							);
 
-					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3);
+					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3, index);
 					if( bResult && result3 && iRow3 > 0 ) {
 						if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
 							itr->second++;
@@ -385,7 +387,7 @@ void DBManagerTest::Test3() {
 	}
 	mDBManager.FinishQuery(result);
 }
-void DBManagerTest::Test4() {
+void DBManagerTest::Test4(int index) {
 	// 执行查询
 	char sql[1024] = {'\0'};
 	string womanIds = "";
@@ -407,7 +409,7 @@ void DBManagerTest::Test4() {
 
 //	gettimeofday(&tStart, NULL);
 
-	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn);
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn, index);
 	if( bResult && result && iRow > 0 ) {
 		// 随机起始查询问题位置
 		int iManIndex = (rand() % iRow) + 1;
@@ -425,7 +427,7 @@ void DBManagerTest::Test4() {
 										result[i * iColumn],
 										result[i * iColumn + 1]
 										);
-				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, index);
 				if( bResult && result2 && iRow2 > 0 ) {
 					iNum = atoi(result2[1 * iColumn2]);
 				}
@@ -448,7 +450,7 @@ void DBManagerTest::Test4() {
 						iLadyIndex
 						);
 
-				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2);
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, index);
 				if( bResult && result2 && iRow2 > 0 ) {
 					for( int j = 1; j < iRow2 + 1; j++ ) {
 						// find womanid
@@ -471,7 +473,7 @@ void DBManagerTest::Test4() {
 							result[i * iColumn + 1]
 							);
 
-					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3);
+					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3, index);
 					if( bResult && result3 && iRow3 > 0 ) {
 						if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
 							iSameAnswerQuestion[j]++;

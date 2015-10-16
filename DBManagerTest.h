@@ -19,10 +19,10 @@ public:
 	void StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery);
 	void TestSql(string sql);
 
-	void Test1();
-	void Test2();
-	void Test3();
-	void Test4();
+	void Test1(int index);
+	void Test2(int index);
+	void Test3(int index);
+	void Test4(int index);
 
 	DBManager mDBManager;
 	int miMaxQuery;

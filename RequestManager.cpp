@@ -188,7 +188,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 											"RequestManager::HandleRecvMessage( "
 											"tid : %d, "
 											"m->fd: [%d], "
-											"sql : %s, "
 											"iRow : %d, "
 											"iColumn : %d, "
 											"Query iQueryTime : %d, "
@@ -196,7 +195,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 											")",
 											(int)syscall(SYS_gettid),
 											m->fd,
-											sql,
 											iRow,
 											iColumn,
 											iQueryTime,
