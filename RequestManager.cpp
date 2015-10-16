@@ -128,6 +128,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
 					if( !bEnougthLady ) {
 						// query more lady
+
 						char** result2 = NULL;
 						int iRow2;
 						int iColumn2;
@@ -209,6 +210,8 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 							}
 						}
 						mpDBManager->FinishQuery(result2);
+						usleep(1000 * iQueryTime);
+
 					} else {
 						for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
 							char** result3 = NULL;
@@ -272,7 +275,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				);
 	}
 
-	usleep(1000 * (GetTickCount() - iHandleTime));
 	iHandleTime = GetTickCount() - iHandleTime;
 
 	sm->totaltime = GetTickCount() - m->starttime;
