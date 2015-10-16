@@ -52,9 +52,7 @@ public:
 	/* callback by RequestManagerCallback */
 	void OnReload(RequestManager* pRequestManager);
 
-	unsigned int GetTotal();
-	unsigned int GetHit();
-	unsigned int GetIgn();
+	void StateRunnableHandle();
 
 private:
 
@@ -78,6 +76,7 @@ private:
 	unsigned int mTotal;
 	unsigned int mHit;
 	unsigned int mIgn;
+	KMutex mCountMutex;
 
 	string mConfigFile;
 };
