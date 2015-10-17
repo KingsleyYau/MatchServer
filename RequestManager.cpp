@@ -12,11 +12,12 @@
 
 #include <algorithm>
 
-#define UNHANDLE_TIME    5000     // 5秒后丢弃
 
 RequestManager::RequestManager() {
 	// TODO Auto-generated constructor stub
+	mpDBManager = NULL;
 	mpRequestManagerCallback = NULL;
+	miTimeout = 5000;
 }
 
 RequestManager::~RequestManager() {
@@ -30,6 +31,10 @@ bool RequestManager::Init(DBManager* pDBManager) {
 
 void RequestManager::SetRequestManagerCallback(RequestManagerCallback* pRequestManagerCallback) {
 	mpRequestManagerCallback = pRequestManagerCallback;
+}
+
+void RequestManager::SetTimeout(int mSecond) {
+	miTimeout = mSecond;
 }
 
 int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
@@ -51,7 +56,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	}
 
 	DataHttpParser dataHttpParser;
-	if ( DiffGetTickCount(m->starttime, GetTickCount()) < UNHANDLE_TIME ) {
+	if ( DiffGetTickCount(m->starttime, GetTickCount()) < miTimeout ) {
 		if( m->buffer != NULL ) {
 			ret = dataHttpParser.ParseData(m->buffer);
 		}

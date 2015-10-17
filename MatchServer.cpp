@@ -112,6 +112,7 @@ void MatchServer::Run(
 			"iMaxMemoryCopy : %d, "
 			"iMaxHandleThread : %d, "
 			"iMaxQueryPerThread : %d, "
+			"iTimeout : %d, "
 			"host : %s, "
 			"dbPort : %d, "
 			"dbName : %s, "
@@ -126,6 +127,7 @@ void MatchServer::Run(
 			iMaxMemoryCopy,
 			iMaxHandleThread,
 			iMaxQueryPerThread,
+			iTimeout,
 			host.c_str(),
 			dbPort,
 			dbName.c_str(),
@@ -153,6 +155,7 @@ void MatchServer::Run(
 	/* request manager */
 	mRequestManager.Init(&mDBManager);
 	mRequestManager.SetRequestManagerCallback(this);
+	mRequestManager.SetTimeout(iTimeout * 1000);
 	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( RequestManager Init ok )");
 
 	/* inside server */
