@@ -22,23 +22,8 @@ public:
 	virtual ~MatchServer();
 
 	void Run(const string& config);
-	void Run(
-			short iPort,
-			int mMaxClient,
-			int iMaxMemoryCopy,
-			int iMaxHandleThread,
-			int iMaxQueryPerThread,
-			int iTimeout,
-			const string& host,
-			short dbPort,
-			const string& dbName,
-			const string& user,
-			const string& passwd,
-			int iMaxDatabaseThread,
-			LOG_LEVEL iLogLevel,
-			const string& logDir
-			);
-	void Reload();
+	void Run();
+	bool Reload();
 	bool IsRunning();
 	TcpServer* GetTcpServer();
 
@@ -55,12 +40,32 @@ public:
 	void StateRunnableHandle();
 
 private:
-
 	TcpServer mClientTcpServer;
+	TcpServer mClientTcpInsideServer;
 	RequestManager mRequestManager;
 	DBManager mDBManager;
 
-	TcpServer mClientTcpInsideServer;
+	// BASE
+	short miPort;
+	int miMaxClient;
+	int miMaxMemoryCopy;
+	int miMaxHandleThread;
+	int miMaxQueryPerThread;
+	int miTimeout;
+
+	// DB
+	string mHost;
+	short mDbPort;
+	string mUser;
+	string mPasswd;
+	string mDbName;
+	int miMaxDatabaseThread;
+	int miSyncDataTime;
+
+	// LOG
+	int miLogLevel;
+	string mLogDir;
+	int miDebugMode;
 
 	/**
 	 * 是否运行
@@ -73,12 +78,22 @@ private:
 	StateRunnable* mpStateRunnable;
 	KThread* mpStateThread;
 
+	/**
+	 * 统计请求
+	 */
 	unsigned int mTotal;
 	unsigned int mHit;
-	unsigned int mIgn;
 	KMutex mCountMutex;
 
+	/**
+	 * 配置文件
+	 */
 	string mConfigFile;
+
+	/**
+	 * 监听线程输出间隔
+	 */
+	unsigned int miStateTime;
 };
 
 #endif /* MatchServer_H_ */

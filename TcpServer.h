@@ -26,8 +26,6 @@
 
 #include <ev.h>
 
-#include <deque>
-
 #include "KThread.h"
 #include "MessageList.h"
 #include "LogManager.h"
@@ -88,8 +86,6 @@ public:
 
 	void AddRecvTime(unsigned long time);
 	void AddSendTime(unsigned long time);
-
-//	void HandleCloseQueue();
 
 	void LockWatcherList();
 	void UnLockWatcherList();
@@ -153,22 +149,6 @@ private:
 
 	TcpServerObserver *mpTcpServerObserver;
 
-//	/**
-//	 * 当前连接数
-//	 */
-//	int mCurrentConnection;
-//	KMutex mConnectionMutex;
-
-	/**
-	 * 总接收包处理时间
-	 */
-	unsigned int mTotalHandleRecvTime;
-
-	/**
-	 * 总发送包处理时间
-	 */
-	unsigned int mTotalHandleSendTime;
-
 	/**
 	 * 总接收包时间
 	 */
@@ -184,6 +164,9 @@ private:
 	 */
 	unsigned int mTotalTime;
 
+	/**
+	 * 接收队列大小
+	 */
 	unsigned int mHandleSize;
 };
 

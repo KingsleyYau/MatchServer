@@ -68,36 +68,31 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 		const char* pPath = dataHttpParser.GetPath();
 		const char* pManId = dataHttpParser.GetParam("MANID");
 		const char* pSiteId = dataHttpParser.GetParam("SITEID");
-		LogManager::GetLogManager()->Log(
-				LOG_MSG,
-				"RequestManager::HandleRecvMessage( "
-				"tid : %d, "
-				"m->fd: [%d], "
-				"pPath : %s, "
-				"manid : %s, "
-				"siteid : %s, "
-				"parse "
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd,
-				pPath,
-				pManId,
-				pSiteId
-				);
 
-		if( pManId != NULL && strcmp(pPath, "/QUERY") == 0 ) {
+		if( (pManId != NULL) && (pSiteId != NULL) && (strcmp(pPath, "/QUERY") == 0) ) {
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"RequestManager::HandleRecvMessage( "
+					"tid : %d, "
+					"m->fd: [%d], "
+					"pPath : %s, "
+					"manid : %s, "
+					"siteid : %s, "
+					"parse ok "
+					")",
+					(int)syscall(SYS_gettid),
+					m->fd,
+					pPath,
+					pManId,
+					pSiteId
+					);
+
 			// 执行查询
 			char sql[1024] = {'\0'};
-			long long qid = 0;
-			int aid = 0;
-			int siteid = 0;
 			string womanIds = "";
 			string where = "";
 
 			sprintf(sql, "SELECT qid, aid FROM man WHERE manid = '%s';", pManId);
-			if( pSiteId != NULL ) {
-				siteid = atoi(pSiteId);
-			}
 
 			bool bResult = false;
 			char** result = NULL;
@@ -139,10 +134,10 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 
 						int iNum = 0;
 
-						sprintf(sql, "SELECT count(*) FROM woman WHERE qid = %s AND aid = %s AND siteid = %d AND question_status = 1;",
+						sprintf(sql, "SELECT count(*) FROM woman WHERE qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
 												result[i * iColumn],
 												result[i * iColumn + 1],
-												siteid
+												pSiteId
 												);
 
 						iQueryTime = GetTickCount();
@@ -177,10 +172,10 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 							iLadyCount = iNum;
 						}
 
-						sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = %d AND question_status = 1 LIMIT %d OFFSET %d;",
+						sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = %s AND question_status = 1 LIMIT %d OFFSET %d;",
 								result[i * iColumn],
 								result[i * iColumn + 1],
-								siteid,
+								pSiteId,
 								iLadyCount,
 								iLadyIndex
 								);
@@ -220,11 +215,11 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 							int iRow3;
 							int iColumn3;
 
-							sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = %d AND question_status = 1;",
+							sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
 									itr->first.c_str(),
 									result[i * iColumn],
 									result[i * iColumn + 1],
-									siteid
+									pSiteId
 									);
 
 							bResult = mpDBManager->Query(sql, &result3, &iRow3, &iColumn3, iQueryIndex);
@@ -268,7 +263,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 		}
 	} else {
 		LogManager::GetLogManager()->Log(
-				LOG_MSG,
+				LOG_STAT,
 				"RequestManager::HandleRecvMessage( "
 				"m->fd: [%d], "
 				"parse fail "

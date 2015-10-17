@@ -142,7 +142,7 @@ bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn, int in
 								(int)syscall(SYS_gettid),
 								msg
 								);
-		fprintf(stderr, "# Could not select table, msg : %s \n", msg);
+//		fprintf(stderr, "# Could not select table, msg : %s \n", msg);
 		bFlag = false;
 		sqlite3_free(msg);
 		msg = NULL;
@@ -712,7 +712,16 @@ bool DBManager::ExecSQL(sqlite3 *db, char* sql, char** msg) {
 	do {
 		ret = sqlite3_exec( db, sql, NULL, NULL, msg );
 		if( ret == SQLITE_BUSY ) {
-			printf("# DBManager::ExecSQL( ret == SQLITE_BUSY )");
+			LogManager::GetLogManager()->Log(
+					LOG_ERR_USER,
+					"DBManager::ExecSQL( "
+					"tid : %d, "
+					"ret == SQLITE_BUSY "
+					")",
+					(int)syscall(SYS_gettid)
+					);
+
+//			printf("# DBManager::ExecSQL( ret == SQLITE_BUSY ) \n");
 			if ( msg != NULL ) {
 				sqlite3_free(msg);
 				msg= NULL;
@@ -720,7 +729,17 @@ bool DBManager::ExecSQL(sqlite3 *db, char* sql, char** msg) {
 			sleep(1);
 		}
 		if( ret != SQLITE_OK ) {
-			printf("# DBManager::ExecSQL( ret != SQLITE_OK, ret : %d ) \n", ret);
+			LogManager::GetLogManager()->Log(
+					LOG_ERR_USER,
+					"DBManager::ExecSQL( "
+					"tid : %d, "
+					"ret != SQLITE_OK, "
+					"ret : %d "
+					")",
+					(int)syscall(SYS_gettid),
+					ret
+					);
+//			printf("# DBManager::ExecSQL( ret != SQLITE_OK, ret : %d ) \n", ret);
 		}
 	} while( ret == SQLITE_BUSY );
 
@@ -731,7 +750,15 @@ bool DBManager::QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int*
 	do {
 		ret = sqlite3_get_table( db, sql, result, iRow, iColumn, msg );
 		if( ret == SQLITE_BUSY ) {
-			printf("# DBManager::QuerySQL( ret == SQLITE_BUSY ) \n");
+//			printf("# DBManager::QuerySQL( ret == SQLITE_BUSY ) \n");
+			LogManager::GetLogManager()->Log(
+					LOG_ERR_USER,
+					"DBManager::QuerySQL( "
+					"tid : %d, "
+					"ret == SQLITE_BUSY "
+					")",
+					(int)syscall(SYS_gettid)
+					);
 			if ( msg != NULL ) {
 				sqlite3_free(msg);
 				msg= NULL;
@@ -740,7 +767,17 @@ bool DBManager::QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int*
 		}
 
 		if( ret != SQLITE_OK ) {
-			printf("# DBManager::QuerySQL( ret : %d ) \n", ret);
+//			printf("# DBManager::QuerySQL( ret : %d ) \n", ret);
+			LogManager::GetLogManager()->Log(
+					LOG_ERR_USER,
+					"DBManager::QuerySQL( "
+					"tid : %d, "
+					"ret != SQLITE_OK, "
+					"ret : %d "
+					")",
+					(int)syscall(SYS_gettid),
+					ret
+					);
 		}
 	} while( ret == SQLITE_BUSY );
 

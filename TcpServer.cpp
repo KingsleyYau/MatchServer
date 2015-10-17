@@ -596,10 +596,7 @@ TcpServer::TcpServer() {
 	mIsRunning = false;
 	mpTcpServerObserver = NULL;
 
-//	mCurrentConnection = 0;
 	mHandleSize = 0;
-	mTotalHandleRecvTime = 0;
-	mTotalHandleSendTime = 0;
 	mTotalRecvTime = 0;
 	mTotalSendTime = 0;
 	mTotalTime = 0;
@@ -619,10 +616,6 @@ TcpServer::~TcpServer() {
 		delete mpMainRunnable;
 	}
 
-//	if( mpHandleRunnable != NULL ) {
-//		delete mpHandleRunnable;
-//	}
-
 	if( mpSendRunnable != NULL ) {
 		delete mpSendRunnable;
 	}
@@ -634,14 +627,12 @@ TcpServer::~TcpServer() {
 }
 
 bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
-//	mCurrentConnection = 0;
-	mTotalHandleRecvTime = 0;
-	mTotalHandleSendTime = 0;
 	mTotalRecvTime = 0;
 	mTotalSendTime = 0;
 	miMaxThreadHandle = maxThreadHandle;
 	miMaxConnection = maxConnection;
 
+	printf("# TcpServer start... \n");
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
 			"TcpServer::Start( "
@@ -688,7 +679,6 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 		}
 	}
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create watchers ok, mWatcherList : %d )", mWatcherList.Size());
-//	printf("# Create watchers ok \n");
 
 	for(int i = 0; i < maxConnection; i++) {
 		/* create idle buffers */
@@ -696,20 +686,11 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 		mIdleMessageList.PushBack(m);
 	}
 	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create idle buffers ok )");
-//	printf("# Create idle buffers ok \n");
 
 //	/* init send message list */
 //	mpSendMessageList = new MessageList[2 * maxConnection];
 //	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Init send message list ok )");
 //	printf("# Init send message list ok \n");
-
-//	mpDisconnecting = new bool[2 * maxConnection];
-//	for(int i = 0; i < 2 * maxConnection; i++) {
-//		/* init disconnecting flag */
-//		mpDisconnecting[i] = false;
-//	}
-//	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Init disconnecting flag ok )");
-//	printf("# Init disconnecting flag ok \n");
 
 	mIsRunning = true;
 
@@ -821,31 +802,35 @@ void TcpServer::SendMessage(Message *m) {
 }
 
 void TcpServer::SendMessageByQueue(Message *m) {
-	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessageByQueue( "
-				"tid : %d, "
-				"m->fd : [%d] "
-				"start"
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd
-				);
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"TcpServer::SendMessageByQueue( "
+			"tid : %d, "
+			"m->fd : [%d] "
+			"start"
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd
+			);
 
 	GetSendImmediatelyMessageList()->PushBack(m);
 
-	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessageByQueue( "
-				"tid : %d, "
-				"m->fd : [%d] "
-				"end"
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd
-				);
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"TcpServer::SendMessageByQueue( "
+			"tid : %d, "
+			"m->fd : [%d] "
+			"end"
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd
+			);
 }
 
 void TcpServer::SendMessageImmediately(Message *m) {
-	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessageImmediately( "
+	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
 				"tid : %d, "
-				"m->fd : [%d] "
+				"m->fd : [%d], "
 				"start "
 				")",
 				(int)syscall(SYS_gettid),
@@ -858,22 +843,27 @@ void TcpServer::SendMessageImmediately(Message *m) {
 	int fd = m->fd;
 
 	unsigned int start = GetTickCount();
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
-			"tid : %d, "
-			"fd : [%d], "
-			"message : \n%s\n "
-			")",
-			(int)syscall(SYS_gettid),
-			fd,
-			buffer + index
-			);
 
+	LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"TcpServer::SendMessageImmediately( "
+						"tid : %d, "
+						"fd : [%d], "
+						"message ( len : %d ) : [\n%s\n]"
+						")",
+						(int)syscall(SYS_gettid),
+						fd,
+						m->len,
+						buffer + index
+						);
 	do {
 		int ret = send(fd, buffer + index, len - index, 0);
 		if( ret > 0 ) {
 			index += ret;
 			if( index == len ) {
-				LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
+				LogManager::GetLogManager()->Log(
+						LOG_STAT,
+						"TcpServer::SendMessageImmediately( "
 						"tid : %d, "
 						"fd : [%d], "
 						"send finish "
@@ -933,7 +923,7 @@ void TcpServer::SendMessageImmediately(Message *m) {
 
 	AddSendTime(GetTickCount() - start);
 
-	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessageImmediately( "
+	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
 				"tid : %d, "
 				"m->fd : [%d] "
 				"end "
@@ -955,25 +945,29 @@ void TcpServer::SendAllMessageImmediately() {
 }
 
 void TcpServer::Disconnect(int fd) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
-							"tid : %d, "
-							"fd : [%d], "
-							"start "
-							")",
-							(int)syscall(SYS_gettid),
-							fd
-							);
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"TcpServer::Disconnect( "
+			"tid : %d, "
+			"fd : [%d], "
+			"start "
+			")",
+			(int)syscall(SYS_gettid),
+			fd
+			);
 
 	shutdown(fd, SHUT_RDWR);
 
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Disconnect( "
-					"tid : %d, "
-					"fd : [%d], "
-					"exit "
-					")",
-					(int)syscall(SYS_gettid),
-					fd
-					);
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"TcpServer::Disconnect( "
+			"tid : %d, "
+			"fd : [%d], "
+			"exit "
+			")",
+			(int)syscall(SYS_gettid),
+			fd
+			);
 }
 
 void TcpServer::StopEvio(ev_io *w) {
@@ -1034,19 +1028,21 @@ struct ev_loop *TcpServer::GetEvLoop() {
 }
 
 void TcpServer::OnDisconnect(int fd, Message *m) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::OnDisconnect( "
-							"tid : %d, "
-							"fd : [%d], "
-							"start "
-							")",
-							(int)syscall(SYS_gettid),
-							fd
-							);
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"TcpServer::OnDisconnect( "
+			"tid : %d, "
+			"fd : [%d], "
+			"start "
+			")",
+			(int)syscall(SYS_gettid),
+			fd
+			);
 
 	StopEvio(m->wr);
 	StopEvio(m->ww);
 
-	Disconnect(fd);
+//	Disconnect(fd);
 	if( mpTcpServerObserver != NULL ) {
 		mpTcpServerObserver->OnDisconnect(this, fd);
 	}
@@ -1056,14 +1052,16 @@ void TcpServer::OnDisconnect(int fd, Message *m) {
 		mIdleMessageList.PushBack(m);
 	}
 
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::OnDisconnect( "
-							"tid : %d, "
-							"fd : [%d], "
-							"end "
-							")",
-							(int)syscall(SYS_gettid),
-							fd
-							);
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"TcpServer::OnDisconnect( "
+			"tid : %d, "
+			"fd : [%d], "
+			"end "
+			")",
+			(int)syscall(SYS_gettid),
+			fd
+			);
 }
 
 bool TcpServer::OnAccept(Message *m) {
@@ -1083,66 +1081,56 @@ bool TcpServer::OnAccept(Message *m) {
 }
 
 void TcpServer::OnRecvMessage(Message *m) {
-	LogManager::GetLogManager()->Log(LOG_MSG,
-				"TcpServer::OnRecvMessage( "
-				"tid : %d, "
-				"m->fd : [%d], "
-				"mTotalHandleRecvTime : %u ms, "
-				"mTotalRecvTime : %u ms, "
-				"mTotalTime : %u ms, "
-				"start "
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd,
-				mTotalHandleRecvTime,
-				mTotalRecvTime,
-				mTotalTime
-				);
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"TcpServer::OnRecvMessage( "
+			"tid : %d, "
+			"m->fd : [%d], "
+			"mTotalRecvTime : %u ms, "
+			"mTotalTime : %u ms, "
+			"message( len : %d ) : [\n%s], "
+			"start "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd,
+			mTotalRecvTime,
+			mTotalTime,
+			m->len,
+			m->buffer
+			);
 
 	unsigned int start = GetTickCount();
 	if( mpTcpServerObserver != NULL ) {
 		mpTcpServerObserver->OnRecvMessage(this, m);
 	}
 
-	mTotalHandleRecvTime += GetTickCount() - start;
-	mTotalTime = mTotalHandleRecvTime + mTotalRecvTime + mTotalHandleSendTime + mTotalSendTime;
-
-	LogManager::GetLogManager()->Log(LOG_MSG,
-				"TcpServer::OnRecvMessage( "
-				"tid : %d, "
-				"m->fd : [%d], "
-				"mTotalHandleRecvTime : %u ms, "
-				"mTotalRecvTime : %u ms, "
-				"mTotalTime : %u ms, "
-				"end "
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd,
-				mTotalHandleRecvTime,
-				mTotalRecvTime,
-				mTotalTime
-				);
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"TcpServer::OnRecvMessage( "
+			"tid : %d, "
+			"m->fd : [%d], "
+			"mTotalRecvTime : %u ms, "
+			"mTotalTime : %u ms, "
+			"end "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd,
+			mTotalRecvTime,
+			mTotalTime
+			);
 }
 
 void TcpServer::OnSendMessage(Message *m) {
-	unsigned int start = GetTickCount();
-
-	mTotalHandleSendTime += GetTickCount() - start;
-	mTotalTime = mTotalHandleRecvTime + mTotalRecvTime + mTotalHandleSendTime + mTotalSendTime;
-
-	LogManager::GetLogManager()->Log(LOG_MSG,
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
 			"TcpServer::OnSendMessage( "
 			"tid : %d, "
 			"m->fd : [%d], "
-			"mTotalHandleSendTime : %u ms, "
-			"mTotalSendTime : %u ms, "
 			"mTotalTime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
-			mTotalHandleSendTime,
-			mTotalSendTime,
-			mTotalTime
+			mTotalSendTime
 			);
 
 	if( mpTcpServerObserver != NULL ) {
@@ -1151,7 +1139,8 @@ void TcpServer::OnSendMessage(Message *m) {
 }
 
 void TcpServer::OnTimeoutMessage(Message *m) {
-	LogManager::GetLogManager()->Log(LOG_MSG,
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
 			"TcpServer::OnTimeoutMessage( "
 			"tid : %d, "
 			"m->fd : [%d] "

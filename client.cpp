@@ -115,7 +115,7 @@ bool Connnect(int i) {
 		return false;
 	}
 
-//	close(mClient);
+	close(mClient);
 	printf("# Connnect( exit ) \n");
 	return true;
 }
