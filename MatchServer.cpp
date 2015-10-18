@@ -56,7 +56,7 @@ void MatchServer::Run(const string& config) {
 		}
 
 	} else {
-		printf("# No config file can be use exit \n");
+		printf("# No config file can be use exit. \n");
 	}
 }
 
@@ -306,7 +306,7 @@ void MatchServer::OnTimeoutMessage(TcpServer *ts, Message *m) {
  * OnDisconnect
  */
 void MatchServer::OnDisconnect(TcpServer *ts, int fd) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnDisconnect( tid: %d, fd : [%d] )", (int)syscall(SYS_gettid), fd);
+//	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnDisconnect( tid: %d, fd : [%d] )", (int)syscall(SYS_gettid), fd);
 }
 
 void MatchServer::OnReload(RequestManager* pRequestManager) {
@@ -352,18 +352,18 @@ void MatchServer::StateRunnableHandle() {
 					(int)syscall(SYS_gettid),
 					(MessageList*) GetTcpServer()->GetSendImmediatelyMessageList()->Size()
 					);
-//			LogManager::GetLogManager()->Log(LOG_WARNING,
-//					"MatchServer::StateRunnable( tid : %d, TcpServer::GetWatcherList() : %d )",
-//					(int)syscall(SYS_gettid),
-//					(WatcherList*) GetTcpServer()->GetWatcherList()->Size()
-//					);
+			LogManager::GetLogManager()->Log(LOG_WARNING,
+					"MatchServer::StateRunnable( tid : %d, TcpServer::GetWatcherList() : %d )",
+					(int)syscall(SYS_gettid),
+					(WatcherList*) GetTcpServer()->GetWatcherList()->Size()
+					);
 			LogManager::GetLogManager()->Log(LOG_WARNING,
 					"MatchServer::StateRunnable( "
 					"tid : %d, "
 					"iTotal : %u, "
 					"iHit : %u, "
 					"iSecondTotal : %.1lf, "
-					"iSecondHit : %.1lf,"
+					"iSecondHit : %.1lf, "
 					"iStateTime : %u "
 					")",
 					(int)syscall(SYS_gettid),

@@ -93,8 +93,12 @@ public:
 	void SetHandleSize(unsigned int size);
 	unsigned int GetHandleSize();
 
+	void Accept_Callback(ev_io *w, int revents);
+	void Recv_Callback(ev_io *w, int revents);
+
 private:
 	void StopEvio(ev_io *w);
+	void CloseSocketIfNeedByHandleThread(int fd);
 
 	/* Thread safe message list */
 	MessageList mIdleMessageList;
@@ -109,8 +113,9 @@ private:
 	WatcherList mWatcherList;
 	KMutex mWatcherListMutex;
 
-	bool* mpDisconnecting;
-	KMutex mDisconnectingMutex;
+	int* mpHandlingMessageCount;
+	bool* mpCloseRecv;
+	KMutex mCloseMutex;
 
 	/**
 	 * Accept线程
