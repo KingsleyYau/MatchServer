@@ -339,27 +339,27 @@ void MatchServer::StateRunnableHandle() {
 			iHit = mHit;
 			mCountMutex.unlock();
 
-			LogManager::GetLogManager()->Log(LOG_WARNING,
+			LogManager::GetLogManager()->Log(LOG_MSG,
 					"MatchServer::StateRunnable( tid : %d, TcpServer::GetIdleMessageList() : %d )",
 					(int)syscall(SYS_gettid),
 					(MessageList*) GetTcpServer()->GetIdleMessageList()->Size()
 					);
-			LogManager::GetLogManager()->Log(LOG_WARNING,
+			LogManager::GetLogManager()->Log(LOG_MSG,
 					"MatchServer::StateRunnable( tid : %d, TcpServer::GetHandleMessageList() : %d )",
 					(int)syscall(SYS_gettid),
 					(MessageList*) GetTcpServer()->GetHandleMessageList()->Size()
 					);
-			LogManager::GetLogManager()->Log(LOG_WARNING,
+			LogManager::GetLogManager()->Log(LOG_MSG,
 					"MatchServer::StateRunnable( tid : %d, TcpServer::GetSendImmediatelyMessageList() : %d )",
 					(int)syscall(SYS_gettid),
 					(MessageList*) GetTcpServer()->GetSendImmediatelyMessageList()->Size()
 					);
-			LogManager::GetLogManager()->Log(LOG_WARNING,
+			LogManager::GetLogManager()->Log(LOG_MSG,
 					"MatchServer::StateRunnable( tid : %d, TcpServer::GetWatcherList() : %d )",
 					(int)syscall(SYS_gettid),
 					(WatcherList*) GetTcpServer()->GetWatcherList()->Size()
 					);
-			LogManager::GetLogManager()->Log(LOG_WARNING,
+			LogManager::GetLogManager()->Log(LOG_MSG,
 					"MatchServer::StateRunnable( "
 					"tid : %d, "
 					"iTotal : %u, "
