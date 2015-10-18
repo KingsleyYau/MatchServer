@@ -548,7 +548,9 @@ void TcpServer::SetTcpServerObserver(TcpServerObserver *observer) {
 }
 
 void TcpServer::Accept_Callback(ev_io *w, int revents) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Accept_Callback( "
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"TcpServer::Accept_Callback( "
 			"tid : %d, "
 			"fd : [%d], "
 			"revents : [0x%x], "
@@ -564,7 +566,9 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 	socklen_t iAddrLen = sizeof(struct sockaddr);
 	while ( (client = accept(w->fd, (struct sockaddr *)&addr, &iAddrLen)) < 0 ) {
 		if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Accept_Callback( "
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"TcpServer::Accept_Callback( "
 					"tid : %d, "
 					"errno == EAGAIN ||errno == EWOULDBLOCK "
 					")",
@@ -572,7 +576,9 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 					);
 			continue;
 		} else {
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Accept_Callback( "
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"TcpServer::Accept_Callback( "
 					"tid : %d, "
 					"accept error "
 					")",
@@ -616,7 +622,9 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 		WatcherList *watcherList = GetWatcherList();
 		if( !watcherList->Empty() ) {
 			/* watch recv event for client */
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Accept_Callback( "
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"TcpServer::Accept_Callback( "
 					"tid : %d, "
 					"accept client fd : [%d] "
 					")",
@@ -633,7 +641,9 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 
 			GetIdleMessageList()->PushBack(m);
 		} else {
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Accept_Callback( "
+			LogManager::GetLogManager()->Log(
+					LOG_WARNING,
+					"TcpServer::Accept_Callback( "
 					"tid : %d, "
 					"no more watcher "
 					")",
@@ -647,7 +657,9 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 		OnDisconnect(client, m);
 	}
 
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Accept_Callback( "
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"TcpServer::Accept_Callback( "
 				"tid : %d, "
 				"fd : [%d], "
 				"revents : [0x%x], "
@@ -660,7 +672,9 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 }
 
 void TcpServer::Recv_Callback(ev_io *w, int revents) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Recv_Callback( "
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"TcpServer::Recv_Callback( "
 			"tid : %d, "
 			"fd : [%d], "
 			"revents : [0x%x], "
@@ -678,7 +692,9 @@ void TcpServer::Recv_Callback(ev_io *w, int revents) {
 	do {
 		Message *m = GetIdleMessageList()->PopFront();
 		if( m == NULL ) {
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Recv_Callback( "
+			LogManager::GetLogManager()->Log(
+					LOG_WARNING,
+					"TcpServer::Recv_Callback( "
 					"tid : %d, "
 					"fd : [%d], "
 					"m == NULL, "
@@ -697,7 +713,9 @@ void TcpServer::Recv_Callback(ev_io *w, int revents) {
 		char *buffer = m->buffer;
 
 		if( revents & EV_ERROR ) {
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Recv_Callback( "
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"TcpServer::Recv_Callback( "
 					"tid : %d, "
 					"fd : [%d], "
 					"(revents & EV_ERROR) "
@@ -712,7 +730,9 @@ void TcpServer::Recv_Callback(ev_io *w, int revents) {
 		int ret = recv(fd, buffer, MAXLEN - 1, 0);
 		if( ret > 0 ) {
 			*(buffer + ret) = '\0';
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Recv_Callback( "
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"TcpServer::Recv_Callback( "
 					"tid : %d, "
 					"fd : [%d] "
 					")",
@@ -742,7 +762,9 @@ void TcpServer::Recv_Callback(ev_io *w, int revents) {
 				break;
 			}
 		} else if( ret == 0 ) {
-			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Recv_Callback( "
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"TcpServer::Recv_Callback( "
 					"tid : %d, "
 					"fd : [%d], "
 					"normal closed "
@@ -753,7 +775,9 @@ void TcpServer::Recv_Callback(ev_io *w, int revents) {
 			break;
 		} else {
 			if(errno == EAGAIN || errno == EWOULDBLOCK) {
-				LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Recv_Callback( "
+				LogManager::GetLogManager()->Log(
+						LOG_STAT,
+						"TcpServer::Recv_Callback( "
 						"tid : %d, "
 						"errno == EAGAIN || errno == EWOULDBLOCK continue "
 						")",
@@ -762,7 +786,9 @@ void TcpServer::Recv_Callback(ev_io *w, int revents) {
 				GetIdleMessageList()->PushBack(m);
 				break;
 			} else {
-				LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Recv_Callback( "
+				LogManager::GetLogManager()->Log(
+						LOG_STAT,
+						"TcpServer::Recv_Callback( "
 						"tid : %d, "
 						"fd : [%d], "
 						"error closed "
@@ -777,16 +803,18 @@ void TcpServer::Recv_Callback(ev_io *w, int revents) {
 	} while( true );
 	AddRecvTime(GetTickCount() - start);
 
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Recv_Callback( "
-				"tid : %d, "
-				"fd : [%d], "
-				"revents : [0x%x], "
-				"exit "
-				")",
-				(int)syscall(SYS_gettid),
-				w->fd,
-				revents
-				);
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"TcpServer::Recv_Callback( "
+			"tid : %d, "
+			"fd : [%d], "
+			"revents : [0x%x], "
+			"exit "
+			")",
+			(int)syscall(SYS_gettid),
+			w->fd,
+			revents
+			);
 }
 
 
@@ -849,14 +877,16 @@ void TcpServer::SendMessageByQueue(Message *m) {
 }
 
 void TcpServer::SendMessageImmediately(Message *m) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::SendMessageImmediately( "
-				"tid : %d, "
-				"m->fd : [%d], "
-				"start "
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd
-				);
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"TcpServer::SendMessageImmediately( "
+			"tid : %d, "
+			"m->fd : [%d], "
+			"start "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd
+			);
 
 	char *buffer = m->buffer;
 	int len = m->len;
@@ -866,17 +896,17 @@ void TcpServer::SendMessageImmediately(Message *m) {
 	unsigned int start = GetTickCount();
 
 	LogManager::GetLogManager()->Log(
-						LOG_MSG,
-						"TcpServer::SendMessageImmediately( "
-						"tid : %d, "
-						"fd : [%d], "
-						"message ( len : %d ) : [\n%s\n]"
-						")",
-						(int)syscall(SYS_gettid),
-						fd,
-						m->len,
-						buffer + index
-						);
+			LOG_MSG,
+			"TcpServer::SendMessageImmediately( "
+			"tid : %d, "
+			"fd : [%d], "
+			"message ( len : %d ) : [\n%s\n]"
+			")",
+			(int)syscall(SYS_gettid),
+			fd,
+			m->len,
+			buffer + index
+			);
 	do {
 		int ret = send(fd, buffer + index, len - index, 0);
 		if( ret > 0 ) {
