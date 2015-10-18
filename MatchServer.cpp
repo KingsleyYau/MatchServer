@@ -223,10 +223,12 @@ void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
 		int ret;
 
 		if( &mClientTcpServer == ts ) {
+			mCountMutex.lock();
+			mTotal++;
+			mCountMutex.unlock();
 			ret = mRequestManager.HandleRecvMessage(m, sm);
 			if( 0 != ret ) {
 				mCountMutex.lock();
-				mTotal++;
 				if( ret == 1 ) {
 					mHit++;
 				}
