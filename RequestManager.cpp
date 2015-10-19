@@ -47,6 +47,8 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 
 	unsigned int iHandleTime = 0;
 	unsigned int iQueryTime = 0;
+	unsigned int iSingleQueryTime = 0;
+	bool bSleepAlready = false;
 
 	timeval tStart;
 	timeval tEnd;
@@ -126,6 +128,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				bool bEnougthLady = false;
 
 				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
+					iSingleQueryTime = GetTickCount();
 					if( !bEnougthLady ) {
 						// query more lady
 
@@ -210,8 +213,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 							}
 						}
 						mpDBManager->FinishQuery(result2);
-						usleep(1000 * iQueryTime);
-
 					} else {
 						for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
 							char** result3 = NULL;
@@ -237,6 +238,12 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 
 					i++;
 					i = ((i - 1) % iRow) + 1;
+
+					iSingleQueryTime = GetTickCount() - iSingleQueryTime;
+					if( iSingleQueryTime > 30 ) {
+						bSleepAlready = true;
+						usleep(1000 * iSingleQueryTime);
+					}
 				}
 
 				unsigned int iEnd = GetTickCount();
@@ -275,6 +282,10 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				);
 	}
 
+	iSingleQueryTime = GetTickCount() - iHandleTime;
+	if( !bSleepAlready ) {
+		usleep(1000 * iSingleQueryTime);
+	}
 	iHandleTime = GetTickCount() - iHandleTime;
 
 	sm->totaltime = GetTickCount() - m->starttime;
@@ -283,11 +294,13 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			"RequestManager::HandleRecvMessage( "
 			"tid : %d, "
 			"m->fd: [%d], "
+			"bSleepAlready : %s, "
 			"iHandleTime : %u ms, "
 			"iTotaltime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
+			bSleepAlready?"true":"false",
 			iHandleTime,
 			sm->totaltime
 			);
@@ -312,9 +325,7 @@ int RequestManager::HandleTimeoutMessage(Message *m, Message *sm) {
 	Json::FastWriter writer;
 	Json::Value rootSend, womanListNode, womanNode;
 
-	unsigned int start = 0;
-	unsigned int time = 0;
-	unsigned int querytime = 0;
+	unsigned int iHandleTime = 0;
 
 	if( m == NULL ) {
 		return ret;
@@ -325,26 +336,24 @@ int RequestManager::HandleTimeoutMessage(Message *m, Message *sm) {
 		ret = dataHttpParser.ParseData(m->buffer);
 	}
 
-	start = GetTickCount();
+	iHandleTime = GetTickCount();
 
 	if( ret == 1 ) {
 
 	}
 
-	time = GetTickCount() - start;
+	iHandleTime = GetTickCount() - iHandleTime;
 	sm->totaltime = GetTickCount() - m->starttime;
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
 			"RequestManager::HandleTimeoutMessage( "
 			"tid : %d, "
 			"m->fd: [%d], "
-			"querytime : %u ms, "
-			"time : %u ms, "
+			"iHandleTime : %u ms, "
 			"totaltime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
-			time,
 			sm->totaltime
 			);
 
@@ -367,9 +376,7 @@ int RequestManager::HandleInsideRecvMessage(Message *m, Message *sm) {
 	Json::FastWriter writer;
 	Json::Value rootSend, womanListNode, womanNode;
 
-	unsigned int start = 0;
-	unsigned int time = 0;
-	unsigned int querytime = 0;
+	unsigned int iHandleTime = 0;
 
 	if( m == NULL ) {
 		return ret;
@@ -380,7 +387,7 @@ int RequestManager::HandleInsideRecvMessage(Message *m, Message *sm) {
 		ret = dataHttpParser.ParseData(m->buffer);
 	}
 
-	start = GetTickCount();
+	iHandleTime = GetTickCount();
 
 	if( ret == 1 ) {
 		const char* pPath = dataHttpParser.GetPath();

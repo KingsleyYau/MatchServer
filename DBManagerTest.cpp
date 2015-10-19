@@ -6,6 +6,7 @@
  */
 
 #include "DBManagerTest.h"
+#include "TimeProc.hpp"
 
 #include <map>
 using namespace std;
@@ -297,20 +298,25 @@ void DBManagerTest::Test3(int index) {
 	int iRow = 0;
 	int iColumn = 0;
 
+	unsigned int iHandleTime = 0;
+	unsigned int iSingleQueryTime = 0;
+	bool bSleepAlready = false;
+
 	timeval tStart;
 	timeval tEnd;
 
 	map<string, int> womanidMap;
 	map<string, int>::iterator itr;
 	string womanid;
-	gettimeofday(&tStart, NULL);
+
+	iHandleTime = GetTickCount();
 	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn);
 	if( bResult && result && iRow > 0 ) {
 		// 随机起始查询问题位置
 		int iManIndex = (rand() % iRow) + 1;
 		bool bEnougthLady = false;
 		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
-
+			iSingleQueryTime = GetTickCount();
 			if( !bEnougthLady ) {
 				// query more lady
 				char** result2 = NULL;
@@ -346,7 +352,9 @@ void DBManagerTest::Test3(int index) {
 						iLadyIndex
 						);
 
+
 				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, index);
+
 				if( bResult && result2 && iRow2 > 0 ) {
 					for( int j = 1; j < iRow2 + 1; j++ ) {
 						// find womanid
@@ -355,6 +363,7 @@ void DBManagerTest::Test3(int index) {
 					}
 				}
 				mDBManager.FinishQuery(result2);
+
 			} else {
 				for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
 					char** result3 = NULL;
@@ -379,13 +388,21 @@ void DBManagerTest::Test3(int index) {
 
 			i++;
 			i = ((i - 1) % iRow) + 1;
+
+			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
+			if( iSingleQueryTime > 30 ) {
+				bSleepAlready = true;
+				usleep(1000 * iSingleQueryTime);
+			}
 		}
 	}
 	mDBManager.FinishQuery(result);
 
-	gettimeofday(&tEnd, NULL);
-	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
-	usleep(usec);
+	iSingleQueryTime = GetTickCount() - iHandleTime;
+	if( !bSleepAlready ) {
+		usleep(1000 * iSingleQueryTime);
+	}
+	iHandleTime = GetTickCount() - iHandleTime;
 }
 void DBManagerTest::Test4(int index) {
 	// 执行查询
