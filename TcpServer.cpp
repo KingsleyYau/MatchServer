@@ -603,13 +603,14 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 
 	Message *m = GetIdleMessageList()->PopFront();
 	if( m == NULL ) {
-		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Accept_Callback( "
+		LogManager::GetLogManager()->Log(LOG_WARNING, "TcpServer::Accept_Callback( "
 				"tid : %d, "
+				"fd : [%d], "
 				"m == NULL "
 				")",
-				(int)syscall(SYS_gettid)
+				(int)syscall(SYS_gettid),
+				w->fd
 				);
-		Disconnect(client);
 		OnDisconnect(client, NULL);
 		return;
 	}
@@ -819,31 +820,31 @@ void TcpServer::Recv_Callback(ev_io *w, int revents) {
 
 
 void TcpServer::SendMessage(Message *m) {
-	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
-				"tid : %d, "
-				"m->fd : [%d] "
-				"ok"
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd
-				);
-
-	/* push socket into send queue */
-	mHandleSendMessageList.PushBack(m);
-
-	LockWatcherList();
-	/* signal main thread to send resopne */
-	ev_async_send(GetEvLoop(), &mAsync_send_watcher);
-	UnLockWatcherList();
-
-	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
-				"tid : %d, "
-				"m->fd : [%d] "
-				"end "
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd
-				);
+//	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
+//				"tid : %d, "
+//				"m->fd : [%d] "
+//				"ok"
+//				")",
+//				(int)syscall(SYS_gettid),
+//				m->fd
+//				);
+//
+//	/* push socket into send queue */
+//	mHandleSendMessageList.PushBack(m);
+//
+//	LockWatcherList();
+//	/* signal main thread to send resopne */
+//	ev_async_send(GetEvLoop(), &mAsync_send_watcher);
+//	UnLockWatcherList();
+//
+//	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
+//				"tid : %d, "
+//				"m->fd : [%d] "
+//				"end "
+//				")",
+//				(int)syscall(SYS_gettid),
+//				m->fd
+//				);
 }
 
 void TcpServer::SendMessageByQueue(Message *m) {

@@ -41,6 +41,7 @@ class TcpServer;
 
 class TcpServerObserver {
 public:
+	virtual ~TcpServerObserver(){};
 	virtual bool OnAccept(TcpServer *ts, Message *m) = 0;
 	virtual void OnRecvMessage(TcpServer *ts, Message *m) = 0;
 	virtual void OnSendMessage(TcpServer *ts, Message *m) = 0;
@@ -55,8 +56,14 @@ public:
 	bool Start(int maxConnection, int port, int maxThreadHandle = 1);
 	bool Stop();
 	bool IsRunning();
-	void SetTcpServerObserver(TcpServerObserver *observer);
 
+	void SetTcpServerObserver(TcpServerObserver *observer);
+	void SetHandleSize(unsigned int size);
+	unsigned int GetHandleSize();
+
+	/**
+	 * deprecated
+	 */
 	void SendMessage(Message *m);
 
 	void SendMessageByQueue(Message *m);
@@ -70,35 +77,38 @@ public:
 	MessageList* GetHandleMessageList();
 	MessageList* GetSendImmediatelyMessageList();
 
+	/**
+	 * deprecated
+	 */
 	MessageList* GetSendMessageList();
 	MessageList* GetHandleSendMessageList();
 
 	WatcherList *GetWatcherList();
-	ev_async *GetAsyncSendWatcher();
 	ev_io *GetAcceptWatcher();
 	struct ev_loop *GetEvLoop();
+
+	/**
+	 * deprecated
+	 */
+	ev_async *GetAsyncSendWatcher();
+
+	void Accept_Callback(ev_io *w, int revents);
+	void Recv_Callback(ev_io *w, int revents);
 
 	bool OnAccept(Message *m);
 	void OnRecvMessage(Message *m);
 	void OnSendMessage(Message *m);
 	void OnDisconnect(int fd, Message *m);
 	void OnTimeoutMessage(Message *m);
+private:
+	void StopEvio(ev_io *w);
+	void CloseSocketIfNeedByHandleThread(int fd);
 
 	void AddRecvTime(unsigned long time);
 	void AddSendTime(unsigned long time);
 
 	void LockWatcherList();
 	void UnLockWatcherList();
-
-	void SetHandleSize(unsigned int size);
-	unsigned int GetHandleSize();
-
-	void Accept_Callback(ev_io *w, int revents);
-	void Recv_Callback(ev_io *w, int revents);
-
-private:
-	void StopEvio(ev_io *w);
-	void CloseSocketIfNeedByHandleThread(int fd);
 
 	/* Thread safe message list */
 	MessageList mIdleMessageList;

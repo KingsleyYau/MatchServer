@@ -53,6 +53,8 @@ void MatchServer::Run(const string& config) {
 			}
 
 			Run();
+		} else {
+			printf("# Match Server can not load config file exit. \n");
 		}
 
 	} else {
@@ -108,7 +110,7 @@ void MatchServer::Run() {
 	bFlag = bFlag && mDBManager.InitSyncDataBase(miMaxDatabaseThread, mHost.c_str(), mDbPort, mDbName.c_str(), mUser.c_str(), mPasswd.c_str());
 
 	if( !bFlag ) {
-		LogManager::GetLogManager()->Log(LOG_ERR_SYS, "MatchServer::Run( Database init error )");
+		LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( Database init OK )");
 		return;
 	}
 
@@ -116,13 +118,13 @@ void MatchServer::Run() {
 	mRequestManager.Init(&mDBManager);
 	mRequestManager.SetRequestManagerCallback(this);
 	mRequestManager.SetTimeout(miTimeout * 1000);
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( RequestManager Init ok )");
+	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( RequestManager Init OK )");
 
 	/* inside server */
 	mClientTcpInsideServer.SetTcpServerObserver(this);
 	mClientTcpInsideServer.SetHandleSize(1000);
 	mClientTcpInsideServer.Start(10, miPort + 1, 2);
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( Inside TcpServer Init ok )");
+	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( Inside TcpServer Init OK )");
 
 	/* match server */
 	mClientTcpServer.SetTcpServerObserver(this);
@@ -131,7 +133,7 @@ void MatchServer::Run() {
 	 */
 	mClientTcpServer.SetHandleSize(miMaxMemoryCopy * miTimeout * miMaxQueryPerThread);
 	mClientTcpServer.Start(miMaxClient, miPort, miMaxHandleThread);
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( TcpServer Init ok )");
+	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( TcpServer Init OK )");
 
 	mIsRunning = true;
 
@@ -141,6 +143,7 @@ void MatchServer::Run() {
 	}
 
 	printf("# MatchServer start OK. \n");
+	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( Init OK )");
 
 	/* call server */
 	while( true ) {
@@ -154,7 +157,6 @@ bool MatchServer::Reload() {
 		ConfFile* conf = new ConfFile();
 		conf->InitConfFile(mConfigFile.c_str(), "");
 		if ( !conf->LoadConfFile() ) {
-			printf("# Match Server can not load config file exit \n");
 			delete conf;
 			return false;
 		}
@@ -339,27 +341,27 @@ void MatchServer::StateRunnableHandle() {
 			iHit = mHit;
 			mCountMutex.unlock();
 
-			LogManager::GetLogManager()->Log(LOG_MSG,
+			LogManager::GetLogManager()->Log(LOG_WARNING,
 					"MatchServer::StateRunnable( tid : %d, TcpServer::GetIdleMessageList() : %d )",
 					(int)syscall(SYS_gettid),
 					(MessageList*) GetTcpServer()->GetIdleMessageList()->Size()
 					);
-			LogManager::GetLogManager()->Log(LOG_MSG,
+			LogManager::GetLogManager()->Log(LOG_WARNING,
 					"MatchServer::StateRunnable( tid : %d, TcpServer::GetHandleMessageList() : %d )",
 					(int)syscall(SYS_gettid),
 					(MessageList*) GetTcpServer()->GetHandleMessageList()->Size()
 					);
-			LogManager::GetLogManager()->Log(LOG_MSG,
+			LogManager::GetLogManager()->Log(LOG_WARNING,
 					"MatchServer::StateRunnable( tid : %d, TcpServer::GetSendImmediatelyMessageList() : %d )",
 					(int)syscall(SYS_gettid),
 					(MessageList*) GetTcpServer()->GetSendImmediatelyMessageList()->Size()
 					);
-			LogManager::GetLogManager()->Log(LOG_MSG,
-					"MatchServer::StateRunnable( tid : %d, TcpServer::GetWatcherList() : %d )",
-					(int)syscall(SYS_gettid),
-					(WatcherList*) GetTcpServer()->GetWatcherList()->Size()
-					);
-			LogManager::GetLogManager()->Log(LOG_MSG,
+//			LogManager::GetLogManager()->Log(LOG_WARNING,
+//					"MatchServer::StateRunnable( tid : %d, TcpServer::GetWatcherList() : %d )",
+//					(int)syscall(SYS_gettid),
+//					(WatcherList*) GetTcpServer()->GetWatcherList()->Size()
+//					);
+			LogManager::GetLogManager()->Log(LOG_WARNING,
 					"MatchServer::StateRunnable( "
 					"tid : %d, "
 					"iTotal : %u, "
