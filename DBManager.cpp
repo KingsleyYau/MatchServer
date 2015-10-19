@@ -39,10 +39,6 @@ DBManager::DBManager() {
 	mpSyncRunnable = new SyncRunnable(this);
 
 	sqlite3_config(SQLITE_CONFIG_MEMSTATUS, false);
-//	sqlite3_config(SQLITE_CONFIG_SINGLETHREAD);
-//	printf("# sqlite3_threadsafe() : %d \n", sqlite3_threadsafe());
-//	char* pBuf = new char[200 * 1024 * 1024];
-//	sqlite3_config(SQLITE_CONFIG_HEAP, pBuf, 200 * 1024 * 1024, 8);
 }
 
 DBManager::~DBManager() {
@@ -546,7 +542,17 @@ bool DBManager::CreateTable(sqlite3 *db) {
 
 	ExecSQL( db, sql, &msg );
 	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table man, msg: %s \n", msg);
+		LogManager::GetLogManager()->Log(
+				LOG_ERR_USER,
+				"DBManager::CreateTable( "
+				"tid : %d, "
+				"sql : %s, "
+				"Could not create table man, msg : %s "
+				")",
+				(int)syscall(SYS_gettid),
+				sql,
+				msg
+				);
 		sqlite3_free(msg);
 		msg = NULL;
 		return false;
@@ -561,7 +567,17 @@ bool DBManager::CreateTable(sqlite3 *db) {
 
 	ExecSQL( db, sql, &msg );
 	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table man index, msg: %s \n", msg);
+		LogManager::GetLogManager()->Log(
+				LOG_ERR_USER,
+				"DBManager::CreateTable( "
+				"tid : %d, "
+				"sql : %s, "
+				"Could not create table man index, msg : %s "
+				")",
+				(int)syscall(SYS_gettid),
+				sql,
+				msg
+				);
 		sqlite3_free(msg);
 		msg = NULL;
 		return false;
@@ -582,7 +598,17 @@ bool DBManager::CreateTable(sqlite3 *db) {
 
 	ExecSQL( db, sql, &msg );
 	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table woman, msg: %s \n", msg);
+		LogManager::GetLogManager()->Log(
+				LOG_ERR_USER,
+				"DBManager::CreateTable( "
+				"tid : %d, "
+				"sql : %s, "
+				"Could not create table woman, msg : %s "
+				")",
+				(int)syscall(SYS_gettid),
+				sql,
+				msg
+				);
 		sqlite3_free(msg);
 		msg = NULL;
 		return false;
@@ -597,7 +623,17 @@ bool DBManager::CreateTable(sqlite3 *db) {
 
 	ExecSQL( db, sql, &msg );
 	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table woman index, msg: %s \n", msg);
+		LogManager::GetLogManager()->Log(
+				LOG_ERR_USER,
+				"DBManager::CreateTable( "
+				"tid : %d, "
+				"sql : %s, "
+				"Could not create table woman index, msg : %s "
+				")",
+				(int)syscall(SYS_gettid),
+				sql,
+				msg
+				);
 		sqlite3_free(msg);
 		msg = NULL;
 		return false;
@@ -612,7 +648,17 @@ bool DBManager::CreateTable(sqlite3 *db) {
 
 	ExecSQL( db, sql, &msg );
 	if( msg != NULL ) {
-		fprintf(stderr, "# Could not create table woman index, msg: %s \n", msg);
+		LogManager::GetLogManager()->Log(
+				LOG_ERR_USER,
+				"DBManager::CreateTable( "
+				"tid : %d, "
+				"sql : %s, "
+				"Could not create table woman index, msg : %s "
+				")",
+				(int)syscall(SYS_gettid),
+				sql,
+				msg
+				);
 		sqlite3_free(msg);
 		msg = NULL;
 		return false;
@@ -656,14 +702,6 @@ bool DBManager::InitTestData(sqlite3 *db) {
 			int r = rand() % 4;
 			sprintf(aid, "%d", r);
 
-			// insert man
-//			sprintf(sql, "INSERT INTO MAN(`MANID`, `QID`, `AID`) VALUES('%s', %d, %d);",
-//					id,
-//					j,
-//					r
-//					);
-//
-//			bFlag = ExecSQL( db, sql, NULL );
 			sqlite3_reset(stmtMan);
 			sqlite3_bind_int(stmtMan, 1, miLastManRecordId);
 			sqlite3_bind_int(stmtMan, 2, j);
@@ -676,12 +714,6 @@ bool DBManager::InitTestData(sqlite3 *db) {
 			r = rand() % 4;
 			sprintf(aid, "%d", r);
 
-//			sprintf(sql, "INSERT INTO LADY(`LADYID`, `QID`, `AID`) VALUES('%s', %d, %d);",
-//					id,
-//					j,
-//					r
-//					);
-//			bFlag = ExecSQL( db, sql, NULL );
 			sqlite3_reset(stmtLady);
 			sqlite3_bind_int(stmtLady, 1, miLastLadyRecordId);
 			sqlite3_bind_int(stmtLady, 2, j);
@@ -713,7 +745,7 @@ bool DBManager::ExecSQL(sqlite3 *db, char* sql, char** msg) {
 		ret = sqlite3_exec( db, sql, NULL, NULL, msg );
 		if( ret == SQLITE_BUSY ) {
 			LogManager::GetLogManager()->Log(
-					LOG_ERR_USER,
+					LOG_WARNING,
 					"DBManager::ExecSQL( "
 					"tid : %d, "
 					"ret == SQLITE_BUSY "
@@ -721,7 +753,6 @@ bool DBManager::ExecSQL(sqlite3 *db, char* sql, char** msg) {
 					(int)syscall(SYS_gettid)
 					);
 
-//			printf("# DBManager::ExecSQL( ret == SQLITE_BUSY ) \n");
 			if ( msg != NULL ) {
 				sqlite3_free(msg);
 				msg= NULL;
@@ -750,9 +781,8 @@ bool DBManager::QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int*
 	do {
 		ret = sqlite3_get_table( db, sql, result, iRow, iColumn, msg );
 		if( ret == SQLITE_BUSY ) {
-//			printf("# DBManager::QuerySQL( ret == SQLITE_BUSY ) \n");
 			LogManager::GetLogManager()->Log(
-					LOG_ERR_USER,
+					LOG_WARNING,
 					"DBManager::QuerySQL( "
 					"tid : %d, "
 					"ret == SQLITE_BUSY "
@@ -767,7 +797,6 @@ bool DBManager::QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int*
 		}
 
 		if( ret != SQLITE_OK ) {
-//			printf("# DBManager::QuerySQL( ret : %d ) \n", ret);
 			LogManager::GetLogManager()->Log(
 					LOG_ERR_USER,
 					"DBManager::QuerySQL( "

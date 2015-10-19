@@ -23,7 +23,7 @@ bool Parse(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
 	printf("############## Match Server ############## \n");
-	printf("# Version : 1.0 \n");
+	printf("# Version : 1.0.0 \n");
 	printf("# Build date : %s %s \n", __DATE__, __TIME__ );
 
 	srand(time(0));
