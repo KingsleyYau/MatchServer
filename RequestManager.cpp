@@ -128,7 +128,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					iSingleQueryTime = GetTickCount();
 					if( !bEnougthLady ) {
 						// query more lady
-
 						char** result2 = NULL;
 						int iRow2;
 						int iColumn2;
@@ -155,22 +154,23 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 											"tid : %d, "
 											"m->fd: [%d], "
 											"Count iQueryTime : %d, "
-											"iQueryIndex : %d "
+											"iQueryIndex : %d, "
+											"iNum : %d "
 											")",
 											(int)syscall(SYS_gettid),
 											m->fd,
 											iQueryTime,
-											iQueryIndex
+											iQueryIndex,
+											iNum
 											);
 
-						int iLadyIndex = 1;
+						int iLadyIndex = 0;
 						int iLadyCount = 0;
-						if( iNum + womanidMap.size() >= 30 ) {
-							bEnougthLady = true;
-							iLadyCount = 30 - womanidMap.size();
-							iLadyIndex = (rand() % (iNum -iLadyCount)) + 1;
-						} else {
+						if( iNum <= 30 ) {
 							iLadyCount = iNum;
+						} else {
+							iLadyCount = 30;
+							iLadyIndex = (rand() % (iNum -iLadyCount));
 						}
 
 						sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = %s AND question_status = 1 LIMIT %d OFFSET %d;",
@@ -191,22 +191,37 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 											"m->fd: [%d], "
 											"Query iQueryTime : %d, "
 											"iQueryIndex : %d, "
-											"iRow : %d, "
-											"iColumn : %d "
+											"iRow2 : %d, "
+											"iColumn2 : %d, "
+											"iLadyCount : %d, "
+											"iLadyIndex : %d "
 											")",
 											(int)syscall(SYS_gettid),
 											m->fd,
 											iQueryTime,
 											iQueryIndex,
-											iRow,
-											iColumn
+											iRow2,
+											iColumn2,
+											iLadyCount,
+											iLadyIndex
 											);
 
 						if( bResult && result2 && iRow2 > 0 ) {
 							for( int j = 1; j < iRow2 + 1; j++ ) {
 								// find womanid
+								int count = 1;
 								womanid = result2[j * iColumn2];
-								womanidMap.insert(map<string, int>::value_type(womanid, 1));
+								map<string, int>::iterator itr = womanidMap.find(womanid);
+								if( itr != womanidMap.end() ) {
+									itr->second++;
+									count = itr->second;
+								} else {
+									womanidMap.insert(map<string, int>::value_type(womanid, 1));
+								}
+							}
+
+							if( womanidMap.size() >= 30 ) {
+								bEnougthLady = true;
 							}
 						}
 						mpDBManager->FinishQuery(result2);
@@ -226,7 +241,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 							bResult = mpDBManager->Query(sql, &result3, &iRow3, &iColumn3, iQueryIndex);
 							if( bResult && result3 && iRow3 > 0 ) {
 								if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
-									itr->second++;
+									itr->second += atoi(result3[1 * iColumn3]);
 								}
 							}
 							mpDBManager->FinishQuery(result3);
