@@ -50,12 +50,11 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	unsigned int iSingleQueryTime = 0;
 	bool bSleepAlready = false;
 
-	timeval tStart;
-	timeval tEnd;
-
 	if( m == NULL ) {
 		return ret;
 	}
+
+	iHandleTime = GetTickCount();
 
 	DataHttpParser dataHttpParser;
 	if ( DiffGetTickCount(m->starttime, GetTickCount()) < miTimeout ) {
@@ -63,8 +62,6 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 			ret = dataHttpParser.ParseData(m->buffer);
 		}
 	}
-
-	iHandleTime = GetTickCount();
 
 	if( ret == 1 ) {
 		const char* pPath = dataHttpParser.GetPath();
@@ -290,24 +287,26 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 
 	sm->totaltime = GetTickCount() - m->starttime;
 	LogManager::GetLogManager()->Log(
-			LOG_STAT,
+			LOG_MSG,
 			"RequestManager::HandleRecvMessage( "
 			"tid : %d, "
 			"m->fd: [%d], "
 			"bSleepAlready : %s, "
 			"iHandleTime : %u ms, "
-			"iTotaltime : %u ms "
+			"iTotaltime : %u ms, "
+			"ret : %d "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
 			bSleepAlready?"true":"false",
 			iHandleTime,
-			sm->totaltime
+			sm->totaltime,
+			ret
 			);
 
-	rootSend["fd"] = m->fd;
-	rootSend["iHandleTime"] = iHandleTime;
-	rootSend["iTotaltime"] = sm->totaltime;
+//	rootSend["fd"] = m->fd;
+//	rootSend["iHandleTime"] = iHandleTime;
+//	rootSend["iTotaltime"] = sm->totaltime;
 	rootSend["womaninfo"] = womanListNode;
 
 	string param = writer.write(rootSend);
@@ -331,12 +330,12 @@ int RequestManager::HandleTimeoutMessage(Message *m, Message *sm) {
 		return ret;
 	}
 
+	iHandleTime = GetTickCount();
+
 	DataHttpParser dataHttpParser;
 	if( m->buffer != NULL ) {
 		ret = dataHttpParser.ParseData(m->buffer);
 	}
-
-	iHandleTime = GetTickCount();
 
 	if( ret == 1 ) {
 
@@ -350,15 +349,16 @@ int RequestManager::HandleTimeoutMessage(Message *m, Message *sm) {
 			"tid : %d, "
 			"m->fd: [%d], "
 			"iHandleTime : %u ms, "
-			"totaltime : %u ms "
+			"iTotaltime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
+			iHandleTime,
 			sm->totaltime
 			);
 
-	rootSend["fd"] = m->fd;
-	rootSend["iTotaltime"] = sm->totaltime;
+//	rootSend["fd"] = m->fd;
+//	rootSend["iTotaltime"] = sm->totaltime;
 	rootSend["womaninfo"] = womanListNode;
 
 	string param = writer.write(rootSend);
@@ -382,12 +382,12 @@ int RequestManager::HandleInsideRecvMessage(Message *m, Message *sm) {
 		return ret;
 	}
 
+	iHandleTime = GetTickCount();
+
 	DataHttpParser dataHttpParser;
 	if( m->buffer != NULL ) {
 		ret = dataHttpParser.ParseData(m->buffer);
 	}
-
-	iHandleTime = GetTickCount();
 
 	if( ret == 1 ) {
 		const char* pPath = dataHttpParser.GetPath();

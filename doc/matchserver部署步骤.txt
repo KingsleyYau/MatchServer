@@ -1,0 +1,20 @@
+﻿部署步骤
+1.拷贝程序和配置文件到目录
+cp matchserver_run.sh /usr/local/bin
+cp matchserver /usr/local/bin
+cp matchserver.config /usr/local/bin
+
+2.修改配置文件
+vim /usr/local/bin/ matchserver.config
+
+3.修改用户最大打开文件数
+unlimit -n 999999
+
+4.手动运行
+a.带配置文件运行
+matchserver -f matchserver.config
+b.不带配置文件,默认位置在/etc/matchserver.config
+matchserver
+
+5.如果需要定时执行, crontab -e增加以下命令
+*/1 * * * * /usr/local/bin/matchserver_run.sh &
