@@ -41,7 +41,6 @@ private:
 	KRunnable *m_pKRunnable;
 	bool m_isRunning;
 	pthread_t m_pthread_t;
-	pthread_t m_pthread_t_id; // 只在退出线程时候输出log用
 	static void *thread_proc_func(void *args);
 };
 #endif

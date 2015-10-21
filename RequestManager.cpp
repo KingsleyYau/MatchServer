@@ -33,7 +33,7 @@ void RequestManager::SetRequestManagerCallback(RequestManagerCallback* pRequestM
 	mpRequestManagerCallback = pRequestManagerCallback;
 }
 
-void RequestManager::SetTimeout(int mSecond) {
+void RequestManager::SetTimeout(unsigned int mSecond) {
 	miTimeout = mSecond;
 }
 
@@ -120,14 +120,14 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 					);
 
 			if( bResult && result && iRow > 0 ) {
-				// 随机起始查询问题位置
+				// 随机起始男士问题位置
 				int iManIndex = (rand() % iRow) + 1;
 				bool bEnougthLady = false;
 
 				for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
 					iSingleQueryTime = GetTickCount();
 					if( !bEnougthLady ) {
-						// query more lady
+						// 查询当前问题相同答案的女士数量
 						char** result2 = NULL;
 						int iRow2;
 						int iColumn2;
@@ -164,6 +164,11 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 											iNum
 											);
 
+						/*
+						 * 查询当前问题相同答案的女士Id集合
+						 * 1.超过30个, 随机选取30个
+						 * 2.不够30个, 全部选择
+						 */
 						int iLadyIndex = 0;
 						int iLadyCount = 0;
 						if( iNum <= 30 ) {
@@ -206,47 +211,62 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 											iLadyIndex
 											);
 
+
 						if( bResult && result2 && iRow2 > 0 ) {
 							for( int j = 1; j < iRow2 + 1; j++ ) {
-								// find womanid
-								int count = 1;
+								// insert womanid
 								womanid = result2[j * iColumn2];
-								map<string, int>::iterator itr = womanidMap.find(womanid);
-								if( itr != womanidMap.end() ) {
-									itr->second++;
-									count = itr->second;
+								if( womanidMap.size() < 30 ) {
+									// 结果集合还不够30个女士, 插入
+									womanidMap.insert(map<string, int>::value_type(womanid, 0));
 								} else {
-									womanidMap.insert(map<string, int>::value_type(womanid, 1));
+									// 已满
+									break;
 								}
 							}
 
+							// 标记为已经获取够30个女士
 							if( womanidMap.size() >= 30 ) {
 								bEnougthLady = true;
 							}
 						}
 						mpDBManager->FinishQuery(result2);
-					} else {
-						for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
-							char** result3 = NULL;
-							int iRow3;
-							int iColumn3;
-
-							sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
-									itr->first.c_str(),
-									result[i * iColumn],
-									result[i * iColumn + 1],
-									pSiteId
-									);
-
-							bResult = mpDBManager->Query(sql, &result3, &iRow3, &iColumn3, iQueryIndex);
-							if( bResult && result3 && iRow3 > 0 ) {
-								if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
-									itr->second += atoi(result3[1 * iColumn3]);
-								}
-							}
-							mpDBManager->FinishQuery(result3);
-						}
 					}
+
+					// 对已经获取到的女士统计相同答案问题数量
+					iQueryTime = GetTickCount();
+					for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+						char** result3 = NULL;
+						int iRow3;
+						int iColumn3;
+
+						sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
+								itr->first.c_str(),
+								result[i * iColumn],
+								result[i * iColumn + 1],
+								pSiteId
+								);
+
+						bResult = mpDBManager->Query(sql, &result3, &iRow3, &iColumn3, iQueryIndex);
+						if( bResult && result3 && iRow3 > 0 ) {
+							itr->second += atoi(result3[1 * iColumn3]);
+						}
+						mpDBManager->FinishQuery(result3);
+					}
+					iQueryTime = GetTickCount() - iQueryTime;
+					LogManager::GetLogManager()->Log(
+										LOG_STAT,
+										"RequestManager::HandleRecvMessage( "
+										"tid : %d, "
+										"m->fd: [%d], "
+										"Double Check iQueryTime : %d, "
+										"iQueryIndex : %d, "
+										")",
+										(int)syscall(SYS_gettid),
+										m->fd,
+										iQueryTime,
+										iQueryIndex
+										);
 
 					i++;
 					i = ((i - 1) % iRow) + 1;
@@ -327,7 +347,7 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 	string param = writer.write(rootSend);
 
 	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 200 ok\r\nContext-Length:%d\r\n\r\n%s",
-								param.length(), param.c_str());
+			(int)param.length(), param.c_str());
 	sm->len = strlen(sm->buffer);
 
 	return ret;
@@ -379,7 +399,7 @@ int RequestManager::HandleTimeoutMessage(Message *m, Message *sm) {
 	string param = writer.write(rootSend);
 
 	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 200 ok\r\nContext-Length:%d\r\n\r\n%s",
-								param.length(), param.c_str());
+			(int)param.length(), param.c_str());
 	sm->len = strlen(sm->buffer);
 
 	return ret;
@@ -475,7 +495,7 @@ int RequestManager::HandleInsideRecvMessage(Message *m, Message *sm) {
 	string param = writer.write(rootSend);
 
 	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 200 ok\r\nContext-Length:%d\r\n\r\n%s",
-			param.length(), param.c_str()
+			(int)param.length(), param.c_str()
 			);
 	sm->len = strlen(sm->buffer);
 

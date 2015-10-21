@@ -104,6 +104,7 @@ void MatchServer::Run() {
 
 	mTotal = 0;
 	mHit = 0;
+	mResponed = 0;
 
 	/* db manager */
 	bFlag = mDBManager.Init(miMaxMemoryCopy, false);
@@ -138,7 +139,7 @@ void MatchServer::Run() {
 	mIsRunning = true;
 
 	mpStateThread = new KThread(mpStateRunnable);
-	if( mpStateThread->start() != -1 ) {
+	if( mpStateThread->start() != 0 ) {
 //		printf("# Create state thread ok \n");
 	}
 
@@ -190,8 +191,46 @@ bool MatchServer::Reload() {
 		mClientTcpServer.SetHandleSize(miMaxMemoryCopy * miTimeout * miMaxQueryPerThread);
 
 		delete conf;
+
+		LogManager::GetLogManager()->Log(
+				LOG_WARNING,
+				"MatchServer::Reload( "
+				"miPort : %d, "
+				"miMaxClient : %d, "
+				"miMaxMemoryCopy : %d, "
+				"miMaxHandleThread : %d, "
+				"miMaxQueryPerThread : %d, "
+				"miTimeout : %d, "
+				"miStateTime, %d, "
+				"mHost : %s, "
+				"mDbPort : %d, "
+				"mDbName : %s, "
+				"mUser : %s, "
+				"mPasswd : %s, "
+				"miMaxDatabaseThread : %d, "
+				"miLogLevel : %d, "
+				"mlogDir : %s "
+				")",
+				miPort,
+				miMaxClient,
+				miMaxMemoryCopy,
+				miMaxHandleThread,
+				miMaxQueryPerThread,
+				miTimeout,
+				miStateTime,
+				mHost.c_str(),
+				mDbPort,
+				mDbName.c_str(),
+				mUser.c_str(),
+				mPasswd.c_str(),
+				miMaxDatabaseThread,
+				miLogLevel,
+				mLogDir.c_str()
+				);
+
+		return true;
 	}
-	return true;
+	return false;
 }
 
 bool MatchServer::IsRunning() {
@@ -231,6 +270,7 @@ void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
 			ret = mRequestManager.HandleRecvMessage(m, sm);
 			if( 0 != ret ) {
 				mCountMutex.lock();
+				mResponed += sm->totaltime;
 				if( ret == 1 ) {
 					mHit++;
 				}
@@ -286,7 +326,7 @@ void MatchServer::OnTimeoutMessage(TcpServer *ts, Message *m) {
 		mTotal++;
 		mCountMutex.unlock();
 
-		int ret = mRequestManager.HandleTimeoutMessage(m, sm);
+		mRequestManager.HandleTimeoutMessage(m, sm);
 		// Process finish, send respond
 		ts->SendMessageByQueue(sm);
 	} else {
@@ -318,13 +358,15 @@ void MatchServer::OnReload(RequestManager* pRequestManager) {
 }
 
 void MatchServer::StateRunnableHandle() {
-	int iCount = 0;
+	unsigned int iCount = 0;
 
 	unsigned int iTotal = 0;
 	double iSecondTotal = 0;
 
 	unsigned int iHit = 0;
 	double iSecondHit = 0;
+
+	double iResponed = 0;
 
 	unsigned int iStateTime = miStateTime;
 
@@ -339,6 +381,8 @@ void MatchServer::StateRunnableHandle() {
 			iSecondHit = 1.0 * (mHit - iHit) / iStateTime;
 			iTotal = mTotal;
 			iHit = mHit;
+			iResponed = 1.0 * mResponed / iHit;
+			mResponed = 0;
 			mCountMutex.unlock();
 
 			LogManager::GetLogManager()->Log(LOG_WARNING,
@@ -368,6 +412,7 @@ void MatchServer::StateRunnableHandle() {
 					"iHit : %u, "
 					"iSecondTotal : %.1lf, "
 					"iSecondHit : %.1lf, "
+					"iResponed : %.1lf, "
 					"iStateTime : %u "
 					")",
 					(int)syscall(SYS_gettid),
@@ -375,6 +420,7 @@ void MatchServer::StateRunnableHandle() {
 					iHit,
 					iSecondTotal,
 					iSecondHit,
+					iResponed,
 					iStateTime
 					);
 

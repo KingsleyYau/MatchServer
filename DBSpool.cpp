@@ -115,8 +115,8 @@ bool DBSpool::Connect()
         return false;
     }
     */
-	 MYSQL_RES* SQLRes = NULL;
-    int iRelt = 0;
+//	MYSQL_RES* SQLRes = NULL;
+//  int iRelt = 0;
     Lock(&m_thExecMutex);
     m_pDBConnection = new DBConnection[m_shCount];
     if (m_pDBConnection){
@@ -467,7 +467,7 @@ int DBConnection::ExecuteSQL(const char* pcSQL, MYSQL_RES** res, int& iRelt)
     return ExecuteSQL(strSQL, res, iRelt);
 }
 
-bool DBConnection::RestoreRes()
+void DBConnection::RestoreRes()
 {
     if (m_pSQLRes){
         mysql_free_result(m_pSQLRes);
@@ -505,4 +505,5 @@ int DBConnection::SQLtype(const string& strSQL)
     }else if(!memcmp(strSQL.c_str(), "REPLACE", 7) || !memcmp(strSQL.c_str(), "replace", 7)){
         return SQL_TYPE_REPLACE;
     }
+    return SQL_TYPE_UNKNOW;
 }

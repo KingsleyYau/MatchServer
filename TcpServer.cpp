@@ -301,7 +301,6 @@ public:
 	}
 protected:
 	void onRun() {
-		int count = 100;
 		while( true ) {
 			Message *m = mContainer->GetHandleMessageList()->PopFront();
 			if( NULL == m ) {
@@ -464,7 +463,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 
 	/* start main thread */
 	mpMainThread = new KThread(mpMainRunnable);
-	if( mpMainThread->start() != -1 ) {
+	if( mpMainThread->start() != 0 ) {
 		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create main thread ok )");
 //		printf("# Create main thread ok \n");
 	}
@@ -475,7 +474,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 	for( int i = 0; i < miMaxThreadHandle; i++ ) {
 		mpHandleRunnable[i] = new HandleRunnable(this, i);
 		mpHandleThread[i] = new KThread(mpHandleRunnable[i]);
-		if( mpHandleThread[i]->start() != -1 ) {
+		if( mpHandleThread[i]->start() != 0 ) {
 			LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create handle thread[%d] ok )", i);
 //			printf("# Create handle thread[%d] ok \n", i);
 		}
@@ -483,7 +482,7 @@ bool TcpServer::Start(int maxConnection, int port, int maxThreadHandle) {
 
 	/* start send thread */
 	mpSendThread = new KThread(mpSendRunnable);
-	if( mpSendThread->start() != -1 ) {
+	if( mpSendThread->start() != 0 ) {
 		LogManager::GetLogManager()->Log(LOG_STAT, "TcpServer::Start( Create send thread ok )");
 //		printf("# Create send thread ok \n");
 	}
@@ -1220,7 +1219,6 @@ void TcpServer::OnRecvMessage(Message *m) {
 			m->buffer
 			);
 
-	unsigned int start = GetTickCount();
 	if( mpTcpServerObserver != NULL ) {
 		mpTcpServerObserver->OnRecvMessage(this, m);
 	}

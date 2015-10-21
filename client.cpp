@@ -73,7 +73,7 @@ bool Connnect(int i) {
 	mAddr.sin_port = htons(iPort);
 	mAddr.sin_addr.s_addr = inet_addr(ip);
 
-	char buffer[2048] = {'\0'};
+//	char buffer[2048] = {'\0'};
 	int iFlag = 1;
 	int mClient;
 	if ((mClient = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -93,7 +93,7 @@ bool Connnect(int i) {
 		memset(sendBuffer, '\0', 2048);
 		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
 									"/QUERY?MANID=CM1000&SITEID=1",
-									strlen(msg),
+									(int)strlen(msg),
 									"Keep-alive",
 									msg
 									);

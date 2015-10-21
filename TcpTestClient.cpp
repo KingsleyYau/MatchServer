@@ -105,9 +105,9 @@ void TcpTestClient::Connnect() {
 		memset(sendBuffer, '\0', 2048);
 		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
 									"/",
-									strlen("hello world"),
+									(int)strlen("hello world"),
 									"Keep-alive",
-									"hello world"
+									"client"
 									);
 		send(mClient, sendBuffer, strlen(sendBuffer), 0);
 		printf("# TcpTestClient::Connnect( send ok fd : %d ) \n", mClient);

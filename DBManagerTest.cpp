@@ -302,9 +302,6 @@ void DBManagerTest::Test3(int index) {
 	unsigned int iSingleQueryTime = 0;
 	bool bSleepAlready = false;
 
-	timeval tStart;
-	timeval tEnd;
-
 	map<string, int> womanidMap;
 	map<string, int>::iterator itr;
 	string womanid;
@@ -335,14 +332,18 @@ void DBManagerTest::Test3(int index) {
 				}
 				mDBManager.FinishQuery(result2);
 
-				int iLadyIndex = 1;
+				/*
+				 * 查询当前问题相同答案的女士Id集合
+				 * 1.超过30个, 随机选取30个
+				 * 2.不够30个, 全部选择
+				 */
+				int iLadyIndex = 0;
 				int iLadyCount = 0;
-				if( iNum + womanidMap.size() >= 30 ) {
-					bEnougthLady = true;
-					iLadyCount = 30 - womanidMap.size();
-					iLadyIndex = (rand() % (iNum -iLadyCount)) + 1;
-				} else {
+				if( iNum <= 30 ) {
 					iLadyCount = iNum;
+				} else {
+					iLadyCount = 30;
+					iLadyIndex = (rand() % (iNum -iLadyCount));
 				}
 
 				sprintf(sql, "SELECT womanid FROM woman WHERE qid = %s AND aid = %s AND siteid = 1 AND question_status = 1 LIMIT %d OFFSET %d;",
@@ -357,33 +358,44 @@ void DBManagerTest::Test3(int index) {
 
 				if( bResult && result2 && iRow2 > 0 ) {
 					for( int j = 1; j < iRow2 + 1; j++ ) {
-						// find womanid
+						// insert womanid
 						womanid = result2[j * iColumn2];
-						womanidMap.insert(map<string, int>::value_type(womanid, 1));
+						if( womanidMap.size() < 30 ) {
+							// 结果集合还不够30个女士, 插入
+							womanidMap.insert(map<string, int>::value_type(womanid, 0));
+						} else {
+							// 已满
+							break;
+						}
+					}
+
+					// 标记为已经获取够30个女士
+					if( womanidMap.size() >= 30 ) {
+						bEnougthLady = true;
 					}
 				}
 				mDBManager.FinishQuery(result2);
 
-			} else {
-				for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
-					char** result3 = NULL;
-					int iRow3;
-					int iColumn3;
+			}
 
-					sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;",
-							itr->first.c_str(),
-							result[i * iColumn],
-							result[i * iColumn + 1]
-							);
+			for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+				char** result3 = NULL;
+				int iRow3;
+				int iColumn3;
 
-					bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3, index);
-					if( bResult && result3 && iRow3 > 0 ) {
-						if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
-							itr->second++;
-						}
+				sprintf(sql, "SELECT count(*) FROM woman WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = 1 AND question_status = 1;",
+						itr->first.c_str(),
+						result[i * iColumn],
+						result[i * iColumn + 1]
+						);
+
+				bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3, index);
+				if( bResult && result3 && iRow3 > 0 ) {
+					if( strcmp(result3[1 * iColumn3], "0") != 0 ) {
+						itr->second++;
 					}
-					mDBManager.FinishQuery(result3);
 				}
+				mDBManager.FinishQuery(result3);
 			}
 
 			i++;

@@ -202,8 +202,8 @@ bool ConfFile::UpdateConfFile()
     }
 
     FILE* fd;
-    FILE* fdTmp;
-    char lpPathBuffer[BUFFER_SIZE_4K];
+    FILE* fdTmp = NULL;
+//    char lpPathBuffer[BUFFER_SIZE_4K];
     bool bRet = true;
 
     if (m_strCipher.length() < 1) {
@@ -248,7 +248,6 @@ bool ConfFile::UpdateConfFile()
     fflush(fd);
 
     if (m_strCipher.length() > 0) {
-        int isize;
         if (fseek(fd, 0, SEEK_END) == 0) { 
             fpos_t ipos;
             if (fgetpos(fd, &ipos) == 0) {

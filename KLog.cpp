@@ -34,7 +34,7 @@ int KLog::LogToFile(const char *fileNamePre, const char *logDir, const char *fmt
 	struct tm tTime;
 	localtime_r(&stm, &tTime);
 	int tid = (int)syscall(SYS_gettid);
-	snprintf(pTimeBuffer, 64, "[ tid: %d, %d-%02d-%02d %02d:%02d:%02d.%03d ]",
+	snprintf(pTimeBuffer, 64, "[ tid: %d, %d-%02d-%02d %02d:%02d:%02d.%03ld ]",
 			tid, tTime.tm_year + 1900, tTime.tm_mon + 1, tTime.tm_mday, tTime.tm_hour, tTime.tm_min, tTime.tm_sec, tNow.tv_usec/1000);
 
     va_list	agList;

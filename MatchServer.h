@@ -83,6 +83,7 @@ private:
 	 */
 	unsigned int mTotal;
 	unsigned int mHit;
+	unsigned int mResponed;
 	KMutex mCountMutex;
 
 	/**

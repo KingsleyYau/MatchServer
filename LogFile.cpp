@@ -302,7 +302,7 @@ int CFileCtrl::printLog(const char *szfmt, ...)
 void CFileCtrl::Mem2File()
 {
     if (m_pLogFile && m_pBuffer && (m_nBufferUse > 0)){
-        int len = (int)fwrite(m_pBuffer, sizeof(char), m_nBufferUse, m_pLogFile);
+        (int)fwrite(m_pBuffer, sizeof(char), m_nBufferUse, m_pLogFile);
         m_nBufferUse = 0;
         fflush(m_pLogFile);
     }

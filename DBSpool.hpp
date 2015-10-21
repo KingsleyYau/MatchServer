@@ -185,7 +185,7 @@ class DBConnection
         int ExecuteSQL(const string& strSQL, MYSQL_RES** res, int& iRelt);
         int ExecuteSQL(const char* pcSQL, MYSQL_RES** res, int& iRelt);
         //clear the MYSQL_RES*
-        bool RestoreRes();
+        void RestoreRes();
         //return true if the connection is idle
         bool TestIdle();
         //lock

@@ -79,8 +79,8 @@ private:
 	bool InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int iFields);
 	bool InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, int iFields);
 
-	bool ExecSQL(sqlite3 *db, char* sql, char** msg);
-	bool QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int* iColumn, char** msg);
+	bool ExecSQL(sqlite3 *db, const char* sql, char** msg);
+	bool QuerySQL(sqlite3 *db, const char* sql, char*** result, int* iRow, int* iColumn, char** msg);
 };
 
 #endif /* DBMANAGER_H_ */

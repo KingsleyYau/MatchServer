@@ -40,7 +40,7 @@ public:
 
 	bool Init(DBManager* pDBManager);
 	void SetRequestManagerCallback(RequestManagerCallback* pRequestManagerCallback);
-	void SetTimeout(int mSecond);
+	void SetTimeout(unsigned int mSecond);
 
 	/*
 	 *	return : -1:close/0:recv again/1:ok
@@ -54,7 +54,7 @@ private:
 	DBManager* mpDBManager;
 	RequestManagerCallback* mpRequestManagerCallback;
 
-	int miTimeout;
+	unsigned int miTimeout;
 };
 
 #endif /* CLIENTMANAGER_H_ */

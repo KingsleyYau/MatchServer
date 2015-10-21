@@ -16,7 +16,6 @@ public:
 	}
 protected:
 	void onRun() {
-		int i = 0;
 		while( true ) {
 			mpDBManager->HandleSyncDatabase();
 		}
@@ -60,7 +59,7 @@ bool DBManager::Init(int iMaxMemoryCopy, bool addTestData) {
 	for( int i = 0; i < miMaxMemoryCopy; i++ ) {
 		ret = sqlite3_open(":memory:", &mdbs[i]);
 		if( ret == SQLITE_OK && CreateTable(mdbs[i]) ) {
-			ExecSQL(mdbs[i], "PRAGMA synchronous = OFF;", 0);
+			ExecSQL(mdbs[i], (char*)"PRAGMA synchronous = OFF;", 0);
 			if( addTestData ) {
 				if( InitTestData(mdbs[i]) ) {
 					bFlag = true;
@@ -166,9 +165,9 @@ void DBManager::SyncDataFromDataBase() {
 	timeval tStart;
 	timeval tEnd;
 
-	char *msg = NULL;
+//	char *msg = NULL;
 	char sql[1024] = {'\0'};
-	char ids[64] = {'\0'};
+//	char ids[64] = {'\0'};
 
 	sqlite3_stmt **stmtMan = new sqlite3_stmt*[miMaxMemoryCopy];
 	sqlite3_stmt **stmtLady = new sqlite3_stmt*[miMaxMemoryCopy];
@@ -216,7 +215,7 @@ void DBManager::SyncDataFromDataBase() {
 			fields = mysql_fetch_fields(pSQLRes);
 
 			for( int i = 0; i < miMaxMemoryCopy; i++ ) {
-				ExecSQL( mdbs[i], "BEGIN;", NULL );
+				ExecSQL( mdbs[i], (char*)"BEGIN;", NULL );
 				sprintf(sql, "REPLACE INTO man("
 						"`id`, "
 						"`qid`, "
@@ -321,8 +320,8 @@ void DBManager::SyncDataFromDataBase() {
 			fields = mysql_fetch_fields(pSQLRes);
 
 			for( int i = 0; i < miMaxMemoryCopy; i++ ) {
-				ExecSQL( mdbs[i], "BEGIN;", NULL );
-				sprintf(sql, "REPLACE INTO woman("
+				ExecSQL( mdbs[i], (char*)"BEGIN;", NULL );
+				sprintf(sql, (char*)"REPLACE INTO woman("
 						"`id`, "
 						"`qid`, "
 						"`question_status`, "
@@ -416,7 +415,7 @@ void DBManager::Status() {
 	int highwater;
 
 	for( int i = 0; i < miMaxMemoryCopy; i++ ) {
-		sqlite3* db = mdbs[i];
+		db = mdbs[i];
 		sqlite3_db_status(db, SQLITE_DBSTATUS_LOOKASIDE_USED, &current, &highwater, false);
 		printf("# db[%d] SQLITE_DBSTATUS_LOOKASIDE_USED, current : %d, highwater : %d \n", i, current, highwater);
 
@@ -682,7 +681,7 @@ bool DBManager::InitTestData(sqlite3 *db) {
 	sqlite3_stmt *stmtMan;
 	sqlite3_stmt *stmtLady;
 
-	bFlag = ExecSQL( db, "BEGIN;", &msg );
+	bFlag = ExecSQL( db, (char*)"BEGIN;", &msg );
 
 	sprintf(sql, "INSERT INTO man(`id`, `qid`, `question_status`, `manid`, `aid`, `siteid`) VALUES(?, ?, 1, ?, ?, 1)");
 	sqlite3_prepare_v2(db, sql, strlen(sql), &stmtMan, 0);
@@ -739,7 +738,7 @@ bool DBManager::InitTestData(sqlite3 *db) {
 	return true;
 }
 
-bool DBManager::ExecSQL(sqlite3 *db, char* sql, char** msg) {
+bool DBManager::ExecSQL(sqlite3 *db, const char* sql, char** msg) {
 	int ret;
 	do {
 		ret = sqlite3_exec( db, sql, NULL, NULL, msg );
@@ -776,7 +775,7 @@ bool DBManager::ExecSQL(sqlite3 *db, char* sql, char** msg) {
 
 	return ( ret == SQLITE_OK );
 }
-bool DBManager::QuerySQL(sqlite3 *db, char* sql, char*** result, int* iRow, int* iColumn, char** msg) {
+bool DBManager::QuerySQL(sqlite3 *db, const char* sql, char*** result, int* iRow, int* iColumn, char** msg) {
 	int ret;
 	do {
 		ret = sqlite3_get_table( db, sql, result, iRow, iColumn, msg );
@@ -903,7 +902,7 @@ bool DBManager::InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int
 			return false;
 		}
 
-		int code = sqlite3_step(stmtMan);
+		sqlite3_step(stmtMan);
 
 	} else {
 		return false;
@@ -998,7 +997,7 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 			return false;
 		}
 
-		int code = sqlite3_step(stmtLady);
+		sqlite3_step(stmtLady);
 
 	} else {
 		return false;
