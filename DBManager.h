@@ -21,6 +21,7 @@ using namespace std;
 #include "KThread.h"
 #include "DBSpool.hpp"
 #include "LogManager.h"
+#include "TimeProc.hpp"
 
 class SyncRunnable;
 class DBManager {
@@ -31,11 +32,18 @@ public:
 	bool Init(int iMaxMemoryCopy, bool addTestData = false);
 	bool InitSyncDataBase(
 			int iMaxThread,
+
 			const char* pcHost,
 			short shPort,
 			const char* pcDBname,
 	        const char* pcUser,
-	        const char* pcPasswd
+	        const char* pcPasswd,
+
+			const char* pcHostOnline,
+			short shPortOnline,
+			const char* pcDBnameOnline,
+	        const char* pcUserOnline,
+	        const char* pcPasswdOnline
 	        );
 
 	bool Query(char* sql, char*** result, int* iRow, int* iColumn, int index = 0);
@@ -49,13 +57,19 @@ public:
 	void SyncForce();
 	void HandleSyncDatabase();
 
+	int GetLastOnlineLadyRecordId();
+
 private:
+	void SyncOnlineLady();
+	void SyncManAndLady();
+
 	int miQueryIndex;
 	int miMaxMemoryCopy;
 	sqlite3** mdbs;
 
 	int miLastManRecordId;
 	int miLastLadyRecordId;
+	int miLastOnlineLadyRecordId;
 	long long miLastUpdateMan;
 	long long miLastUpdateLady;
 
@@ -67,6 +81,7 @@ private:
 	char* mpSqlitePageBuffer;
 
 	DBSpool mDBSpool;
+	DBSpool mDBSpoolOnline;
 	KMutex mIndexMutex;
 	KMutex mBusyMutex;
 	KThread mSyncThread;
@@ -78,6 +93,7 @@ private:
 
 	bool InsertManFromDataBase(sqlite3_stmt *stmtMan, MYSQL_ROW &row, int iFields);
 	bool InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, int iFields);
+	bool InsertOnlineLadyFromDataBase(sqlite3_stmt *stmtOnlineLady, MYSQL_ROW &row, int iFields);
 
 	bool ExecSQL(sqlite3 *db, const char* sql, char** msg);
 	bool QuerySQL(sqlite3 *db, const char* sql, char*** result, int* iRow, int* iColumn, char** msg);

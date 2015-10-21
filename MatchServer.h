@@ -59,6 +59,13 @@ private:
 	string mUser;
 	string mPasswd;
 	string mDbName;
+
+	string mHostOnline;
+	short mDbPortOnline;
+	string mUserOnline;
+	string mPasswdOnline;
+	string mDbNameOnline;
+
 	int miMaxDatabaseThread;
 	int miSyncDataTime;
 

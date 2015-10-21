@@ -17,6 +17,7 @@
   KEY `manid` (`manid`),
   KEY `q_id` (`q_id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=1195 DEFAULT CHARSET=utf8
+
 CREATE TABLE `mq_woman_answer` (
   `id` int(8) unsigned NOT NULL AUTO_INCREMENT,
   `q_id` varchar(20) NOT NULL,
@@ -36,3 +37,52 @@ CREATE TABLE `mq_woman_answer` (
   KEY `q_id` (`q_id`),
   KEY `q_concat` (`q_concat`)
 ) ENGINE=MyISAM AUTO_INCREMENT=3083 DEFAULT CHARSET=utf8
+
+CREATE TABLE `online_woman` (
+  `id` int(8) NOT NULL AUTO_INCREMENT,
+  `womanid` varchar(12) NOT NULL,
+  `firstname` varchar(20) NOT NULL,
+  `lastname` varchar(20) NOT NULL,
+  `cnname` varchar(60) NOT NULL,
+  `agentid` varchar(10) NOT NULL,
+  `siteid` tinyint(1) NOT NULL,
+  `photourl` varchar(100) NOT NULL,
+  `birthday` date NOT NULL,
+  `description` varchar(150) NOT NULL,
+  `livein` varchar(50) NOT NULL,
+  `country` varchar(20) NOT NULL,
+  `status` tinyint(1) NOT NULL,
+  `chatstatus` tinyint(1) NOT NULL,
+  `lastlogin` datetime NOT NULL,
+  `adddate` datetime NOT NULL,
+  `height` int(3) NOT NULL,
+  `weight` int(3) NOT NULL,
+  `mic` tinyint(1) NOT NULL,
+  `cam` tinyint(1) NOT NULL,
+  `sid` varchar(50) NOT NULL,
+  `phpsession` varchar(50) NOT NULL,
+  `chatwin` tinyint(1) NOT NULL DEFAULT '0',
+  `videofile` varchar(60) NOT NULL,
+  `keyword` varchar(30) NOT NULL,
+  `keyword_d` varchar(30) NOT NULL,
+  `hide` tinyint(1) NOT NULL DEFAULT '0',
+  `woman_auto_id` int(8) NOT NULL,
+  `hascam` tinyint(1) NOT NULL,
+  `camisopen` tinyint(1) NOT NULL,
+  `binding` tinyint(4) NOT NULL,
+  `translator_id` varchar(12) NOT NULL,
+  `translator_name` varchar(30) NOT NULL,
+  `translator_cnname` varchar(60) NOT NULL,
+  `need_translate` tinyint(4) NOT NULL,
+  `fromid` varchar(10) DEFAULT NULL,
+  `device_type` tinyint(2) DEFAULT '10',
+  `ip` varchar(20) DEFAULT NULL,
+  `proxyip` varchar(20) DEFAULT NULL,
+  `iplocation` varchar(50) DEFAULT NULL,
+  `proxynum` varchar(20) DEFAULT NULL,
+  `ordervalue` int(4) NOT NULL DEFAULT '0',
+  `zodiac` tinyint(1) unsigned NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `womanid` (`womanid`),
+  KEY `status` (`status`,`hide`,`binding`)
+) ENGINE=MyISAM AUTO_INCREMENT=62486 DEFAULT CHARSET=utf8

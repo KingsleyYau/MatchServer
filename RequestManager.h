@@ -48,7 +48,47 @@ public:
 	int HandleRecvMessage(Message *m, Message *sm);
 	int HandleTimeoutMessage(Message *m, Message *sm);
 	int HandleInsideRecvMessage(Message *m, Message *sm);
+
 protected:
+	/**
+	 * 1.获取跟男士有任意共同答案的问题的女士Id列表接口(http get)
+	 */
+	bool QuerySameAnswerLadyList(
+			Json::Value& womanListNode,
+			const char* pManId,
+			const char* pSiteId,
+			Message *m
+			);
+
+	/**
+	 * 2.获取跟男士有指定共同问题的女士Id列表接口(http get)
+	 */
+	bool QueryTheSameQuestionLadyList(
+			Json::Value& womanListNode,
+			const char* pQid,
+			const char* pSiteId,
+			Message *m
+			);
+
+	/**
+	 * 3.获取跟男士有任意共同问题的女士Id列表接口(http get)
+	 */
+	bool QueryAnySameQuestionLadyList(
+			Json::Value& womanListNode,
+			const char* pManId,
+			const char* pSiteId,
+			Message *m
+			);
+
+	/**
+	 * 4.获取跟男士有任意共同问题的在线女士Id列表接口(http get)
+	 */
+	bool QueryAnySameQuestionOnlineLadyList(
+			Json::Value& womanListNode,
+			const char* pManId,
+			const char* pSiteId,
+			Message *m
+			);
 
 private:
 	DBManager* mpDBManager;

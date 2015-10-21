@@ -108,12 +108,26 @@ void MatchServer::Run() {
 
 	/* db manager */
 	bFlag = mDBManager.Init(miMaxMemoryCopy, false);
-	bFlag = bFlag && mDBManager.InitSyncDataBase(miMaxDatabaseThread, mHost.c_str(), mDbPort, mDbName.c_str(), mUser.c_str(), mPasswd.c_str());
+	bFlag = bFlag && mDBManager.InitSyncDataBase(
+			miMaxDatabaseThread,
+			mHost.c_str(),
+			mDbPort,
+			mDbName.c_str(),
+			mUser.c_str(),
+			mPasswd.c_str(),
+			mHostOnline.c_str(),
+			mDbPortOnline,
+			mDbNameOnline.c_str(),
+			mUserOnline.c_str(),
+			mPasswdOnline.c_str()
+			);
 
 	if( !bFlag ) {
-		LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( Database init OK )");
+		printf("# Match Server can not initialize database exit. \n");
+		LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( Database Init fail )");
 		return;
 	}
+	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( Database Init OK )");
 
 	/* request manager */
 	mRequestManager.Init(&mDBManager);
@@ -177,6 +191,19 @@ bool MatchServer::Reload() {
 		mUser = conf->GetPrivate("DB", "DBUSER", "root");
 		mPasswd = conf->GetPrivate("DB", "DBPASS", "123456");
 		mDbName = conf->GetPrivate("DB", "DBNAME", "qpidnetwork");
+
+		mHost = conf->GetPrivate("DB", "DBHOST", "localhost");
+		mDbPort = atoi(conf->GetPrivate("DB", "DBPORT", "3306").c_str());
+		mUser = conf->GetPrivate("DB", "DBUSER", "root");
+		mPasswd = conf->GetPrivate("DB", "DBPASS", "123456");
+		mDbName = conf->GetPrivate("DB", "DBNAME", "qpidnetwork");
+
+		mHostOnline = conf->GetPrivate("DB", "DBHOSTONLINE", "localhost");
+		mDbPortOnline = atoi(conf->GetPrivate("DB", "DBPORTONLINE", "3306").c_str());
+		mUserOnline = conf->GetPrivate("DB", "DBUSERONLINE", "root");
+		mPasswdOnline = conf->GetPrivate("DB", "DBPASSONLINE", "123456");
+		mDbNameOnline = conf->GetPrivate("DB", "DBNAMEONLINE", "qpidnetwork_online");
+
 		miMaxDatabaseThread = atoi(conf->GetPrivate("DB", "MAXDATABASETHREAD", "4").c_str());
 		miSyncDataTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZETIME", "30").c_str());
 
@@ -207,6 +234,11 @@ bool MatchServer::Reload() {
 				"mDbName : %s, "
 				"mUser : %s, "
 				"mPasswd : %s, "
+				"mHostOnline : %s, "
+				"mDbPortOnline : %d, "
+				"mDbNameOnline : %s, "
+				"mUserOnline : %s, "
+				"mPasswdOnline : %s, "
 				"miMaxDatabaseThread : %d, "
 				"miLogLevel : %d, "
 				"mlogDir : %s "
@@ -223,6 +255,11 @@ bool MatchServer::Reload() {
 				mDbName.c_str(),
 				mUser.c_str(),
 				mPasswd.c_str(),
+				mHostOnline.c_str(),
+				mDbPortOnline,
+				mDbNameOnline.c_str(),
+				mUserOnline.c_str(),
+				mPasswdOnline.c_str(),
 				miMaxDatabaseThread,
 				miLogLevel,
 				mLogDir.c_str()
