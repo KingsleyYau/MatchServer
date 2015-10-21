@@ -49,9 +49,14 @@ public:
 	bool Query(char* sql, char*** result, int* iRow, int* iColumn, int index = 0);
 	void FinishQuery(char** result);
 
-	int GetSyncDataTime();
 	void SetSyncDataTime(int second);
+
+	void SetSyncOnlineLadyTime(int second);
+
+	void SyncOnlineLady();
+	void SyncManAndLady();
 	void SyncDataFromDataBase();
+
 	void Status();
 
 	void SyncForce();
@@ -60,9 +65,6 @@ public:
 	int GetLastOnlineLadyRecordId();
 
 private:
-	void SyncOnlineLady();
-	void SyncManAndLady();
-
 	int miQueryIndex;
 	int miMaxMemoryCopy;
 	sqlite3** mdbs;
@@ -74,6 +76,7 @@ private:
 	long long miLastUpdateLady;
 
 	int mSyncDataTime;
+	int mSyncOnlineLadyTime;
 	bool mbSyncForce;
 	KMutex mSyncMutex;
 

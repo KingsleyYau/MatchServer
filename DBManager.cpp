@@ -16,9 +16,7 @@ public:
 	}
 protected:
 	void onRun() {
-		while( true ) {
-			mpDBManager->HandleSyncDatabase();
-		}
+		mpDBManager->HandleSyncDatabase();
 	}
 	DBManager* mpDBManager;
 };
@@ -34,7 +32,8 @@ DBManager::DBManager() {
 	miLastUpdateLady = 0;;
 
 	mbSyncForce = false;
-	mSyncDataTime = 30 * 1000;
+	mSyncDataTime = 30 * 60;
+	mSyncOnlineLadyTime = 1 * 60;
 	mpSyncRunnable = new SyncRunnable(this);
 
 	sqlite3_config(SQLITE_CONFIG_MEMSTATUS, false);
@@ -198,7 +197,8 @@ void DBManager::SyncOnlineLady() {
 	char sql[1024] = {'\0'};
 
 	sprintf(sql,
-			"SELECT `id`, `womanid`, UNIX_TIMESTAMP(`lastlogin`) FROM online_woman"
+			"SELECT `id`, `womanid` FROM online_woman "
+			"WHERE status = 1 AND hide = 0 AND binding IN (1, 2)"
 			";"
 	);
 	LogManager::GetLogManager()->Log(
@@ -245,11 +245,9 @@ void DBManager::SyncOnlineLady() {
 
 				sprintf(sql, "INSERT INTO online_woman("
 						"`id`, "
-						"`womanid`, "
-						"`lastlogin`"
+						"`womanid` "
 						") "
 						"VALUES("
-						"?, "
 						"?, "
 						"?"
 						")"
@@ -648,12 +646,12 @@ void DBManager::Status() {
 
 }
 
-int DBManager::GetSyncDataTime() {
-	return mSyncDataTime;
-}
-
 void DBManager::SetSyncDataTime(int second) {
 	mSyncDataTime = second;
+}
+
+void DBManager::SetSyncOnlineLadyTime(int second) {
+	mSyncOnlineLadyTime = second;
 }
 
 bool DBManager::CreateTable(sqlite3 *db) {
@@ -802,8 +800,7 @@ bool DBManager::CreateTable(sqlite3 *db) {
 			"CREATE TABLE online_woman("
 //						"recordid INTEGER PRIMARY KEY AUTOINCREMENT,"
 						"id INTEGER PRIMARY KEY,"
-						"womanid TEXT,"
-						"lastlogin INTEGER"
+						"womanid TEXT"
 						");"
 	);
 
@@ -1142,7 +1139,7 @@ bool DBManager::InsertLadyFromDataBase(sqlite3_stmt *stmtLady, MYSQL_ROW &row, i
 bool DBManager::InsertOnlineLadyFromDataBase(sqlite3_stmt *stmtOnlineLady, MYSQL_ROW &row, int iFields) {
 	sqlite3_reset(stmtOnlineLady);
 
-	if( iFields == 3 ) {
+	if( iFields == 2 ) {
 		// id
 		if( row[0] ) {
 			sqlite3_bind_int(stmtOnlineLady, 1, atoi(row[0]));
@@ -1152,12 +1149,6 @@ bool DBManager::InsertOnlineLadyFromDataBase(sqlite3_stmt *stmtOnlineLady, MYSQL
 		// womanid
 		if( row[1] ) {
 			sqlite3_bind_text(stmtOnlineLady, 2, row[1], strlen(row[1]), NULL);
-		} else {
-			return false;
-		}
-		// lastlogin
-		if( row[2] ) {
-			sqlite3_bind_int64(stmtOnlineLady, 3, atoll(row[2]));
 		} else {
 			return false;
 		}
@@ -1178,23 +1169,32 @@ void DBManager::SyncForce() {
 
 void DBManager::HandleSyncDatabase() {
 	int i = 0;
-	mSyncMutex.lock();
-	if( mbSyncForce ) {
-		mbSyncForce = false;
-		mSyncMutex.unlock();
+	while( true ) {
+		mSyncMutex.lock();
+		if( mbSyncForce ) {
+			mbSyncForce = false;
+			mSyncMutex.unlock();
 
-		SyncDataFromDataBase();
-		i = 0;
-	} else {
-		mSyncMutex.unlock();
-
-		if( i > GetSyncDataTime() ) {
 			SyncDataFromDataBase();
+
 			i = 0;
+		} else {
+			mSyncMutex.unlock();
+
+			if( i % mSyncOnlineLadyTime == 0 ) {
+				// 同步在线女士
+				SyncOnlineLady();
+			}
+
+			if( i % mSyncDataTime == 0 ) {
+				// 同步男士女士问题
+				SyncManAndLady();
+				i = 0;
+			}
 		}
+		i++;
+		sleep(1);
 	}
-	i++;
-	sleep(1);
 }
 
 int DBManager::GetLastOnlineLadyRecordId() {

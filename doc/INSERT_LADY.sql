@@ -12,7 +12,7 @@ BEGIN
 	SET i = 0;
 	WHILE i < 5000 DO
 	    SET womanid = CONCAT('CM', i);
-	    INSERT INTO online_woman(`womanid`, `lastlogin`) VALUES(womanid, NOW());
+	    INSERT INTO online_woman(`womanid`, `lastlogin`, `status`, `hide`, `binding`) VALUES(womanid, NOW(), 1, 0, 2);
 	    SET i = i + 1;
 	END WHILE;
     END$$
