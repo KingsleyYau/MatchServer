@@ -7,6 +7,7 @@
 
 #include "DBManagerTest.h"
 #include "TimeProc.hpp"
+#include "json/json.h"
 
 #include <map>
 using namespace std;
@@ -30,8 +31,13 @@ protected:
 
 //			mpDBManagerTest->Test1(mIndex);
 //			mpDBManagerTest->Test2(mIndex);
-			mpDBManagerTest->Test3(mIndex);
+//			mpDBManagerTest->Test3(mIndex);
 //			mpDBManagerTest->Test4(mIndex);
+
+//			mpDBManagerTest->TestQuerySameAnswerLadyList(mIndex);				// 37 times/second
+//			mpDBManagerTest->TestQueryTheSameQuestionLadyList(mIndex); 			// 58 times/second
+//			mpDBManagerTest->TestQueryAnySameQuestionLadyList(mIndex);			// 66 time/second
+			mpDBManagerTest->TestQueryAnySameQuestionOnlineLadyList(mIndex);	// 27 times/second
 
 			gettimeofday(&tEnd, NULL);
 			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
@@ -75,8 +81,20 @@ void DBManagerTest::StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery)
 	gettimeofday(&tStart, NULL);
 
 	miMaxQuery = iMaxQuery;
-	mDBManager.Init(iMaxMemoryCopy, true);
-//	mDBManager.InitSyncDataBase(4, "127.0.0.1", 3306, "qpidnetwork", "root", "123456");
+	mDBManager.Init(iMaxMemoryCopy, false);
+	mDBManager.InitSyncDataBase(
+				4,
+				"127.0.0.1",
+				3306,
+				"qpidnetwork",
+				"root",
+				"123456",
+				"127.0.0.1",
+				3306,
+				"qpidnetwork_online",
+				"root",
+				"123456"
+				);
 
 	gettimeofday(&tEnd, NULL);
 	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
@@ -521,4 +539,500 @@ void DBManagerTest::Test4(int index) {
 	gettimeofday(&tEnd, NULL);
 	long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
 	usleep(usec);
+}
+
+/**
+ * 1.获取跟男士有任意共同答案的问题的女士Id列表接口(http get)
+ */
+bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
+	Json::Value womanListNode;
+	const char* pManId = "CM100";
+	const char* pSiteId = "1";
+	int iQueryIndex = index;
+
+	unsigned int iQueryTime = 0;
+	unsigned int iSingleQueryTime = 0;
+	unsigned int iHandleTime = GetTickCount();
+	bool bSleepAlready = false;
+
+	Json::Value womanNode;
+
+	// 执行查询
+	char sql[1024] = {'\0'};
+	sprintf(sql, "SELECT qid, aid FROM mq_man_answer WHERE manid = '%s';", pManId);
+
+	bool bResult = false;
+	char** result = NULL;
+	int iRow = 0;
+	int iColumn = 0;
+
+	map<string, int> womanidMap;
+	map<string, int>::iterator itr;
+	string womanid;
+
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn, iQueryIndex);
+
+	if( bResult && result && iRow > 0 ) {
+		// 随机起始男士问题位置
+		int iManIndex = (rand() % iRow) + 1;
+		bool bEnougthLady = false;
+
+		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
+			iSingleQueryTime = GetTickCount();
+			if( !bEnougthLady ) {
+				// 查询当前问题相同答案的女士数量
+				char** result2 = NULL;
+				int iRow2;
+				int iColumn2;
+
+				int iNum = 0;
+
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
+										result[i * iColumn],
+										result[i * iColumn + 1],
+										pSiteId
+										);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				if( bResult && result2 && iRow2 > 0 ) {
+					iNum = atoi(result2[1 * iColumn2]);
+				}
+				mDBManager.FinishQuery(result2);
+
+				iQueryTime = GetTickCount() - iQueryTime;
+
+				/*
+				 * 查询当前问题相同答案的女士Id集合
+				 * 1.超过30个, 随机选取30个
+				 * 2.不够30个, 全部选择
+				 */
+				int iLadyIndex = 0;
+				int iLadyCount = 0;
+				if( iNum <= 30 ) {
+					iLadyCount = iNum;
+				} else {
+					iLadyCount = 30;
+					iLadyIndex = (rand() % (iNum -iLadyCount));
+				}
+
+				sprintf(sql, "SELECT womanid FROM mq_woman_answer WHERE qid = %s AND aid = %s AND siteid = %s AND question_status = 1 LIMIT %d OFFSET %d;",
+						result[i * iColumn],
+						result[i * iColumn + 1],
+						pSiteId,
+						iLadyCount,
+						iLadyIndex
+						);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				iQueryTime = GetTickCount() - iQueryTime;
+
+				if( bResult && result2 && iRow2 > 0 ) {
+					for( int j = 1; j < iRow2 + 1; j++ ) {
+						// insert womanid
+						womanid = result2[j * iColumn2];
+						if( womanidMap.size() < 30 ) {
+							// 结果集合还不够30个女士, 插入
+							womanidMap.insert(map<string, int>::value_type(womanid, 0));
+						} else {
+							// 已满
+							break;
+						}
+					}
+
+					// 标记为已经获取够30个女士
+					if( womanidMap.size() >= 30 ) {
+						bEnougthLady = true;
+					}
+				}
+				mDBManager.FinishQuery(result2);
+			}
+
+			// 对已经获取到的女士统计相同答案问题数量
+			iQueryTime = GetTickCount();
+			for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+				char** result3 = NULL;
+				int iRow3;
+				int iColumn3;
+
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
+						itr->first.c_str(),
+						result[i * iColumn],
+						result[i * iColumn + 1],
+						pSiteId
+						);
+
+				bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3, iQueryIndex);
+				if( bResult && result3 && iRow3 > 0 ) {
+					itr->second += atoi(result3[1 * iColumn3]);
+				}
+				mDBManager.FinishQuery(result3);
+			}
+			iQueryTime = GetTickCount() - iQueryTime;
+
+			i++;
+			i = ((i - 1) % iRow) + 1;
+
+			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
+			if( iSingleQueryTime > 30 ) {
+				bSleepAlready = true;
+				usleep(1000 * iSingleQueryTime);
+			}
+		}
+
+		for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+			Json::Value womanNode;
+			womanNode[itr->first] = itr->second;
+			womanListNode.append(womanNode);
+		}
+	}
+	mDBManager.FinishQuery(result);
+
+	iSingleQueryTime = GetTickCount() - iHandleTime;
+	if( !bSleepAlready ) {
+		usleep(1000 * iSingleQueryTime);
+	}
+
+	iHandleTime =  GetTickCount() - iHandleTime;
+
+	return bResult;
+}
+
+/**
+ * 2.获取跟男士有指定共同问题的女士Id列表接口(http get)
+ */
+bool DBManagerTest::TestQueryTheSameQuestionLadyList(int index) {
+	Json::Value womanListNode;
+	const char* pQid = "QA0";
+	const char* pSiteId = "1";
+	int iQueryIndex = index;
+
+	unsigned int iQueryTime = 0;
+	unsigned int iSingleQueryTime = 0;
+	unsigned int iHandleTime = GetTickCount();
+
+	// 执行查询
+	char sql[1024] = {'\0'};
+	string qid = pQid;
+	qid = qid.substr(2, qid.length() - 2);
+	sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND siteid = %s;",
+			qid.c_str(),
+			pSiteId
+			);
+
+	bool bResult = false;
+	char** result = NULL;
+	int iRow = 0;
+	int iColumn = 0;
+
+	map<string, int> womanidMap;
+	map<string, int>::iterator itr;
+	string womanid;
+
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn, iQueryIndex);
+
+	if( bResult && result && iRow > 0 ) {
+		int iNum = 0;
+
+		iQueryTime = GetTickCount();
+		bResult = mDBManager.Query(sql, &result, &iRow, &iColumn, iQueryIndex);
+		if( bResult && result && iRow > 0 ) {
+			iNum = atoi(result[1 * iColumn]);
+		}
+		iQueryTime = GetTickCount() - iQueryTime;
+
+		char** result2 = NULL;
+		int iRow2;
+		int iColumn2;
+
+		/*
+		 * 查询当前问题相同答案的女士Id集合
+		 * 1.超过30个, 随机选取30个
+		 * 2.不够30个, 全部选择
+		 */
+		int iLadyIndex = 0;
+		int iLadyCount = 0;
+		if( iNum <= 30 ) {
+			iLadyCount = iNum;
+		} else {
+			iLadyCount = 30;
+			iLadyIndex = (rand() % (iNum -iLadyCount));
+		}
+
+		sprintf(sql, "SELECT womanid FROM mq_woman_answer WHERE qid = %s AND siteid = %s LIMIT %d OFFSET %d;",
+				qid.c_str(),
+				pSiteId,
+				iLadyCount,
+				iLadyIndex
+				);
+
+		iQueryTime = GetTickCount();
+		bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+		iQueryTime = GetTickCount() - iQueryTime;
+
+		if( bResult && result2 && iRow2 > 0 ) {
+			for( int j = 1; j < iRow2 + 1; j++ ) {
+				// insert womanid
+				womanid = result2[j * iColumn2];
+				womanListNode.append(womanid);
+			}
+		}
+
+		mDBManager.FinishQuery(result2);
+	}
+	mDBManager.FinishQuery(result);
+
+	iSingleQueryTime = GetTickCount() - iHandleTime;
+	usleep(1000 * iSingleQueryTime);
+	iHandleTime = GetTickCount() - iHandleTime;
+
+	return bResult;
+}
+
+/**
+ * 3.获取跟男士有任意共同问题的女士Id列表接口(http get)
+ */
+bool DBManagerTest::TestQueryAnySameQuestionLadyList(int index) {
+	Json::Value womanListNode;
+	const char* pManId = "CM100";
+	const char* pSiteId = "1";
+	int iQueryIndex = index;
+
+	unsigned int iQueryTime = 0;
+	unsigned int iSingleQueryTime = 0;
+	unsigned int iHandleTime = GetTickCount();
+	bool bSleepAlready = false;
+
+	// 执行查询
+	char sql[1024] = {'\0'};
+	sprintf(sql, "SELECT qid FROM mq_man_answer WHERE manid = '%s';", pManId);
+
+	bool bResult = false;
+	char** result = NULL;
+	int iRow = 0;
+	int iColumn = 0;
+
+	map<string, int> womanidMap;
+	map<string, int>::iterator itr;
+	string womanid;
+
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn, iQueryIndex);
+
+	if( bResult && result && iRow > 0 ) {
+		// 随机起始男士问题位置
+		int iManIndex = (rand() % iRow) + 1;
+		bool bEnougthLady = false;
+
+		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
+			iSingleQueryTime = GetTickCount();
+			if( !bEnougthLady ) {
+				// 查询当前问题相同答案的女士数量
+				char** result2 = NULL;
+				int iRow2;
+				int iColumn2;
+
+				int iNum = 0;
+
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND siteid = %s AND question_status = 1;",
+										result[i * iColumn],
+										pSiteId
+										);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				if( bResult && result2 && iRow2 > 0 ) {
+					iNum = atoi(result2[1 * iColumn2]);
+				}
+				mDBManager.FinishQuery(result2);
+
+				iQueryTime = GetTickCount() - iQueryTime;
+
+				/*
+				 * 查询当前问题相同的女士Id集合
+				 * 1.超过30个, 随机选取30个
+				 * 2.不够30个, 全部选择
+				 */
+				int iLadyIndex = 0;
+				int iLadyCount = 0;
+				if( iNum <= 30 ) {
+					iLadyCount = iNum;
+				} else {
+					iLadyCount = 30;
+					iLadyIndex = (rand() % (iNum -iLadyCount));
+				}
+
+				sprintf(sql, "SELECT womanid FROM mq_woman_answer WHERE qid = %s AND siteid = %s AND question_status = 1 LIMIT %d OFFSET %d;",
+						result[i * iColumn],
+						pSiteId,
+						iLadyCount,
+						iLadyIndex
+						);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				iQueryTime = GetTickCount() - iQueryTime;
+
+				if( bResult && result2 && iRow2 > 0 ) {
+					for( int j = 1; j < iRow2 + 1; j++ ) {
+						// insert womanid
+						womanid = result2[j * iColumn2];
+						if( womanidMap.size() < 30 ) {
+							// 结果集合还不够30个女士, 插入
+							womanidMap.insert(map<string, int>::value_type(womanid, 0));
+						} else {
+							// 已满
+							break;
+						}
+					}
+
+					// 标记为已经获取够30个女士
+					if( womanidMap.size() >= 30 ) {
+						break;
+					}
+				}
+				mDBManager.FinishQuery(result2);
+			}
+
+			i++;
+			i = ((i - 1) % iRow) + 1;
+
+			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
+			if( iSingleQueryTime > 30 ) {
+				bSleepAlready = true;
+				usleep(1000 * iSingleQueryTime);
+			}
+		}
+
+		for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+			womanListNode.append(itr->first);
+		}
+	}
+	mDBManager.FinishQuery(result);
+
+	iSingleQueryTime = GetTickCount() - iHandleTime;
+	if( !bSleepAlready ) {
+		usleep(1000 * iSingleQueryTime);
+	}
+
+	iHandleTime =  GetTickCount() - iHandleTime;
+
+	return bResult;
+}
+
+/**
+ * 4.获取跟男士有任意共同问题的在线女士Id列表接口(http get)
+ */
+bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
+	Json::Value womanListNode;
+	const char* pManId = "CM100";
+	const char* pSiteId = "1";
+	int iQueryIndex = index;
+
+	unsigned int iQueryTime = 0;
+	unsigned int iSingleQueryTime = 0;
+	unsigned int iHandleTime = GetTickCount();
+	bool bSleepAlready = false;
+
+	// 执行查询
+	char sql[1024] = {'\0'};
+	sprintf(sql, "SELECT qid FROM mq_man_answer WHERE manid = '%s';", pManId);
+
+	bool bResult = false;
+	char** result = NULL;
+	int iRow = 0;
+	int iColumn = 0;
+
+	map<string, int> womanidMap;
+	map<string, int>::iterator itr;
+	string womanid;
+
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn, iQueryIndex);
+
+	if( bResult && result && iRow > 0 ) {
+		// 随机起始男士问题位置
+		int iManIndex = (rand() % iRow) + 1;
+		bool bEnougthLady = false;
+
+		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
+			iSingleQueryTime = GetTickCount();
+			if( !bEnougthLady ) {
+				// 查询当前问题相同答案的女士数量
+				char** result2 = NULL;
+				int iRow2;
+				int iColumn2;
+
+				/*
+				 * 查询当前问题相同的女士Id集合
+				 * 1.超过30个, 随机选取30个
+				 * 2.不够30个, 全部选择
+				 */
+				int iLadyIndex = 0;
+				int iLadyCount = 0;
+				if( mDBManager.GetLastOnlineLadyRecordId() <= 30 ) {
+					iLadyCount = mDBManager.GetLastOnlineLadyRecordId();
+				} else {
+					iLadyCount = 4;
+					iLadyIndex = (rand() % (mDBManager.GetLastOnlineLadyRecordId() - 30));
+				}
+
+				sprintf(sql, "SELECT online_woman.womanid FROM online_woman JOIN mq_woman_answer "
+						"ON online_woman.womanid = mq_woman_answer.womanid "
+						"WHERE mq_woman_answer.qid = %s AND mq_woman_answer.siteid = %s "
+						"LIMIT %d OFFSET %d;",
+						result[i * iColumn],
+						pSiteId,
+						iLadyCount,
+						iLadyIndex
+						);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				iQueryTime = GetTickCount() - iQueryTime;
+
+				if( bResult && result2 && iRow2 > 0 ) {
+					for( int j = 1; j < iRow2 + 1; j++ ) {
+						// insert womanid
+						womanid = result2[j * iColumn2];
+						if( womanidMap.size() < 4 ) {
+							// 结果集合还不够30个女士, 插入
+							womanidMap.insert(map<string, int>::value_type(womanid, 0));
+						} else {
+							// 已满
+							break;
+						}
+					}
+
+					// 标记为已经获取够30个女士
+					if( womanidMap.size() >= 30 ) {
+						break;
+					}
+				}
+				mDBManager.FinishQuery(result2);
+			}
+
+			i++;
+			i = ((i - 1) % iRow) + 1;
+
+			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
+			if( iSingleQueryTime > 30 ) {
+				bSleepAlready = true;
+				usleep(1000 * iSingleQueryTime);
+			}
+		}
+
+		for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+			womanListNode.append(itr->first);
+		}
+	}
+	mDBManager.FinishQuery(result);
+
+	iSingleQueryTime = GetTickCount() - iHandleTime;
+	if( !bSleepAlready ) {
+		usleep(1000 * iSingleQueryTime);
+	}
+
+	iHandleTime =  GetTickCount() - iHandleTime;
+
+	return bResult;
 }

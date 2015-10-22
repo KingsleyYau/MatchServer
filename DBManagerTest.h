@@ -24,6 +24,26 @@ public:
 	void Test3(int index);
 	void Test4(int index);
 
+	/**
+	 * 1.获取跟男士有任意共同答案的问题的女士Id列表接口(http get)
+	 */
+	bool TestQuerySameAnswerLadyList(int index);
+
+	/**
+	 * 2.获取跟男士有指定共同问题的女士Id列表接口(http get)
+	 */
+	bool TestQueryTheSameQuestionLadyList(int index);
+
+	/**
+	 * 3.获取跟男士有任意共同问题的女士Id列表接口(http get)
+	 */
+	bool TestQueryAnySameQuestionLadyList(int index);
+
+	/**
+	 * 4.获取跟男士有任意共同问题的在线女士Id列表接口(http get)
+	 */
+	bool TestQueryAnySameQuestionOnlineLadyList(int index);
+
 	DBManager mDBManager;
 	int miMaxQuery;
 

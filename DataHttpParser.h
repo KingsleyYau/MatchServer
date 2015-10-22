@@ -38,6 +38,7 @@ public:
 
 	const char* GetParam(const char* key);
 	const char* GetPath();
+	HttpType GetType();
 
 private:
 	HttpType mHttpType;

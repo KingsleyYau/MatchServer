@@ -1,4 +1,4 @@
-﻿内部接口
+﻿内部服务接口
 同步接口(http get)
 路径		http://127.0.0.1:9877/SYNC
 返回json
@@ -13,121 +13,70 @@
     "ret":1
 }
 
-执行自定义sql接口(http get)
-路径		http://127.0.0.1:9877/QUERY
-参数
-SQL		自定义sql
-例子 http://127.0.0.1:986/QUERY?SQL=PRAGMA+auto_vacuum%3b
-
-返回json
-{"result": [{"行号": "列1,列2,列3..."}...}
-{
-    "result": [
-        {
-            "1": "0"
-        }
-    ],
-    "ret": 1
-}
-
-外部接口
-查询接口(http get)
-路径		http://127.0.0.1:986/QUERY
+外部服务接口
+1.获取跟男士有任意共同答案的问题的女士Id列表接口(http get)
+路径		http://127.0.0.1:9876/QUERY_SAME_ANSWER_LADY_LIST
 参数
 MANID		男士Id
 SITEID	当前站点Id
-例子 http://127.0.0.1:986/QUERY?MANID=1000&SITEID=1
+LIMIT		最大返回记录数目(默认:4, 最大:30)
+例子 http://127.0.0.1:9876/QUERY_SAME_ANSWER_LADY_LIST?MANID=CM77478027&SITEID=1&LIMIT=4
 
 返回json
-{"womaninfo": [{"女士Id": 答案相同的问题数量}...}
+{"womaninfo": [{"女士Id": 答案相同的问题数量}, ...}
+例子json
 {
     "womaninfo": [
         {
-            "1": 1
+            "P202741": 8
         },
         {
-            "10": 1
-        },
-        {
-            "100": 1
-        },
-        {
-            "10000": 1
-        },
-        {
-            "10001": 2
-        },
-        {
-            "10002": 2
-        },
-        {
-            "10004": 1
-        },
-        {
-            "10007": 1
-        },
-        {
-            "10009": 2
-        },
-        {
-            "10010": 3
-        },
-        {
-            "10011": 2
-        },
-        {
-            "10012": 1
-        },
-        {
-            "10013": 1
-        },
-        {
-            "10015": 4
-        },
-        {
-            "10016": 2
-        },
-        {
-            "10017": 2
-        },
-        {
-            "10018": 1
-        },
-        {
-            "10019": 1
-        },
-        {
-            "1002": 3
-        },
-        {
-            "10020": 2
-        },
-        {
-            "10026": 2
-        },
-        {
-            "10028": 2
-        },
-        {
-            "10029": 3
-        },
-        {
-            "1003": 1
-        },
-        {
-            "10033": 1
-        },
-        {
-            "10034": 1
-        },
-        {
-            "10035": 2
-        },
-        {
-            "10039": 3
-        },
-        {
-            "10041": 1
+            "P202827": 5
         }
     ]
+}
+
+2.获取有指定问题的女士Id列表接口(http get)
+路径		http://127.0.0.1:9876/QUERY_THE_SAME_QUESTION_LADY_LIST
+参数
+QID			问题Id
+SITEID	当前站点Id
+LIMIT		最大返回记录数目(默认:4, 最大:30)
+例子 http://127.0.0.1:9876/QUERY_THE_SAME_QUESTION_LADY_LIST?QID=QA143105050495&SITEID=1&LIMIT=4
+
+返回json
+{"womaninfo": ["女士Id", ...}
+例子json
+{
+    "womaninfo": ["P202741", "P202827"]
+}
+
+3.获取跟男士有任意共同问题的女士Id列表接口(http get)
+路径		http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_LADY_LIST
+参数
+MANID		男士Id
+SITEID	当前站点Id
+LIMIT		最大返回记录数目(默认:4, 最大:30)
+例子 http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_LADY_LIST?MANID=CM77478027&SITEID=1&LIMIT=4
+
+返回json
+{"womaninfo": ["女士Id", ...}
+例子json
+{
+    "womaninfo": ["P202741", "P202827"]
+}
+
+4.获取跟男士有任意共同问题的在线女士Id列表接口(http get)
+路径		http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_LADY_LIST
+参数
+MANID		男士Id
+SITEID	当前站点Id
+LIMIT		最大返回记录数目(默认:4, 最大:30)
+例子 http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST?MANID=CM77478027&SITEID=1&LIMIT=4
+
+返回json
+{"womaninfo": ["女士Id", ...}
+例子json
+{
+    "womaninfo": ["P202741", "P202827"]
 }

@@ -77,6 +77,10 @@ const char* DataHttpParser::GetPath() {
 	return mPath.c_str();
 }
 
+HttpType DataHttpParser::GetType() {
+	return mHttpType;
+}
+
 void DataHttpParser::ParseFirstLine(char* buffer) {
 	char temp[1024];
 	char* p = NULL;

@@ -32,6 +32,7 @@ OBJS += 	$(JSONOBJS)
 TARGET =	matchserver
 
 DBTEST_OBJS	=	dbtest.o KThread.o DBManager.o DBManagerTest.o DBSpool.o LogManager.o LogFile.o MessageList.o
+DBTEST_OBJS += 	$(JSONOBJS)
 DBTEST_TARGET =		dbtest
 
 CLIENTTEST_OBJS	=	client.o KThread.o TcpTestClient.o

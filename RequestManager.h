@@ -57,6 +57,7 @@ protected:
 			Json::Value& womanListNode,
 			const char* pManId,
 			const char* pSiteId,
+			const char* pLimit,
 			Message *m
 			);
 
@@ -67,6 +68,7 @@ protected:
 			Json::Value& womanListNode,
 			const char* pQid,
 			const char* pSiteId,
+			const char* pLimit,
 			Message *m
 			);
 
@@ -77,6 +79,7 @@ protected:
 			Json::Value& womanListNode,
 			const char* pManId,
 			const char* pSiteId,
+			const char* pLimit,
 			Message *m
 			);
 
@@ -87,6 +90,7 @@ protected:
 			Json::Value& womanListNode,
 			const char* pManId,
 			const char* pSiteId,
+			const char* pLimit,
 			Message *m
 			);
 
