@@ -747,6 +747,30 @@ bool DBManager::CreateTable(sqlite3 *db) {
 
 	// 建女士表索引(qid, aid, siteid, question_status)
 	sprintf(sql,
+			"CREATE INDEX womanindex_qid_siteid "
+			"ON mq_woman_answer (qid, siteid)"
+			";"
+	);
+
+	ExecSQL( db, sql, &msg );
+	if( msg != NULL ) {
+		LogManager::GetLogManager()->Log(
+				LOG_ERR_USER,
+				"DBManager::CreateTable( "
+				"tid : %d, "
+				"sql : %s, "
+				"Could not create table mq_woman_answer index, msg : %s "
+				")",
+				(int)syscall(SYS_gettid),
+				sql,
+				msg
+				);
+		sqlite3_free(msg);
+		msg = NULL;
+		return false;
+	}
+
+	sprintf(sql,
 			"CREATE INDEX womanindex_qid_aid_siteid_question_status "
 			"ON mq_woman_answer (qid, aid, siteid, question_status)"
 			";"

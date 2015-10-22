@@ -653,6 +653,10 @@ bool RequestManager::QueryTheSameQuestionLadyList(
 			);
 
 	if( bResult && result && iRow > 0 ) {
+		char** result2 = NULL;
+		int iRow2;
+		int iColumn2;
+
 		int iNum = 0;
 		int iMax = 0;
 		if( pLimit != NULL ) {
@@ -663,10 +667,11 @@ bool RequestManager::QueryTheSameQuestionLadyList(
 		iMax = (iMax > 30)?30:iMax;
 
 		iQueryTime = GetTickCount();
-		bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn, iQueryIndex);
-		if( bResult && result && iRow > 0 ) {
-			iNum = atoi(result[1 * iColumn]);
+		bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+		if( bResult && result2 && iRow > 0 ) {
+			iNum = atoi(result2[1 * iColumn2]);
 		}
+		mpDBManager->FinishQuery(result2);
 		iQueryTime = GetTickCount() - iQueryTime;
 
 		LogManager::GetLogManager()->Log(
@@ -686,10 +691,6 @@ bool RequestManager::QueryTheSameQuestionLadyList(
 							iNum,
 							iMax
 							);
-
-		char** result2 = NULL;
-		int iRow2;
-		int iColumn2;
 
 		/*
 		 * 查询当前问题相同答案的女士Id集合
@@ -1055,7 +1056,7 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 	bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn, iQueryIndex);
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
-			"RequestManager::QueryAnySameQuestionLadyList( "
+			"RequestManager::QueryAnySameQuestionOnlineLadyList( "
 			"tid : %d, "
 			"m->fd: [%d], "
 			"iRow : %d, "
@@ -1073,6 +1074,7 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 		// 随机起始男士问题位置
 		int iManIndex = (rand() % iRow) + 1;
 		bool bEnougthLady = false;
+		int iNum = 0;
 		int iMax = 0;
 		if( pLimit != NULL ) {
 			iMax = atoi(pLimit);
@@ -1089,34 +1091,61 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 				int iRow2;
 				int iColumn2;
 
-				LogManager::GetLogManager()->Log(
-						LOG_STAT,
-						"RequestManager::QueryAnySameQuestionLadyList( "
-						"tid : %d, "
-						"m->fd: [%d], "
-						"iQueryIndex : %d, "
-						"iNum : %d, "
-						"iMax : %d "
-						")",
-						(int)syscall(SYS_gettid),
-						m->fd,
-						iQueryIndex,
-						mpDBManager->GetLastOnlineLadyRecordId(),
-						iMax
+				sprintf(sql, "SELECT count(*) FROM online_woman JOIN mq_woman_answer "
+						"ON online_woman.womanid = mq_woman_answer.womanid "
+						"WHERE mq_woman_answer.qid = %s AND mq_woman_answer.siteid = %s "
+						";",
+						result[i * iColumn],
+						pSiteId
 						);
+
+				iQueryTime = GetTickCount();
+				bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				if( bResult && result2 && iRow2 > 0 ) {
+					iNum = atoi(result2[1 * iColumn2]);
+				}
+				mpDBManager->FinishQuery(result2);
+
+				iQueryTime = GetTickCount() - iQueryTime;
+				LogManager::GetLogManager()->Log(
+									LOG_STAT,
+									"RequestManager::QueryAnySameQuestionOnlineLadyList( "
+									"tid : %d, "
+									"m->fd: [%d], "
+									"Count iQueryTime : %d, "
+									"iQueryIndex : %d, "
+									"iNum : %d, "
+									"iMax : %d "
+									")",
+									(int)syscall(SYS_gettid),
+									m->fd,
+									iQueryTime,
+									iQueryIndex,
+									iNum,
+									iMax
+									);
 
 				/*
 				 * 查询当前问题相同的女士Id集合
 				 * 1.超过iMax个, 随机选取iMax个
 				 * 2.不够iMax个, 全部选择
 				 */
+//				int iLadyIndex = 0;
+//				int iLadyCount = 0;
+//				if( mpDBManager->GetLastOnlineLadyRecordId() <= iMax ) {
+//					iLadyCount = mpDBManager->GetLastOnlineLadyRecordId();
+//				} else {
+//					iLadyCount = iMax;
+//					iLadyIndex = (rand() % (mpDBManager->GetLastOnlineLadyRecordId() - iMax));
+//				}
+
 				int iLadyIndex = 0;
 				int iLadyCount = 0;
-				if( mpDBManager->GetLastOnlineLadyRecordId() <= iMax ) {
-					iLadyCount = mpDBManager->GetLastOnlineLadyRecordId();
+				if( iNum <= iMax ) {
+					iLadyCount = iNum;
 				} else {
 					iLadyCount = iMax;
-					iLadyIndex = (rand() % (mpDBManager->GetLastOnlineLadyRecordId() - iMax));
+					iLadyIndex = (rand() % (iNum -iLadyCount));
 				}
 
 				sprintf(sql, "SELECT mq_woman_answer.womanid FROM mq_woman_answer JOIN online_woman "

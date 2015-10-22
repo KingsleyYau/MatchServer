@@ -953,6 +953,7 @@ bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 		// 随机起始男士问题位置
 		int iManIndex = (rand() % iRow) + 1;
 		bool bEnougthLady = false;
+		int iNum = 0;
 
 		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
 			iSingleQueryTime = GetTickCount();
@@ -962,6 +963,23 @@ bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 				int iRow2;
 				int iColumn2;
 
+				sprintf(sql, "SELECT count(*) FROM online_woman JOIN mq_woman_answer "
+						"ON online_woman.womanid = mq_woman_answer.womanid "
+						"WHERE mq_woman_answer.qid = %s AND mq_woman_answer.siteid = %s "
+						";",
+						result[i * iColumn],
+						pSiteId
+						);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				if( bResult && result2 && iRow2 > 0 ) {
+					iNum = atoi(result2[1 * iColumn2]);
+				}
+				mDBManager.FinishQuery(result2);
+
+				iQueryTime = GetTickCount() - iQueryTime;
+
 				/*
 				 * 查询当前问题相同的女士Id集合
 				 * 1.超过30个, 随机选取30个
@@ -969,11 +987,11 @@ bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 				 */
 				int iLadyIndex = 0;
 				int iLadyCount = 0;
-				if( mDBManager.GetLastOnlineLadyRecordId() <= 30 ) {
-					iLadyCount = mDBManager.GetLastOnlineLadyRecordId();
+				if( iNum <= 30 ) {
+					iLadyCount = iNum;
 				} else {
-					iLadyCount = 4;
-					iLadyIndex = (rand() % (mDBManager.GetLastOnlineLadyRecordId() - 30));
+					iLadyCount = 30;
+					iLadyIndex = (rand() % (iNum -iLadyCount));
 				}
 
 				sprintf(sql, "SELECT online_woman.womanid FROM online_woman JOIN mq_woman_answer "
