@@ -24,36 +24,31 @@ using namespace std;
 #include "TimeProc.hpp"
 
 class SyncRunnable;
+
+typedef struct DBStruct {
+	string mHost;
+	short mPort;
+	string mUser;
+	string mPasswd;
+	string mDbName;
+	int miMaxDatabaseThread;
+} DBSTRUCT;
+
 class DBManager {
 public:
 	DBManager();
 	virtual ~DBManager();
 
-	bool Init(int iMaxMemoryCopy, bool addTestData = false);
-	bool InitSyncDataBase(
-			int iMaxThread,
-
-			const char* pcHost,
-			short shPort,
-			const char* pcDBname,
-	        const char* pcUser,
-	        const char* pcPasswd,
-
-			const char* pcHostOnline,
-			short shPortOnline,
-			const char* pcDBnameOnline,
-	        const char* pcUserOnline,
-	        const char* pcPasswdOnline
-	        );
+	bool Init(int iMaxMemoryCopy, bool addTestData, int iDbOnlineMaxCount);
+	bool InitSyncDataBase(const DBSTRUCT& dbQA, const DBSTRUCT* dbOnline, int iDbOnlineCount);
 
 	bool Query(char* sql, char*** result, int* iRow, int* iColumn, int index = 0);
 	void FinishQuery(char** result);
 
-	void SetSyncDataTime(int second);
+	void SetSyncTime(int second);
+	void SetSyncOnlineTime(int second);
 
-	void SetSyncOnlineLadyTime(int second);
-
-	void SyncOnlineLady();
+	void SyncOnlineLady(int index);
 	void SyncManAndLady();
 	void SyncDataFromDataBase();
 
@@ -62,8 +57,6 @@ public:
 	void SyncForce();
 	void HandleSyncDatabase();
 
-	int GetLastOnlineLadyRecordId();
-
 private:
 	int miQueryIndex;
 	int miMaxMemoryCopy;
@@ -71,12 +64,11 @@ private:
 
 	int miLastManRecordId;
 	int miLastLadyRecordId;
-	int miLastOnlineLadyRecordId;
 	long long miLastUpdateMan;
 	long long miLastUpdateLady;
 
-	int mSyncDataTime;
-	int mSyncOnlineLadyTime;
+	int miSyncTime;
+	int miSyncOnlineTime;
 	bool mbSyncForce;
 	KMutex mSyncMutex;
 
@@ -84,7 +76,9 @@ private:
 	char* mpSqlitePageBuffer;
 
 	DBSpool mDBSpool;
-	DBSpool mDBSpoolOnline;
+	DBSpool mDBSpoolOnline[4];
+	int miDbOnlineCount;
+
 	KMutex mIndexMutex;
 	KMutex mBusyMutex;
 	KThread mSyncThread;

@@ -54,21 +54,10 @@ private:
 	int miTimeout;
 
 	// DB
-	string mHost;
-	short mDbPort;
-	string mUser;
-	string mPasswd;
-	string mDbName;
-	int miSyncDataTime;
-
-	string mHostOnline;
-	short mDbPortOnline;
-	string mUserOnline;
-	string mPasswdOnline;
-	string mDbNameOnline;
-	int miSyncOnlineLadyTime;
-
-	int miMaxDatabaseThread;
+	DBSTRUCT mDbQA;
+	int miSyncTime;
+	int miSyncOnlineTime;
+	DBSTRUCT mDbOnline[4];
 
 	// LOG
 	int miLogLevel;

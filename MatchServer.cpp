@@ -75,12 +75,6 @@ void MatchServer::Run() {
 			"miMaxQueryPerThread : %d, "
 			"miTimeout : %d, "
 			"miStateTime, %d, "
-			"mHost : %s, "
-			"mDbPort : %d, "
-			"mDbName : %s, "
-			"mUser : %s, "
-			"mPasswd : %s, "
-			"miMaxDatabaseThread : %d, "
 			"miLogLevel : %d, "
 			"mlogDir : %s "
 			")",
@@ -91,12 +85,6 @@ void MatchServer::Run() {
 			miMaxQueryPerThread,
 			miTimeout,
 			miStateTime,
-			mHost.c_str(),
-			mDbPort,
-			mDbName.c_str(),
-			mUser.c_str(),
-			mPasswd.c_str(),
-			miMaxDatabaseThread,
 			miLogLevel,
 			mLogDir.c_str()
 			);
@@ -107,19 +95,11 @@ void MatchServer::Run() {
 	mResponed = 0;
 
 	/* db manager */
-	bFlag = mDBManager.Init(miMaxMemoryCopy, false);
+	bFlag = mDBManager.Init(miMaxMemoryCopy, false, 4);
 	bFlag = bFlag && mDBManager.InitSyncDataBase(
-			miMaxDatabaseThread,
-			mHost.c_str(),
-			mDbPort,
-			mDbName.c_str(),
-			mUser.c_str(),
-			mPasswd.c_str(),
-			mHostOnline.c_str(),
-			mDbPortOnline,
-			mDbNameOnline.c_str(),
-			mUserOnline.c_str(),
-			mPasswdOnline.c_str()
+			mDbQA,
+			mDbOnline,
+			4
 			);
 
 	if( !bFlag ) {
@@ -186,27 +166,25 @@ bool MatchServer::Reload() {
 		miStateTime = atoi(conf->GetPrivate("BASE", "STATETIME", "30").c_str());
 
 		// DB
-		mHost = conf->GetPrivate("DB", "DBHOST", "localhost");
-		mDbPort = atoi(conf->GetPrivate("DB", "DBPORT", "3306").c_str());
-		mUser = conf->GetPrivate("DB", "DBUSER", "root");
-		mPasswd = conf->GetPrivate("DB", "DBPASS", "123456");
-		mDbName = conf->GetPrivate("DB", "DBNAME", "qpidnetwork");
+		mDbQA.mHost = conf->GetPrivate("DB", "DBHOST", "localhost");
+		mDbQA.mPort = atoi(conf->GetPrivate("DB", "DBPORT", "3306").c_str());
+		mDbQA.mDbName = conf->GetPrivate("DB", "DBNAME", "qpidnetwork");
+		mDbQA.mUser = conf->GetPrivate("DB", "DBUSER", "root");
+		mDbQA.mPasswd = conf->GetPrivate("DB", "DBPASS", "123456");
+		mDbQA.miMaxDatabaseThread = atoi(conf->GetPrivate("DB", "MAXDATABASETHREAD", "4").c_str());
+		miSyncTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZETIME", "30").c_str());
+		miSyncOnlineTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZE_ONLINE_TIME", "1").c_str());
 
-		mHost = conf->GetPrivate("DB", "DBHOST", "localhost");
-		mDbPort = atoi(conf->GetPrivate("DB", "DBPORT", "3306").c_str());
-		mUser = conf->GetPrivate("DB", "DBUSER", "root");
-		mPasswd = conf->GetPrivate("DB", "DBPASS", "123456");
-		mDbName = conf->GetPrivate("DB", "DBNAME", "qpidnetwork");
-		miSyncDataTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZETIME", "30").c_str());
-
-		mHostOnline = conf->GetPrivate("DB", "DBHOSTONLINE", "localhost");
-		mDbPortOnline = atoi(conf->GetPrivate("DB", "DBPORTONLINE", "3306").c_str());
-		mUserOnline = conf->GetPrivate("DB", "DBUSERONLINE", "root");
-		mPasswdOnline = conf->GetPrivate("DB", "DBPASSONLINE", "123456");
-		mDbNameOnline = conf->GetPrivate("DB", "DBNAMEONLINE", "qpidnetwork_online");
-		miSyncOnlineLadyTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZETIME_ONLINE", "1").c_str());
-
-		miMaxDatabaseThread = atoi(conf->GetPrivate("DB", "MAXDATABASETHREAD", "4").c_str());
+		char domain[8] = {'\0'};
+		for(int i = 0; i < 4; i++) {
+			sprintf(domain, "DB_%d", i + 1);
+			mDbOnline[i].mHost = conf->GetPrivate(domain, "DBHOST", "localhost");
+			mDbOnline[i].mPort = atoi(conf->GetPrivate(domain, "DBPORT", "3306").c_str());
+			mDbOnline[i].mDbName = conf->GetPrivate(domain, "DBNAME", "qpidnetwork_online");
+			mDbOnline[i].mUser = conf->GetPrivate(domain, "DBUSER", "root");
+			mDbOnline[i].mPasswd = conf->GetPrivate(domain, "DBPASS", "123456");
+			mDbOnline[i].miMaxDatabaseThread = atoi(conf->GetPrivate(domain, "MAXDATABASETHREAD", "4").c_str());
+		}
 
 		// LOG
 		miLogLevel = atoi(conf->GetPrivate("LOG", "LOGLEVEL", "5").c_str());
@@ -214,8 +192,8 @@ bool MatchServer::Reload() {
 		miDebugMode = atoi(conf->GetPrivate("LOG", "DEBUGMODE", "0").c_str());
 
 		// Reload config
-		mDBManager.SetSyncDataTime(miSyncDataTime * 60);
-		mDBManager.SetSyncOnlineLadyTime(miSyncOnlineLadyTime * 60);
+		mDBManager.SetSyncTime(miSyncTime * 60);
+		mDBManager.SetSyncOnlineTime(miSyncOnlineTime * 60);
 
 		mRequestManager.SetTimeout(miTimeout * 1000);
 		mClientTcpServer.SetHandleSize(miMaxMemoryCopy * miTimeout * miMaxQueryPerThread);
@@ -232,17 +210,6 @@ bool MatchServer::Reload() {
 				"miMaxQueryPerThread : %d, "
 				"miTimeout : %d, "
 				"miStateTime, %d, "
-				"mHost : %s, "
-				"mDbPort : %d, "
-				"mDbName : %s, "
-				"mUser : %s, "
-				"mPasswd : %s, "
-				"mHostOnline : %s, "
-				"mDbPortOnline : %d, "
-				"mDbNameOnline : %s, "
-				"mUserOnline : %s, "
-				"mPasswdOnline : %s, "
-				"miMaxDatabaseThread : %d, "
 				"miLogLevel : %d, "
 				"mlogDir : %s "
 				")",
@@ -253,17 +220,6 @@ bool MatchServer::Reload() {
 				miMaxQueryPerThread,
 				miTimeout,
 				miStateTime,
-				mHost.c_str(),
-				mDbPort,
-				mDbName.c_str(),
-				mUser.c_str(),
-				mPasswd.c_str(),
-				mHostOnline.c_str(),
-				mDbPortOnline,
-				mDbNameOnline.c_str(),
-				mUserOnline.c_str(),
-				mPasswdOnline.c_str(),
-				miMaxDatabaseThread,
 				miLogLevel,
 				mLogDir.c_str()
 				);

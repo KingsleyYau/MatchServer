@@ -32,8 +32,8 @@ DBManager::DBManager() {
 	miLastUpdateLady = 0;;
 
 	mbSyncForce = false;
-	mSyncDataTime = 30 * 60;
-	mSyncOnlineLadyTime = 1 * 60;
+	miSyncTime = 30 * 60;
+	miSyncOnlineTime = 1 * 60;
 	mpSyncRunnable = new SyncRunnable(this);
 
 	sqlite3_config(SQLITE_CONFIG_MEMSTATUS, false);
@@ -48,9 +48,10 @@ DBManager::~DBManager() {
 	}
 }
 
-bool DBManager::Init(int iMaxMemoryCopy, bool addTestData) {
+bool DBManager::Init(int iMaxMemoryCopy, bool addTestData, int iDbOnlineMaxCount) {
 	miMaxMemoryCopy = iMaxMemoryCopy;
 	mdbs = new sqlite3*[iMaxMemoryCopy];
+	miDbOnlineCount = iDbOnlineMaxCount;
 
 	bool bFlag = false;
 	int ret;
@@ -73,71 +74,77 @@ bool DBManager::Init(int iMaxMemoryCopy, bool addTestData) {
 }
 
 bool DBManager::InitSyncDataBase(
-			int iMaxThread,
-
-			const char* pcHost,
-			short shPort,
-			const char* pcDBname,
-	        const char* pcUser,
-	        const char* pcPasswd,
-
-			const char* pcHostOnline,
-			short shPortOnline,
-			const char* pcDBnameOnline,
-	        const char* pcUserOnline,
-	        const char* pcPasswdOnline
+		const DBSTRUCT& dbQA,
+		const DBSTRUCT* dbOnline,
+		int iDbOnlineCount
 	        ) {
 	printf("# DBManager synchronizing... \n");
 
 	bool bFlag = false;
 
-	bFlag = mDBSpool.SetConnection(iMaxThread);
+	bFlag = mDBSpool.SetConnection(dbQA.miMaxDatabaseThread);
 	bFlag = bFlag && mDBSpool.SetDBparm(
-			pcHost,
-			shPort,
-			pcDBname,
-			pcUser,
-			pcPasswd
+			dbQA.mHost.c_str(),
+			dbQA.mPort,
+			dbQA.mDbName.c_str(),
+			dbQA.mUser.c_str(),
+			dbQA.mPasswd.c_str()
 			);
 	bFlag = bFlag && mDBSpool.Connect();
-
-	bFlag = mDBSpoolOnline.SetConnection(iMaxThread);
-	bFlag = bFlag && mDBSpoolOnline.SetDBparm(
-			pcHostOnline,
-			shPortOnline,
-			pcDBnameOnline,
-			pcUserOnline,
-			pcPasswdOnline
-			);
-	bFlag = bFlag && mDBSpoolOnline.Connect();
 
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
 			"DBManager::InitSyncDataBase( "
-			"pcHost : %s, "
-			"shPort : %d, "
-			"pcDBname : %s, "
-			"pcUser : %s, "
-			"pcPasswd : %s, "
-			"pcHostOnline : %s, "
-			"shPortOnline : %d, "
-			"pcDBnameOnline : %s, "
-			"pcUserOnline : %s, "
-			"pcPasswdOnline : %s, "
+			"dbQA.mHost : %s, "
+			"dbQA.mPort : %d, "
+			"dbQA.mDbName : %s, "
+			"dbQA.mUser : %s, "
+			"dbQA.mPasswd : %s, "
 			"bFlag : %s "
 			")",
-			pcHost,
-			shPort,
-			pcDBname,
-			pcUser,
-			pcPasswd,
-			pcHostOnline,
-			shPortOnline,
-			pcDBnameOnline,
-			pcUserOnline,
-			pcPasswdOnline,
+			dbQA.mHost.c_str(),
+			dbQA.mPort,
+			dbQA.mDbName.c_str(),
+			dbQA.mUser.c_str(),
+			dbQA.mPasswd.c_str(),
 			bFlag?"true":"false"
 			);
+
+	miDbOnlineCount = iDbOnlineCount;
+	for(int i = 0; i < iDbOnlineCount && bFlag; i++) {
+		bFlag = mDBSpoolOnline[i].SetConnection(dbOnline[i].miMaxDatabaseThread);
+		bFlag = bFlag && mDBSpoolOnline[i].SetDBparm(
+				dbOnline[i].mHost.c_str(),
+				dbOnline[i].mPort,
+				dbOnline[i].mDbName.c_str(),
+				dbOnline[i].mUser.c_str(),
+				dbOnline[i].mPasswd.c_str()
+				);
+		bFlag = bFlag && mDBSpoolOnline[i].Connect();
+
+		LogManager::GetLogManager()->Log(
+				LOG_STAT,
+				"DBManager::InitSyncDataBase( "
+				"dbOnline[%d].mHost : %s, "
+				"dbOnline[%d].mPort : %d, "
+				"dbOnline[%d].mDbName : %s, "
+				"dbOnline[%d].mUser : %s, "
+				"dbOnline[%d].mPasswd : %s, "
+				"bFlag : %s "
+				")",
+				i,
+				dbOnline[i].mHost.c_str(),
+				i,
+				dbOnline[i].mPort,
+				i,
+				dbOnline[i].mDbName.c_str(),
+				i,
+				dbOnline[i].mUser.c_str(),
+				i,
+				dbOnline[i].mPasswd.c_str(),
+				bFlag?"true":"false"
+				);
+	}
 
 	if( bFlag ) {
 		SyncDataFromDataBase();
@@ -168,7 +175,6 @@ bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn, int in
 								(int)syscall(SYS_gettid),
 								msg
 								);
-//		fprintf(stderr, "# Could not select table, msg : %s \n", msg);
 		bFlag = false;
 		sqlite3_free(msg);
 		msg = NULL;
@@ -182,14 +188,16 @@ void DBManager::FinishQuery(char** result) {
 	sqlite3_free_table(result);
 }
 
-void DBManager::SyncOnlineLady() {
+void DBManager::SyncOnlineLady(int index) {
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
 			"DBManager::SyncOnlineLady( "
 			"tid : %d, "
+			"index : %d "
 			"start "
 			")",
-			(int)syscall(SYS_gettid)
+			(int)syscall(SYS_gettid),
+			index
 			);
 
 	// 同步在线表
@@ -205,9 +213,11 @@ void DBManager::SyncOnlineLady() {
 			LOG_MSG,
 			"DBManager::SyncOnlineLady( "
 			"tid : %d, "
+			"index : %d, "
 			"sql : %s "
 			")",
 			(int)syscall(SYS_gettid),
+			index,
 			sql
 			);
 
@@ -216,18 +226,20 @@ void DBManager::SyncOnlineLady() {
 	MYSQL_RES* pSQLRes = NULL;
 	short shIdt = 0;
 	int iRows = 0;
-	if (SQL_TYPE_SELECT == mDBSpoolOnline.ExecuteSQL(sql, &pSQLRes, shIdt, iRows)
+	if (SQL_TYPE_SELECT == mDBSpoolOnline[index].ExecuteSQL(sql, &pSQLRes, shIdt, iRows)
 		&& iRows > 0) {
 		int iFields = mysql_num_fields(pSQLRes);
 		LogManager::GetLogManager()->Log(
 				LOG_MSG,
 				"DBManager::SyncOnlineLady( "
 				"tid : %d, "
+				"index : %d, "
 				"sql : %s, "
 				"iRows : %d, "
 				"iFields : %d "
 				")",
 				(int)syscall(SYS_gettid),
+				index,
 				sql,
 				iRows,
 				iFields
@@ -243,19 +255,18 @@ void DBManager::SyncOnlineLady() {
 				// 删掉旧的数据
 //				ExecSQL( mdbs[i], "DELETE FROM online_woman;", NULL );
 
-				sprintf(sql, "INSERT INTO online_woman("
+				sprintf(sql, "INSERT INTO online_woman_%d("
 						"`id`, "
 						"`womanid` "
 						") "
 						"VALUES("
 						"?, "
 						"?"
-						")"
+						")",
+						index + 1
 						);
 				sqlite3_prepare_v2(mdbs[i], sql, strlen(sql), &(stmtOnlineLady[i]), 0);
 			}
-
-			miLastOnlineLadyRecordId = 0;
 
 			for (int i = 0; i < iRows; i++) {
 				if ((row = mysql_fetch_row(pSQLRes)) == NULL) {
@@ -289,8 +300,6 @@ void DBManager::SyncOnlineLady() {
 								);
 					}
 				}
-
-				miLastOnlineLadyRecordId++;
 			}
 
 			for( int i = 0; i < miMaxMemoryCopy; i++ ) {
@@ -300,7 +309,7 @@ void DBManager::SyncOnlineLady() {
 		}
 	}
 
-	mDBSpoolOnline.ReleaseConnection(shIdt);
+	mDBSpoolOnline[index].ReleaseConnection(shIdt);
 	if( stmtOnlineLady ) {
 		delete stmtOnlineLady;
 	}
@@ -311,10 +320,12 @@ void DBManager::SyncOnlineLady() {
 			LOG_MSG,
 			"DBManager::SyncOnlineLady( "
 			"tid : %d, "
+			"index : %d, "
 			"iHandleTime : %u ms "
 			"end "
 			")",
 			(int)syscall(SYS_gettid),
+			index,
 			iHandleTime
 			);
 }
@@ -583,7 +594,9 @@ void DBManager::SyncDataFromDataBase() {
 
 	// load data from database as mysql
 	// 同步在线女士
-	SyncOnlineLady();
+	for(int i = 0; i < miDbOnlineCount; i++) {
+		SyncOnlineLady(i);
+	}
 
 	// 同步男士女士问题
 	SyncManAndLady();
@@ -646,12 +659,12 @@ void DBManager::Status() {
 
 }
 
-void DBManager::SetSyncDataTime(int second) {
-	mSyncDataTime = second;
+void DBManager::SetSyncTime(int second) {
+	miSyncTime = second;
 }
 
-void DBManager::SetSyncOnlineLadyTime(int second) {
-	mSyncOnlineLadyTime = second;
+void DBManager::SetSyncOnlineTime(int second) {
+	miSyncOnlineTime = second;
 }
 
 bool DBManager::CreateTable(sqlite3 *db) {
@@ -820,55 +833,61 @@ bool DBManager::CreateTable(sqlite3 *db) {
 	}
 
 	// 建女士在线表
-	sprintf(sql,
-			"CREATE TABLE online_woman("
-//						"recordid INTEGER PRIMARY KEY AUTOINCREMENT,"
-						"id INTEGER PRIMARY KEY,"
-						"womanid TEXT"
-						");"
-	);
+	for(int i = 1; i < miDbOnlineCount + 1; i++) {
+		sprintf(sql,
+				"CREATE TABLE online_woman_%d("
+				"id INTEGER PRIMARY KEY,"
+				"womanid TEXT"
+				");",
+				i
+		);
 
-	ExecSQL( db, sql, &msg );
-	if( msg != NULL ) {
-		LogManager::GetLogManager()->Log(
-				LOG_ERR_USER,
-				"DBManager::CreateTable( "
-				"tid : %d, "
-				"sql : %s, "
-				"Could not create table online_woman, msg : %s "
-				")",
-				(int)syscall(SYS_gettid),
-				sql,
-				msg
-				);
-		sqlite3_free(msg);
-		msg = NULL;
-		return false;
-	}
+		ExecSQL( db, sql, &msg );
+		if( msg != NULL ) {
+			LogManager::GetLogManager()->Log(
+					LOG_ERR_USER,
+					"DBManager::CreateTable( "
+					"tid : %d, "
+					"sql : %s, "
+					"Could not create table online_woman_%d, msg : %s "
+					")",
+					(int)syscall(SYS_gettid),
+					sql,
+					i,
+					msg
+					);
+			sqlite3_free(msg);
+			msg = NULL;
+			return false;
+		}
 
-	// 建女士在线表索引(womanid)
-	sprintf(sql,
-			"CREATE UNIQUE INDEX online_woman_index_womanid "
-			"ON online_woman (womanid)"
-			";"
-	);
+		// 建女士在线表索引(womanid)
+		sprintf(sql,
+				"CREATE UNIQUE INDEX online_woman_index_womanid_%d "
+				"ON online_woman_%d (womanid)"
+				";",
+				i,
+				i
+		);
 
-	ExecSQL( db, sql, &msg );
-	if( msg != NULL ) {
-		LogManager::GetLogManager()->Log(
-				LOG_ERR_USER,
-				"DBManager::CreateTable( "
-				"tid : %d, "
-				"sql : %s, "
-				"Could not create table online_woman index, msg : %s "
-				")",
-				(int)syscall(SYS_gettid),
-				sql,
-				msg
-				);
-		sqlite3_free(msg);
-		msg = NULL;
-		return false;
+		ExecSQL( db, sql, &msg );
+		if( msg != NULL ) {
+			LogManager::GetLogManager()->Log(
+					LOG_ERR_USER,
+					"DBManager::CreateTable( "
+					"tid : %d, "
+					"sql : %s, "
+					"Could not create table online_woman_%d index, msg : %s "
+					")",
+					(int)syscall(SYS_gettid),
+					sql,
+					i,
+					msg
+					);
+			sqlite3_free(msg);
+			msg = NULL;
+			return false;
+		}
 	}
 
 	return true;
@@ -1205,25 +1224,23 @@ void DBManager::HandleSyncDatabase() {
 		} else {
 			mSyncMutex.unlock();
 
-			if( i % mSyncOnlineLadyTime == 0 ) {
+			if( i % miSyncOnlineTime == 0 ) {
 				// 同步在线女士
-				SyncOnlineLady();
+				for(int i = 0; i < miDbOnlineCount; i++) {
+					SyncOnlineLady(i);
+				}
 			}
 
-			if( i % mSyncDataTime == 0 ) {
+			if( i % miSyncTime == 0 ) {
 				// 同步男士女士问题
 				SyncManAndLady();
 			}
 
-			if( (i > mSyncOnlineLadyTime) && (i > mSyncDataTime) ) {
+			if( (i > miSyncOnlineTime) && (i > miSyncTime) ) {
 				i = 1;
 			}
 		}
 		i++;
 		sleep(1);
 	}
-}
-
-int DBManager::GetLastOnlineLadyRecordId() {
-	return miLastOnlineLadyRecordId;
 }

@@ -1326,10 +1326,12 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 				qid = pQid;
 				qid = qid.substr(2, qid.length() - 2);
 
-				sprintf(sql, "SELECT count(*) FROM online_woman JOIN mq_woman_answer "
-						"ON online_woman.womanid = mq_woman_answer.womanid "
-						"WHERE mq_woman_answer.qid = %s AND mq_woman_answer.siteid = %s "
+				sprintf(sql, "SELECT count(*) FROM online_woman_%s as o "
+						"JOIN mq_woman_answer as m "
+						"ON o.womanid = m.womanid "
+						"WHERE m.qid = %s AND m.siteid = %s "
 						";",
+						pSiteId,
 						qid.c_str(),
 						pSiteId
 						);
@@ -1374,10 +1376,12 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 					iLadyIndex = (rand() % (iNum -iLadyCount));
 				}
 
-				sprintf(sql, "SELECT mq_woman_answer.womanid FROM mq_woman_answer JOIN online_woman "
-						"ON mq_woman_answer.womanid = online_woman.womanid "
-						"WHERE mq_woman_answer.qid = %s AND mq_woman_answer.siteid = %s "
+				sprintf(sql, "SELECT m.womanid FROM online_woman_%s as o "
+						"JOIN mq_woman_answer as m "
+						"ON o.womanid = m.womanid "
+						"WHERE m.qid = %s AND m.siteid = %s "
 						"LIMIT %d OFFSET %d;",
+						pSiteId,
 						qid.c_str(),
 						pSiteId,
 						iLadyCount,
