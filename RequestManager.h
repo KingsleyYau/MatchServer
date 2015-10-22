@@ -83,12 +83,23 @@ protected:
 			Message *m
 			);
 
+//	/**
+//	 * 4.获取跟男士有任意共同问题的在线女士Id列表接口(http get)
+//	 */
+//	bool QueryAnySameQuestionOnlineLadyList(
+//			Json::Value& womanListNode,
+//			const char* pManId,
+//			const char* pSiteId,
+//			const char* pLimit,
+//			Message *m
+//			);
+
 	/**
 	 * 4.获取跟男士有任意共同问题的在线女士Id列表接口(http get)
 	 */
 	bool QueryAnySameQuestionOnlineLadyList(
 			Json::Value& womanListNode,
-			const char* pManId,
+			const char* pQids,
 			const char* pSiteId,
 			const char* pLimit,
 			Message *m

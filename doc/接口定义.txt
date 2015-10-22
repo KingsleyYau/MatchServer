@@ -20,7 +20,7 @@
 MANID		男士Id
 SITEID	当前站点Id
 LIMIT		最大返回记录数目(默认:4, 最大:30)
-例子 http://127.0.0.1:9876/QUERY_SAME_ANSWER_LADY_LIST?MANID=CM77478027&SITEID=1&LIMIT=4
+例子 http://127.0.0.1:9876/QUERY_SAME_ANSWER_LADY_LIST?MANID=CM77236328&SITEID=1&LIMIT=4
 
 返回json
 {"womaninfo": [{"女士Id": 答案相同的问题数量}, ...}
@@ -57,7 +57,7 @@ LIMIT		最大返回记录数目(默认:4, 最大:30)
 MANID		男士Id
 SITEID	当前站点Id
 LIMIT		最大返回记录数目(默认:4, 最大:30)
-例子 http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_LADY_LIST?MANID=CM77478027&SITEID=1&LIMIT=4
+例子 http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_LADY_LIST?MANID=CM77236328&SITEID=1&LIMIT=4
 
 返回json
 {"womaninfo": ["女士Id", ...}
@@ -66,13 +66,14 @@ LIMIT		最大返回记录数目(默认:4, 最大:30)
     "womaninfo": ["P202741", "P202827"]
 }
 
-4.获取跟男士有任意共同问题的在线女士Id列表接口(http get)
+4.获取回答过注册问题的在线女士Id列表接口(http get)
 路径		http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_LADY_LIST
 参数
-MANID		男士Id
+
+QIDS		问题Id列表(逗号隔开, 最多;7个)
 SITEID	当前站点Id
 LIMIT		最大返回记录数目(默认:4, 最大:30)
-例子 http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST?MANID=CM77478027&SITEID=1&LIMIT=4
+例子 http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST?QIDS=QA143105050495%2cQA143105050491&SITEID=1&LIMIT=4
 
 返回json
 {"womaninfo": ["女士Id", ...}

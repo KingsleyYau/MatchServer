@@ -977,7 +977,6 @@ bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 					iNum = atoi(result2[1 * iColumn2]);
 				}
 				mDBManager.FinishQuery(result2);
-
 				iQueryTime = GetTickCount() - iQueryTime;
 
 				/*

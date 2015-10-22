@@ -117,14 +117,14 @@ int RequestManager::HandleRecvMessage(Message *m, Message *sm) {
 				}
 
 			} else if( strcmp(pPath, "/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST") == 0 ) {
-				// 3.获取跟男士有任意共同问题的女士Id列表接口(http get)
-				const char* pManId = dataHttpParser.GetParam("MANID");
+				// 4.获取回答过注册问题的在线女士Id列表接口(http get)
+				const char* pQIds = dataHttpParser.GetParam("QIDS");
 				const char* pSiteId = dataHttpParser.GetParam("SITEID");
 				const char* pLimit = dataHttpParser.GetParam("LIMIT");
 
-				if( (pManId != NULL) && (pSiteId != NULL) ) {
+				if( (pQIds != NULL) && (pSiteId != NULL) ) {
 					Json::Value womanListNode;
-					if( QueryAnySameQuestionOnlineLadyList(womanListNode, pManId, pSiteId, pLimit, m) ) {
+					if( QueryAnySameQuestionOnlineLadyList(womanListNode, pQIds, pSiteId, pLimit, m) ) {
 						ret = 1;
 						rootSend["womaninfo"] = womanListNode;
 					}
@@ -962,7 +962,7 @@ bool RequestManager::QueryAnySameQuestionLadyList(
 								m->fd,
 								iMax
 								);
-						break;
+						bEnougthLady = true;
 					}
 				}
 				mpDBManager->FinishQuery(result2);
@@ -1008,9 +1008,257 @@ bool RequestManager::QueryAnySameQuestionLadyList(
 	return bResult;
 }
 
+//bool RequestManager::QueryAnySameQuestionOnlineLadyList(
+//		Json::Value& womanListNode,
+//		const char* pManId,
+//		const char* pSiteId,
+//		const char* pLimit,
+//		Message *m
+//		) {
+//	unsigned int iQueryTime = 0;
+//	unsigned int iSingleQueryTime = 0;
+//	unsigned int iHandleTime = GetTickCount();
+//	bool bSleepAlready = false;
+//
+//	Json::Value womanNode;
+//
+//	int iQueryIndex = m->index;
+//
+//	LogManager::GetLogManager()->Log(
+//			LOG_STAT,
+//			"RequestManager::QueryAnySameQuestionOnlineLadyList( "
+//			"tid : %d, "
+//			"m->fd: [%d], "
+//			"manid : %s, "
+//			"siteid : %s, "
+//			"limit : %s "
+//			")",
+//			(int)syscall(SYS_gettid),
+//			m->fd,
+//			pManId,
+//			pSiteId,
+//			pLimit
+//			);
+//
+//	// 执行查询
+//	char sql[1024] = {'\0'};
+//	sprintf(sql, "SELECT qid FROM mq_man_answer WHERE manid = '%s';", pManId);
+//
+//	bool bResult = false;
+//	char** result = NULL;
+//	int iRow = 0;
+//	int iColumn = 0;
+//
+//	map<string, int> womanidMap;
+//	map<string, int>::iterator itr;
+//	string womanid;
+//
+//	bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn, iQueryIndex);
+//	LogManager::GetLogManager()->Log(
+//			LOG_STAT,
+//			"RequestManager::QueryAnySameQuestionOnlineLadyList( "
+//			"tid : %d, "
+//			"m->fd: [%d], "
+//			"iRow : %d, "
+//			"iColumn : %d, "
+//			"iQueryIndex : %d "
+//			")",
+//			(int)syscall(SYS_gettid),
+//			m->fd,
+//			iRow,
+//			iColumn,
+//			iQueryIndex
+//			);
+//
+//	if( bResult && result && iRow > 0 ) {
+//		// 随机起始男士问题位置
+//		int iManIndex = (rand() % iRow) + 1;
+//		bool bEnougthLady = false;
+//		int iNum = 0;
+//		int iMax = 0;
+//		if( pLimit != NULL ) {
+//			iMax = atoi(pLimit);
+//		}
+//
+//		iMax = (iMax < 4)?4:iMax;
+//		iMax = (iMax > 30)?30:iMax;
+//
+//		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
+//			iSingleQueryTime = GetTickCount();
+//			if( !bEnougthLady ) {
+//				// 查询当前问题相同答案的女士数量
+//				char** result2 = NULL;
+//				int iRow2;
+//				int iColumn2;
+//
+//				sprintf(sql, "SELECT count(*) FROM online_woman JOIN mq_woman_answer "
+//						"ON online_woman.womanid = mq_woman_answer.womanid "
+//						"WHERE mq_woman_answer.qid = %s AND mq_woman_answer.siteid = %s "
+//						";",
+//						result[i * iColumn],
+//						pSiteId
+//						);
+//
+//				iQueryTime = GetTickCount();
+//				bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+//				if( bResult && result2 && iRow2 > 0 ) {
+//					iNum = atoi(result2[1 * iColumn2]);
+//				}
+//				mpDBManager->FinishQuery(result2);
+//
+//				iQueryTime = GetTickCount() - iQueryTime;
+//				LogManager::GetLogManager()->Log(
+//									LOG_STAT,
+//									"RequestManager::QueryAnySameQuestionOnlineLadyList( "
+//									"tid : %d, "
+//									"m->fd: [%d], "
+//									"Count iQueryTime : %d, "
+//									"iQueryIndex : %d, "
+//									"iNum : %d, "
+//									"iMax : %d "
+//									")",
+//									(int)syscall(SYS_gettid),
+//									m->fd,
+//									iQueryTime,
+//									iQueryIndex,
+//									iNum,
+//									iMax
+//									);
+//
+//				/*
+//				 * 查询当前问题相同的女士Id集合
+//				 * 1.超过iMax个, 随机选取iMax个
+//				 * 2.不够iMax个, 全部选择
+//				 */
+////				int iLadyIndex = 0;
+////				int iLadyCount = 0;
+////				if( mpDBManager->GetLastOnlineLadyRecordId() <= iMax ) {
+////					iLadyCount = mpDBManager->GetLastOnlineLadyRecordId();
+////				} else {
+////					iLadyCount = iMax;
+////					iLadyIndex = (rand() % (mpDBManager->GetLastOnlineLadyRecordId() - iMax));
+////				}
+//
+//				int iLadyIndex = 0;
+//				int iLadyCount = 0;
+//				if( iNum <= iMax ) {
+//					iLadyCount = iNum;
+//				} else {
+//					iLadyCount = iMax;
+//					iLadyIndex = (rand() % (iNum -iLadyCount));
+//				}
+//
+//				sprintf(sql, "SELECT mq_woman_answer.womanid FROM mq_woman_answer JOIN online_woman "
+//						"ON mq_woman_answer.womanid = online_woman.womanid "
+//						"WHERE mq_woman_answer.qid = %s AND mq_woman_answer.siteid = %s "
+//						"LIMIT %d OFFSET %d;",
+//						result[i * iColumn],
+//						pSiteId,
+//						iLadyCount,
+//						iLadyIndex
+//						);
+//
+//				iQueryTime = GetTickCount();
+//				bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+//				iQueryTime = GetTickCount() - iQueryTime;
+//				LogManager::GetLogManager()->Log(
+//						LOG_STAT,
+//						"RequestManager::QueryAnySameQuestionOnlineLadyList( "
+//						"tid : %d, "
+//						"m->fd: [%d], "
+//						"Query iQueryTime : %d, "
+//						"iQueryIndex : %d, "
+//						"iRow2 : %d, "
+//						"iColumn2 : %d, "
+//						"iLadyCount : %d, "
+//						"iLadyIndex : %d, "
+//						"womanidMap.size() : %d "
+//						")",
+//						(int)syscall(SYS_gettid),
+//						m->fd,
+//						iQueryTime,
+//						iQueryIndex,
+//						iRow2,
+//						iColumn2,
+//						iLadyCount,
+//						iLadyIndex,
+//						womanidMap.size()
+//						);
+//
+//				if( bResult && result2 && iRow2 > 0 ) {
+//					for( int j = 1; j < iRow2 + 1; j++ ) {
+//						// insert womanid
+//						womanid = result2[j * iColumn2];
+//						if( womanidMap.size() < 30 ) {
+//							// 结果集合还不够30个女士, 插入
+//							womanidMap.insert(map<string, int>::value_type(womanid, 0));
+//						} else {
+//							// 已满
+//							break;
+//						}
+//					}
+//
+//					// 标记为已经获取够iMax个女士
+//					if( womanidMap.size() >= iMax ) {
+//						LogManager::GetLogManager()->Log(
+//								LOG_STAT,
+//								"RequestManager::QueryAnySameQuestionOnlineLadyList( "
+//								"tid : %d, "
+//								"m->fd: [%d], "
+//								"womanidMap.size() >= %d break "
+//								")",
+//								(int)syscall(SYS_gettid),
+//								m->fd,
+//								iMax
+//								);
+//						break;
+//					}
+//				}
+//				mpDBManager->FinishQuery(result2);
+//			}
+//
+//			i++;
+//			i = ((i - 1) % iRow) + 1;
+//
+//			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
+//			if( iSingleQueryTime > 30 ) {
+//				bSleepAlready = true;
+//				usleep(1000 * iSingleQueryTime);
+//			}
+//		}
+//
+//		for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+//			womanListNode.append(itr->first);
+//		}
+//	}
+//	mpDBManager->FinishQuery(result);
+//
+//	iSingleQueryTime = GetTickCount() - iHandleTime;
+//	if( !bSleepAlready ) {
+//		usleep(1000 * iSingleQueryTime);
+//	}
+//
+//	iHandleTime =  GetTickCount() - iHandleTime;
+//
+//	LogManager::GetLogManager()->Log(
+//			LOG_MSG,
+//			"RequestManager::QueryAnySameQuestionOnlineLadyList( "
+//			"tid : %d, "
+//			"m->fd: [%d], "
+//			"bSleepAlready : %s, "
+//			"iHandleTime : %u ms "
+//			")",
+//			(int)syscall(SYS_gettid),
+//			m->fd,
+//			bSleepAlready?"true":"false",
+//			iHandleTime
+//			);
+//
+//	return bResult;
+//}
 bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 		Json::Value& womanListNode,
-		const char* pManId,
+		const char* pQids,
 		const char* pSiteId,
 		const char* pLimit,
 		Message *m
@@ -1029,51 +1277,34 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 			"RequestManager::QueryAnySameQuestionOnlineLadyList( "
 			"tid : %d, "
 			"m->fd: [%d], "
-			"manid : %s, "
+			"qids : %s, "
 			"siteid : %s, "
 			"limit : %s "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
-			pManId,
+			pQids,
 			pSiteId,
 			pLimit
 			);
 
 	// 执行查询
 	char sql[1024] = {'\0'};
-	sprintf(sql, "SELECT qid FROM mq_man_answer WHERE manid = '%s';", pManId);
-
-	bool bResult = false;
-	char** result = NULL;
-	int iRow = 0;
-	int iColumn = 0;
 
 	map<string, int> womanidMap;
 	map<string, int>::iterator itr;
 	string womanid;
 
-	bResult = mpDBManager->Query(sql, &result, &iRow, &iColumn, iQueryIndex);
-	LogManager::GetLogManager()->Log(
-			LOG_STAT,
-			"RequestManager::QueryAnySameQuestionOnlineLadyList( "
-			"tid : %d, "
-			"m->fd: [%d], "
-			"iRow : %d, "
-			"iColumn : %d, "
-			"iQueryIndex : %d "
-			")",
-			(int)syscall(SYS_gettid),
-			m->fd,
-			iRow,
-			iColumn,
-			iQueryIndex
-			);
+	char* pQid = NULL;
+	char *pFirst = NULL;
 
-	if( bResult && result && iRow > 0 ) {
-		// 随机起始男士问题位置
-		int iManIndex = (rand() % iRow) + 1;
+	bool bResult = false;
+	int iCount = 0;
+	string qid;
+
+	if( pQids != NULL ) {
 		bool bEnougthLady = false;
+
 		int iNum = 0;
 		int iMax = 0;
 		if( pLimit != NULL ) {
@@ -1083,7 +1314,8 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 		iMax = (iMax < 4)?4:iMax;
 		iMax = (iMax > 30)?30:iMax;
 
-		for( int i = iManIndex, iCount = 0; iCount < iRow; iCount++ ) {
+		pQid = strtok_r((char*)pQids, ",", &pFirst);
+		while( pQid != NULL && iCount < 7 ) {
 			iSingleQueryTime = GetTickCount();
 			if( !bEnougthLady ) {
 				// 查询当前问题相同答案的女士数量
@@ -1091,11 +1323,14 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 				int iRow2;
 				int iColumn2;
 
+				qid = pQid;
+				qid = qid.substr(2, qid.length() - 2);
+
 				sprintf(sql, "SELECT count(*) FROM online_woman JOIN mq_woman_answer "
 						"ON online_woman.womanid = mq_woman_answer.womanid "
 						"WHERE mq_woman_answer.qid = %s AND mq_woman_answer.siteid = %s "
 						";",
-						result[i * iColumn],
+						qid.c_str(),
 						pSiteId
 						);
 
@@ -1130,15 +1365,6 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 				 * 1.超过iMax个, 随机选取iMax个
 				 * 2.不够iMax个, 全部选择
 				 */
-//				int iLadyIndex = 0;
-//				int iLadyCount = 0;
-//				if( mpDBManager->GetLastOnlineLadyRecordId() <= iMax ) {
-//					iLadyCount = mpDBManager->GetLastOnlineLadyRecordId();
-//				} else {
-//					iLadyCount = iMax;
-//					iLadyIndex = (rand() % (mpDBManager->GetLastOnlineLadyRecordId() - iMax));
-//				}
-
 				int iLadyIndex = 0;
 				int iLadyCount = 0;
 				if( iNum <= iMax ) {
@@ -1152,7 +1378,7 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 						"ON mq_woman_answer.womanid = online_woman.womanid "
 						"WHERE mq_woman_answer.qid = %s AND mq_woman_answer.siteid = %s "
 						"LIMIT %d OFFSET %d;",
-						result[i * iColumn],
+						qid.c_str(),
 						pSiteId,
 						iLadyCount,
 						iLadyIndex
@@ -1211,27 +1437,27 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 								m->fd,
 								iMax
 								);
-						break;
+						bEnougthLady = true;
 					}
 				}
 				mpDBManager->FinishQuery(result2);
 			}
 
-			i++;
-			i = ((i - 1) % iRow) + 1;
+			iCount++;
 
 			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
 			if( iSingleQueryTime > 30 ) {
 				bSleepAlready = true;
 				usleep(1000 * iSingleQueryTime);
 			}
+
+			pQid = strtok_r(NULL, " ", &pFirst);
 		}
 
 		for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
 			womanListNode.append(itr->first);
 		}
 	}
-	mpDBManager->FinishQuery(result);
 
 	iSingleQueryTime = GetTickCount() - iHandleTime;
 	if( !bSleepAlready ) {

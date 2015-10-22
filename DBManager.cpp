@@ -1192,7 +1192,7 @@ void DBManager::SyncForce() {
 }
 
 void DBManager::HandleSyncDatabase() {
-	int i = 0;
+	int i = 1;
 	while( true ) {
 		mSyncMutex.lock();
 		if( mbSyncForce ) {
@@ -1213,7 +1213,10 @@ void DBManager::HandleSyncDatabase() {
 			if( i % mSyncDataTime == 0 ) {
 				// 同步男士女士问题
 				SyncManAndLady();
-				i = 0;
+			}
+
+			if( (i > mSyncOnlineLadyTime) && (i > mSyncDataTime) ) {
+				i = 1;
 			}
 		}
 		i++;
