@@ -623,8 +623,8 @@ bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 	// 执行查询
 	char sql[1024] = {'\0'};
 	sprintf(sql, "SELECT qid, aid FROM mq_man_answer_%s WHERE manid = '%s';",
-			pManId,
-			pSiteId
+			pSiteId,
+			pManId
 			);
 
 	bool bResult = false;
