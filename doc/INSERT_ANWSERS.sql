@@ -27,6 +27,15 @@ BEGIN
 		/* Insert Man */
 		SET r = ROUND(RAND() * 100 % 4, 0);
 		SET aid = CONCAT(qid, '-', r);
+		SET siteid = ROUND(RAND() * 100 % 5, 0);
+		
+		IF siteid = 2
+		THEN  
+		SET siteid = 0;
+		ELSEIF siteid = 3
+		THEN
+		SET siteid = 1;
+		END IF;
 		INSERT INTO mq_man_answer(`q_id`, `question_status`, `content`, `manid`, `manname`, `country`, `answer_id`, `answer`, `q_concat`, `answer_time`, `last_update`, `ip`, `siteid`) VALUES(qid, 1, 'content', manid, 'manname', 'country', r, 'anwser', aid, NOW(), NOW(), '192.168.1.1', 1);
 		
 		/* Insert Lady */
