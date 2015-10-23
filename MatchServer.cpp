@@ -475,11 +475,11 @@ void MatchServer::StateRunnableHandle() {
 			mResponed = 0;
 			mCountMutex.unlock();
 
-			LogManager::GetLogManager()->Log(LOG_WARNING,
-					"MatchServer::StateRunnable( tid : %d, TcpServer::GetIdleMessageList() : %d )",
-					(int)syscall(SYS_gettid),
-					(MessageList*) GetTcpServer()->GetIdleMessageList()->Size()
-					);
+//			LogManager::GetLogManager()->Log(LOG_WARNING,
+//					"MatchServer::StateRunnable( tid : %d, TcpServer::GetIdleMessageList() : %d )",
+//					(int)syscall(SYS_gettid),
+//					(MessageList*) GetTcpServer()->GetIdleMessageList()->Size()
+//					);
 			LogManager::GetLogManager()->Log(LOG_WARNING,
 					"MatchServer::StateRunnable( tid : %d, TcpServer::GetHandleMessageList() : %d )",
 					(int)syscall(SYS_gettid),

@@ -24,12 +24,13 @@ int iPort = 1;
 int iTotal = 1;
 
 bool Connnect(int i);
+bool Send(int client, int r, int i);
 bool Parse(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
 	printf("############## client ############## \n");
 	Parse(argc, argv);
-
+	srand(time(0));
 	int i = 0;
 	bool bFlag = true;
 	while( i < iTotal && bFlag ) {
@@ -66,6 +67,55 @@ bool Parse(int argc, char *argv[]) {
 	return true;
 }
 
+bool Send(int client, int r, int i) {
+	char msg[1024] = {'\0'};
+	char sendBuffer[2048] = {'\0'};
+	memset(sendBuffer, '\0', 2048);
+	sprintf(msg, "client : %d", i);
+
+	switch(r) {
+	case 0:{
+		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
+				"/QUERY_SAME_ANSWER_LADY_LIST?MANID=CM100&SITEID=1&LIMIT=30",
+				(int)strlen(msg),
+				"Keep-alive",
+				msg
+				);
+		break;
+	}
+	case 1:{
+		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
+				"/QUERY_THE_SAME_QUESTION_LADY_LIST?QID=QA0&SITEID=1&LIMIT=30",
+				(int)strlen(msg),
+				"Keep-alive",
+				msg
+				);
+		break;
+	}
+	case 2:{
+		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
+				"/QUERY_ANY_SAME_QUESTION_LADY_LIST?MANID=CM100&SITEID=1&LIMIT=30",
+				(int)strlen(msg),
+				"Keep-alive",
+				msg
+				);
+		break;
+	}
+	case 3:{
+		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
+				"/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST?QIDS=QA0%2cQA2%2cQA3%2cQA4%2cQA5%2cQA6%2cQA7&SITEID=1&LIMIT=30",
+				(int)strlen(msg),
+				"Keep-alive",
+				msg
+				);
+		break;
+	}
+	}
+
+	send(client, sendBuffer, strlen(sendBuffer), 0);
+	printf("# Send( fd : %d, client : %d, msg : \n%s\n) \n", client, i, sendBuffer);
+}
+
 bool Connnect(int i) {
 	struct sockaddr_in mAddr;
 	bzero(&mAddr, sizeof(mAddr));
@@ -85,20 +135,9 @@ bool Connnect(int i) {
 	setsockopt(mClient, SOL_SOCKET, SO_REUSEADDR, &iFlag, sizeof(iFlag));
 
 	if( connect(mClient, (struct sockaddr *)&mAddr, sizeof(mAddr)) != -1 ) {
-//		LogManager::GetLogManager()->Log("TcpTestClient::Connnect( connect ok fd : %d )", mClient);
 		printf("# Connnect( connect ok fd : %d ) \n", mClient);
-		char msg[1024] = {'\0'};
-		sprintf(msg, "client : %d", i);
-		char sendBuffer[2048] = {'\0'};
-		memset(sendBuffer, '\0', 2048);
-		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
-									"/QUERY?MANID=CM1000&SITEID=1",
-									(int)strlen(msg),
-									"Keep-alive",
-									msg
-									);
-		send(mClient, sendBuffer, strlen(sendBuffer), 0);
-		printf("# Connnect( send ok fd : %d, client : %d ) \n", mClient, i);
+		int r = rand() % 3;
+		Send(mClient, r, i);
 //
 //		while( 1 ) {
 //			/* recv from call server */
@@ -115,7 +154,7 @@ bool Connnect(int i) {
 		return false;
 	}
 
-	close(mClient);
+//	close(mClient);
 	printf("# Connnect( exit ) \n");
 	return true;
 }

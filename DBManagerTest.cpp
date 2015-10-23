@@ -34,10 +34,10 @@ protected:
 //			mpDBManagerTest->Test3(mIndex);
 //			mpDBManagerTest->Test4(mIndex);
 
-			mpDBManagerTest->TestQuerySameAnswerLadyList(mIndex);				// 37 times/second
-//			mpDBManagerTest->TestQueryTheSameQuestionLadyList(mIndex); 			// 58 times/second
-//			mpDBManagerTest->TestQueryAnySameQuestionLadyList(mIndex);			// 66 time/second
-//			mpDBManagerTest->TestQueryAnySameQuestionOnlineLadyList(mIndex);	// 28 times/second
+//			mpDBManagerTest->TestQuerySameAnswerLadyList(mIndex);				// 25 times/second
+//			mpDBManagerTest->TestQueryTheSameQuestionLadyList(mIndex); 			// 180 times/second
+//			mpDBManagerTest->TestQueryAnySameQuestionLadyList(mIndex);			// 135 time/second
+			mpDBManagerTest->TestQueryAnySameQuestionOnlineLadyList(mIndex);	// 15 times/second
 
 			gettimeofday(&tEnd, NULL);
 			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
@@ -610,7 +610,7 @@ void DBManagerTest::Test4(int index) {
 bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 	Json::Value womanListNode;
 	const char* pManId = "CM100";
-	const char* pSiteId = "0";
+	const char* pSiteId = "1";
 	int iQueryIndex = index;
 
 	unsigned int iQueryTime = 0;
@@ -775,7 +775,7 @@ bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 bool DBManagerTest::TestQueryTheSameQuestionLadyList(int index) {
 	Json::Value womanListNode;
 	const char* pQid = "QA0";
-	const char* pSiteId = "0";
+	const char* pSiteId = "1";
 	int iQueryIndex = index;
 
 	unsigned int iQueryTime = 0;
@@ -831,7 +831,7 @@ bool DBManagerTest::TestQueryTheSameQuestionLadyList(int index) {
 		}
 
 		sprintf(sql, "SELECT womanid FROM mq_woman_answer_%s "
-				"WHERE qid = %s  LIMIT %d OFFSET %d;",
+				"WHERE qid = %s LIMIT %d OFFSET %d;",
 				pSiteId,
 				qid.c_str(),
 				iLadyCount,
@@ -867,7 +867,7 @@ bool DBManagerTest::TestQueryTheSameQuestionLadyList(int index) {
 bool DBManagerTest::TestQueryAnySameQuestionLadyList(int index) {
 	Json::Value womanListNode;
 	const char* pManId = "CM100";
-	const char* pSiteId = "0";
+	const char* pSiteId = "1";
 	int iQueryIndex = index;
 
 	unsigned int iQueryTime = 0;
@@ -1137,7 +1137,7 @@ bool DBManagerTest::TestQueryAnySameQuestionLadyList(int index) {
 bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 	Json::Value womanListNode;
 	char pQids[1024] = "QA0,QA1,QA2,QA3,QA4,QA5,QA6,QA7";
-	const char* pSiteId = "0";
+	const char* pSiteId = "1";
 	int iQueryIndex = index;
 
 	unsigned int iQueryTime = 0;
@@ -1187,12 +1187,11 @@ bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 				sprintf(sql, "SELECT count(*) FROM online_woman_%s as o "
 						"JOIN mq_woman_answer_%s as m "
 						"ON o.womanid = m.womanid "
-						"WHERE m.qid = %s AND m.siteid = %s "
+						"WHERE m.qid = %s"
 						";",
 						pSiteId,
 						pSiteId,
-						qid.c_str(),
-						pSiteId
+						qid.c_str()
 						);
 
 				iQueryTime = GetTickCount();
@@ -1221,12 +1220,11 @@ bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 				sprintf(sql, "SELECT m.womanid FROM online_woman_%s as o "
 						"JOIN mq_woman_answer_%s as m "
 						"ON o.womanid = m.womanid "
-						"WHERE m.qid = %s AND m.siteid = %s "
+						"WHERE m.qid = %s "
 						"LIMIT %d OFFSET %d;",
 						pSiteId,
 						pSiteId,
 						qid.c_str(),
-						pSiteId,
 						iLadyCount,
 						iLadyIndex
 						);

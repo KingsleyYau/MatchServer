@@ -1374,12 +1374,11 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 				sprintf(sql, "SELECT count(*) FROM online_woman_%s as o "
 						"JOIN mq_woman_answer_%s as m "
 						"ON o.womanid = m.womanid "
-						"WHERE m.qid = %s AND m.siteid = %s "
+						"WHERE m.qid = %s"
 						";",
 						pSiteId,
 						pSiteId,
-						qid.c_str(),
-						pSiteId
+						qid.c_str()
 						);
 
 				iQueryTime = GetTickCount();
@@ -1425,12 +1424,11 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 				sprintf(sql, "SELECT m.womanid FROM online_woman_%s as o "
 						"JOIN mq_woman_answer_%s as m "
 						"ON o.womanid = m.womanid "
-						"WHERE m.qid = %s AND m.siteid = %s "
+						"WHERE m.qid = %s "
 						"LIMIT %d OFFSET %d;",
 						pSiteId,
 						pSiteId,
 						qid.c_str(),
-						pSiteId,
 						iLadyCount,
 						iLadyIndex
 						);
