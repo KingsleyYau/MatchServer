@@ -609,8 +609,8 @@ void DBManagerTest::Test4(int index) {
  */
 bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 	Json::Value womanListNode;
-	const char* pManId = "CM1000";
-	const char* pSiteId = "1";
+	const char* pManId = "CM100";
+	const char* pSiteId = "0";
 	int iQueryIndex = index;
 
 	unsigned int iQueryTime = 0;
@@ -622,7 +622,10 @@ bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 
 	// 执行查询
 	char sql[1024] = {'\0'};
-	sprintf(sql, "SELECT qid, aid FROM mq_man_answer_%s WHERE manid = '%s';", pManId, pSiteId);
+	sprintf(sql, "SELECT qid, aid FROM mq_man_answer_%s WHERE manid = '%s';",
+			pManId,
+			pSiteId
+			);
 
 	bool bResult = false;
 	char** result = NULL;
@@ -772,7 +775,7 @@ bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 bool DBManagerTest::TestQueryTheSameQuestionLadyList(int index) {
 	Json::Value womanListNode;
 	const char* pQid = "QA0";
-	const char* pSiteId = "1";
+	const char* pSiteId = "0";
 	int iQueryIndex = index;
 
 	unsigned int iQueryTime = 0;
@@ -783,9 +786,9 @@ bool DBManagerTest::TestQueryTheSameQuestionLadyList(int index) {
 	char sql[1024] = {'\0'};
 	string qid = pQid;
 	qid = qid.substr(2, qid.length() - 2);
-	sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND siteid = %s;",
-			qid.c_str(),
-			pSiteId
+	sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s WHERE qid = %s;",
+			pSiteId,
+			qid.c_str()
 			);
 
 	bool bResult = false;
@@ -827,9 +830,10 @@ bool DBManagerTest::TestQueryTheSameQuestionLadyList(int index) {
 			iLadyIndex = (rand() % (iNum -iLadyCount));
 		}
 
-		sprintf(sql, "SELECT womanid FROM mq_woman_answer WHERE qid = %s AND siteid = %s LIMIT %d OFFSET %d;",
-				qid.c_str(),
+		sprintf(sql, "SELECT womanid FROM mq_woman_answer_%s "
+				"WHERE qid = %s  LIMIT %d OFFSET %d;",
 				pSiteId,
+				qid.c_str(),
 				iLadyCount,
 				iLadyIndex
 				);
@@ -863,7 +867,7 @@ bool DBManagerTest::TestQueryTheSameQuestionLadyList(int index) {
 bool DBManagerTest::TestQueryAnySameQuestionLadyList(int index) {
 	Json::Value womanListNode;
 	const char* pManId = "CM100";
-	const char* pSiteId = "1";
+	const char* pSiteId = "0";
 	int iQueryIndex = index;
 
 	unsigned int iQueryTime = 0;
@@ -873,7 +877,11 @@ bool DBManagerTest::TestQueryAnySameQuestionLadyList(int index) {
 
 	// 执行查询
 	char sql[1024] = {'\0'};
-	sprintf(sql, "SELECT qid FROM mq_man_answer WHERE manid = '%s';", pManId);
+	sprintf(sql, "SELECT qid FROM mq_man_answer_%s "
+			"WHERE manid = '%s';",
+			pSiteId,
+			pManId
+			);
 
 	bool bResult = false;
 	char** result = NULL;
@@ -901,10 +909,11 @@ bool DBManagerTest::TestQueryAnySameQuestionLadyList(int index) {
 
 				int iNum = 0;
 
-				sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND siteid = %s AND question_status = 1;",
-										result[i * iColumn],
-										pSiteId
-										);
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND question_status = 1;",
+						pSiteId,
+						result[i * iColumn]
+						);
 
 				iQueryTime = GetTickCount();
 				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
@@ -929,9 +938,11 @@ bool DBManagerTest::TestQueryAnySameQuestionLadyList(int index) {
 					iLadyIndex = (rand() % (iNum -iLadyCount));
 				}
 
-				sprintf(sql, "SELECT womanid FROM mq_woman_answer WHERE qid = %s AND siteid = %s AND question_status = 1 LIMIT %d OFFSET %d;",
-						result[i * iColumn],
+				sprintf(sql, "SELECT womanid FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND question_status = 1 "
+						"LIMIT %d OFFSET %d;",
 						pSiteId,
+						result[i * iColumn],
 						iLadyCount,
 						iLadyIndex
 						);
@@ -1126,7 +1137,7 @@ bool DBManagerTest::TestQueryAnySameQuestionLadyList(int index) {
 bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 	Json::Value womanListNode;
 	char pQids[1024] = "QA0,QA1,QA2,QA3,QA4,QA5,QA6,QA7";
-	const char* pSiteId = "1";
+	const char* pSiteId = "0";
 	int iQueryIndex = index;
 
 	unsigned int iQueryTime = 0;
@@ -1174,10 +1185,11 @@ bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 				int iColumn2;
 
 				sprintf(sql, "SELECT count(*) FROM online_woman_%s as o "
-						"JOIN mq_woman_answer as m "
+						"JOIN mq_woman_answer_%s as m "
 						"ON o.womanid = m.womanid "
 						"WHERE m.qid = %s AND m.siteid = %s "
 						";",
+						pSiteId,
 						pSiteId,
 						qid.c_str(),
 						pSiteId
@@ -1207,10 +1219,11 @@ bool DBManagerTest::TestQueryAnySameQuestionOnlineLadyList(int index) {
 				}
 
 				sprintf(sql, "SELECT m.womanid FROM online_woman_%s as o "
-						"JOIN mq_woman_answer as m "
+						"JOIN mq_woman_answer_%s as m "
 						"ON o.womanid = m.womanid "
 						"WHERE m.qid = %s AND m.siteid = %s "
 						"LIMIT %d OFFSET %d;",
+						pSiteId,
 						pSiteId,
 						qid.c_str(),
 						pSiteId,
