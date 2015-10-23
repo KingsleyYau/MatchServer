@@ -36,7 +36,7 @@ BEGIN
 		THEN
 		SET siteid = 1;
 		END IF;
-		INSERT INTO mq_man_answer(`q_id`, `question_status`, `content`, `manid`, `manname`, `country`, `answer_id`, `answer`, `q_concat`, `answer_time`, `last_update`, `ip`, `siteid`) VALUES(qid, 1, 'content', manid, 'manname', 'country', r, 'anwser', aid, NOW(), NOW(), '192.168.1.1', 1);
+		INSERT INTO mq_man_answer(`q_id`, `question_status`, `content`, `manid`, `manname`, `country`, `answer_id`, `answer`, `q_concat`, `answer_time`, `last_update`, `ip`, `siteid`) VALUES(qid, 1, 'content', manid, 'manname', 'country', r, 'anwser', aid, NOW(), NOW(), '192.168.1.1', siteid);
 		
 		/* Insert Lady */
 		SET r = ROUND(RAND() * 100 % 4, 0);
