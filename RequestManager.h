@@ -95,7 +95,7 @@ protected:
 //			);
 
 	/**
-	 * 4.获取跟男士有任意共同问题的在线女士Id列表接口(http get)
+	 * 4.获取回答过注册问题的在线女士Id列表接口(http get)
 	 */
 	bool QueryAnySameQuestionOnlineLadyList(
 			Json::Value& womanListNode,

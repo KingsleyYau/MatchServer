@@ -26,12 +26,23 @@ using namespace std;
 class SyncRunnable;
 
 typedef struct DBStruct {
+	DBStruct() {
+		mHost = "";
+		mPort = -1;
+		mUser = "";
+		mPasswd = "";
+		mDbName = "";
+		miMaxDatabaseThread = 0;
+		miSiteId = -1;
+	}
+
 	string mHost;
 	short mPort;
 	string mUser;
 	string mPasswd;
 	string mDbName;
 	int miMaxDatabaseThread;
+	int miSiteId;
 } DBSTRUCT;
 
 class DBManager {
@@ -39,8 +50,14 @@ public:
 	DBManager();
 	virtual ~DBManager();
 
-	bool Init(int iMaxMemoryCopy, bool addTestData, int iDbOnlineMaxCount);
-	bool InitSyncDataBase(const DBSTRUCT& dbQA, const DBSTRUCT* dbOnline, int iDbOnlineCount);
+	bool Init(
+			int iMaxMemoryCopy,
+			const DBSTRUCT& dbQA,
+			const DBSTRUCT* dbOnline,
+			int iDbOnlineCount,
+			bool addTestData = false
+			);
+//	bool InitSyncDataBase(const DBSTRUCT& dbQA, const DBSTRUCT* dbOnline, int iDbOnlineCount);
 
 	bool Query(char* sql, char*** result, int* iRow, int* iColumn, int index = 0);
 	void FinishQuery(char** result);
@@ -77,6 +94,7 @@ private:
 
 	DBSpool mDBSpool;
 	DBSpool mDBSpoolOnline[4];
+	int miSiteId[4];
 	int miDbOnlineCount;
 
 	KMutex mIndexMutex;

@@ -48,13 +48,26 @@ DBManager::~DBManager() {
 	}
 }
 
-bool DBManager::Init(int iMaxMemoryCopy, bool addTestData, int iDbOnlineMaxCount) {
-	miMaxMemoryCopy = iMaxMemoryCopy;
-	mdbs = new sqlite3*[iMaxMemoryCopy];
-	miDbOnlineCount = iDbOnlineMaxCount;
+bool DBManager::Init(
+		int iMaxMemoryCopy,
+		const DBSTRUCT& dbQA,
+		const DBSTRUCT* dbOnline,
+		int iDbOnlineCount,
+		bool addTestData
+		) {
+
+	printf("# DBManager initializing... \n");
 
 	bool bFlag = false;
 	int ret;
+
+	miMaxMemoryCopy = iMaxMemoryCopy;
+	mdbs = new sqlite3*[iMaxMemoryCopy];
+	miDbOnlineCount = iDbOnlineCount;
+
+	for(int i = 0; i< miDbOnlineCount; i++) {
+		miSiteId[i] = dbOnline[i].miSiteId;
+	}
 
 	for( int i = 0; i < miMaxMemoryCopy; i++ ) {
 		ret = sqlite3_open(":memory:", &mdbs[i]);
@@ -69,93 +82,188 @@ bool DBManager::Init(int iMaxMemoryCopy, bool addTestData, int iDbOnlineMaxCount
 			}
 		}
 	}
+
 	printf("# DBManager initialize OK. \n");
-	return bFlag;
-}
 
-bool DBManager::InitSyncDataBase(
-		const DBSTRUCT& dbQA,
-		const DBSTRUCT* dbOnline,
-		int iDbOnlineCount
-	        ) {
-	printf("# DBManager synchronizing... \n");
-
-	bool bFlag = false;
-
-	bFlag = mDBSpool.SetConnection(dbQA.miMaxDatabaseThread);
-	bFlag = bFlag && mDBSpool.SetDBparm(
-			dbQA.mHost.c_str(),
-			dbQA.mPort,
-			dbQA.mDbName.c_str(),
-			dbQA.mUser.c_str(),
-			dbQA.mPasswd.c_str()
-			);
-	bFlag = bFlag && mDBSpool.Connect();
-
-	LogManager::GetLogManager()->Log(
-			LOG_STAT,
-			"DBManager::InitSyncDataBase( "
-			"dbQA.mHost : %s, "
-			"dbQA.mPort : %d, "
-			"dbQA.mDbName : %s, "
-			"dbQA.mUser : %s, "
-			"dbQA.mPasswd : %s, "
-			"bFlag : %s "
-			")",
-			dbQA.mHost.c_str(),
-			dbQA.mPort,
-			dbQA.mDbName.c_str(),
-			dbQA.mUser.c_str(),
-			dbQA.mPasswd.c_str(),
-			bFlag?"true":"false"
-			);
-
-	miDbOnlineCount = iDbOnlineCount;
-	for(int i = 0; i < iDbOnlineCount && bFlag; i++) {
-		bFlag = mDBSpoolOnline[i].SetConnection(dbOnline[i].miMaxDatabaseThread);
-		bFlag = bFlag && mDBSpoolOnline[i].SetDBparm(
-				dbOnline[i].mHost.c_str(),
-				dbOnline[i].mPort,
-				dbOnline[i].mDbName.c_str(),
-				dbOnline[i].mUser.c_str(),
-				dbOnline[i].mPasswd.c_str()
+	if( bFlag ) {
+		printf("# DBManager synchronizing... \n");
+		bFlag = mDBSpool.SetConnection(dbQA.miMaxDatabaseThread);
+		bFlag = bFlag && mDBSpool.SetDBparm(
+				dbQA.mHost.c_str(),
+				dbQA.mPort,
+				dbQA.mDbName.c_str(),
+				dbQA.mUser.c_str(),
+				dbQA.mPasswd.c_str()
 				);
-		bFlag = bFlag && mDBSpoolOnline[i].Connect();
+		bFlag = bFlag && mDBSpool.Connect();
 
 		LogManager::GetLogManager()->Log(
 				LOG_STAT,
-				"DBManager::InitSyncDataBase( "
-				"dbOnline[%d].mHost : %s, "
-				"dbOnline[%d].mPort : %d, "
-				"dbOnline[%d].mDbName : %s, "
-				"dbOnline[%d].mUser : %s, "
-				"dbOnline[%d].mPasswd : %s, "
+				"DBManager::Init( "
+				"dbQA.mHost : %s, "
+				"dbQA.mPort : %d, "
+				"dbQA.mDbName : %s, "
+				"dbQA.mUser : %s, "
+				"dbQA.mPasswd : %s, "
+				"dbQA.miMaxDatabaseThread : %d, "
+				"miDbOnlineCount : %d, "
 				"bFlag : %s "
 				")",
-				i,
-				dbOnline[i].mHost.c_str(),
-				i,
-				dbOnline[i].mPort,
-				i,
-				dbOnline[i].mDbName.c_str(),
-				i,
-				dbOnline[i].mUser.c_str(),
-				i,
-				dbOnline[i].mPasswd.c_str(),
+				dbQA.mHost.c_str(),
+				dbQA.mPort,
+				dbQA.mDbName.c_str(),
+				dbQA.mUser.c_str(),
+				dbQA.mPasswd.c_str(),
+				dbQA.miMaxDatabaseThread,
+				miDbOnlineCount,
 				bFlag?"true":"false"
 				);
+
+		for(int i = 0; i < miDbOnlineCount && bFlag; i++) {
+			bFlag = mDBSpoolOnline[i].SetConnection(dbOnline[i].miMaxDatabaseThread);
+			bFlag = bFlag && mDBSpoolOnline[i].SetDBparm(
+					dbOnline[i].mHost.c_str(),
+					dbOnline[i].mPort,
+					dbOnline[i].mDbName.c_str(),
+					dbOnline[i].mUser.c_str(),
+					dbOnline[i].mPasswd.c_str()
+					);
+			bFlag = bFlag && mDBSpoolOnline[i].Connect();
+
+			LogManager::GetLogManager()->Log(
+					LOG_STAT,
+					"DBManager::Init( "
+					"dbOnline[%d].mHost : %s, "
+					"dbOnline[%d].mPort : %d, "
+					"dbOnline[%d].mDbName : %s, "
+					"dbOnline[%d].mUser : %s, "
+					"dbOnline[%d].mPasswd : %s, "
+					"dbOnline[%d].miMaxDatabaseThread : %d, "
+					"dbOnline[%d].miSiteId : %d"
+					"bFlag : %s "
+					")",
+					i,
+					dbOnline[i].mHost.c_str(),
+					i,
+					dbOnline[i].mPort,
+					i,
+					dbOnline[i].mDbName.c_str(),
+					i,
+					dbOnline[i].mUser.c_str(),
+					i,
+					dbOnline[i].mPasswd.c_str(),
+					i,
+					dbOnline[i].miMaxDatabaseThread,
+					i,
+					dbOnline[i].miSiteId,
+					bFlag?"true":"false"
+					);
+		}
+
+		if( bFlag ) {
+			SyncDataFromDataBase();
+
+			// Start sync thread
+			mSyncThread.start(mpSyncRunnable);
+		}
+
+		printf("# DBManager synchronizie OK. \n");
 	}
 
-	if( bFlag ) {
-		SyncDataFromDataBase();
-
-		// Start sync thread
-		mSyncThread.start(mpSyncRunnable);
-	}
-
-	printf("# DBManager synchronizie OK. \n");
 	return bFlag;
 }
+
+//bool DBManager::InitSyncDataBase(
+//		const DBSTRUCT& dbQA,
+//		const DBSTRUCT* dbOnline,
+//		int iDbOnlineCount
+//	        ) {
+//	printf("# DBManager synchronizing... \n");
+//
+//	bool bFlag = false;
+//
+//	bFlag = mDBSpool.SetConnection(dbQA.miMaxDatabaseThread);
+//	bFlag = bFlag && mDBSpool.SetDBparm(
+//			dbQA.mHost.c_str(),
+//			dbQA.mPort,
+//			dbQA.mDbName.c_str(),
+//			dbQA.mUser.c_str(),
+//			dbQA.mPasswd.c_str()
+//			);
+//	bFlag = bFlag && mDBSpool.Connect();
+//
+//	miDbOnlineCount = miDbOnlineCount > iDbOnlineCount?iDbOnlineCount:miDbOnlineCount;
+//
+//	LogManager::GetLogManager()->Log(
+//			LOG_STAT,
+//			"DBManager::InitSyncDataBase( "
+//			"dbQA.mHost : %s, "
+//			"dbQA.mPort : %d, "
+//			"dbQA.mDbName : %s, "
+//			"dbQA.mUser : %s, "
+//			"dbQA.mPasswd : %s, "
+//			"dbQA.miMaxDatabaseThread : %d, "
+//			"miDbOnlineCount : %d, "
+//			"bFlag : %s "
+//			")",
+//			dbQA.mHost.c_str(),
+//			dbQA.mPort,
+//			dbQA.mDbName.c_str(),
+//			dbQA.mUser.c_str(),
+//			dbQA.mPasswd.c_str(),
+//			dbQA.miMaxDatabaseThread,
+//			miDbOnlineCount,
+//			bFlag?"true":"false"
+//			);
+//
+//	for(int i = 0; i < iDbOnlineCount && bFlag; i++) {
+//		bFlag = mDBSpoolOnline[i].SetConnection(dbOnline[i].miMaxDatabaseThread);
+//		bFlag = bFlag && mDBSpoolOnline[i].SetDBparm(
+//				dbOnline[i].mHost.c_str(),
+//				dbOnline[i].mPort,
+//				dbOnline[i].mDbName.c_str(),
+//				dbOnline[i].mUser.c_str(),
+//				dbOnline[i].mPasswd.c_str()
+//				);
+//		bFlag = bFlag && mDBSpoolOnline[i].Connect();
+//
+//		LogManager::GetLogManager()->Log(
+//				LOG_STAT,
+//				"DBManager::InitSyncDataBase( "
+//				"dbOnline[%d].mHost : %s, "
+//				"dbOnline[%d].mPort : %d, "
+//				"dbOnline[%d].mDbName : %s, "
+//				"dbOnline[%d].mUser : %s, "
+//				"dbOnline[%d].mPasswd : %s, "
+//				"dbOnline[%d].miMaxDatabaseThread : %d "
+//				"bFlag : %s "
+//				")",
+//				i,
+//				dbOnline[i].mHost.c_str(),
+//				i,
+//				dbOnline[i].mPort,
+//				i,
+//				dbOnline[i].mDbName.c_str(),
+//				i,
+//				dbOnline[i].mUser.c_str(),
+//				i,
+//				dbOnline[i].mPasswd.c_str(),
+//				i,
+//				dbOnline[i].miMaxDatabaseThread,
+//				bFlag?"true":"false"
+//				);
+//	}
+//
+//	if( bFlag ) {
+//		SyncDataFromDataBase();
+//
+//		// Start sync thread
+//		mSyncThread.start(mpSyncRunnable);
+//	}
+//
+//	printf("# DBManager synchronizie OK. \n");
+//	return bFlag;
+//}
 
 bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn, int index) {
 	char *msg = NULL;
@@ -253,7 +361,8 @@ void DBManager::SyncOnlineLady(int index) {
 				ExecSQL( mdbs[i], "BEGIN;", NULL );
 
 				// 删掉旧的数据
-//				ExecSQL( mdbs[i], "DELETE FROM online_woman;", NULL );
+				sprintf(sql, "DELETE FROM online_woman_%d", miSiteId[index]);
+				ExecSQL( mdbs[i], sql, NULL );
 
 				sprintf(sql, "INSERT INTO online_woman_%d("
 						"`id`, "
@@ -263,7 +372,7 @@ void DBManager::SyncOnlineLady(int index) {
 						"?, "
 						"?"
 						")",
-						index + 1
+						miSiteId[index]
 						);
 				sqlite3_prepare_v2(mdbs[i], sql, strlen(sql), &(stmtOnlineLady[i]), 0);
 			}
@@ -833,13 +942,13 @@ bool DBManager::CreateTable(sqlite3 *db) {
 	}
 
 	// 建女士在线表
-	for(int i = 1; i < miDbOnlineCount + 1; i++) {
+	for(int i = 0; i < miDbOnlineCount; i++) {
 		sprintf(sql,
 				"CREATE TABLE online_woman_%d("
 				"id INTEGER PRIMARY KEY,"
 				"womanid TEXT"
 				");",
-				i
+				miSiteId[i]
 		);
 
 		ExecSQL( db, sql, &msg );
@@ -853,7 +962,7 @@ bool DBManager::CreateTable(sqlite3 *db) {
 					")",
 					(int)syscall(SYS_gettid),
 					sql,
-					i,
+					miSiteId[i],
 					msg
 					);
 			sqlite3_free(msg);
@@ -866,8 +975,8 @@ bool DBManager::CreateTable(sqlite3 *db) {
 				"CREATE UNIQUE INDEX online_woman_index_womanid_%d "
 				"ON online_woman_%d (womanid)"
 				";",
-				i,
-				i
+				miSiteId[i],
+				miSiteId[i]
 		);
 
 		ExecSQL( db, sql, &msg );
@@ -881,7 +990,7 @@ bool DBManager::CreateTable(sqlite3 *db) {
 					")",
 					(int)syscall(SYS_gettid),
 					sql,
-					i,
+					miSiteId[i],
 					msg
 					);
 			sqlite3_free(msg);

@@ -88,6 +88,56 @@ void MatchServer::Run() {
 			miLogLevel,
 			mLogDir.c_str()
 			);
+
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"MatchServer::Run( "
+			"mDbQA.mHost : %s, "
+			"mDbQA.mPort : %d, "
+			"mDbQA.mDbName : %s, "
+			"mDbQA.mUser : %s, "
+			"mDbQA.mPasswd : %s, "
+			"mDbQA.miMaxDatabaseThread : %d, "
+			"miOnlineDbCount : %d "
+			")",
+			mDbQA.mHost.c_str(),
+			mDbQA.mPort,
+			mDbQA.mDbName.c_str(),
+			mDbQA.mUser.c_str(),
+			mDbQA.mPasswd.c_str(),
+			mDbQA.miMaxDatabaseThread,
+			miOnlineDbCount
+			);
+
+	for(int i = 0; i < miOnlineDbCount; i++) {
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::Run( "
+				"mDbOnline[%d].mHost : %s, "
+				"mDbOnline[%d].mPort : %d, "
+				"mDbOnline[%d].mDbName : %s, "
+				"mDbOnline[%d].mUser : %s, "
+				"mDbOnline[%d].mPasswd : %s, "
+				"mDbOnline[%d].miMaxDatabaseThread : %d, "
+				"mDbOnline[%d].miSiteId : %d "
+				")",
+				i,
+				mDbOnline[i].mHost.c_str(),
+				i,
+				mDbOnline[i].mPort,
+				i,
+				mDbOnline[i].mDbName.c_str(),
+				i,
+				mDbOnline[i].mUser.c_str(),
+				i,
+				mDbOnline[i].mPasswd.c_str(),
+				i,
+				mDbOnline[i].miMaxDatabaseThread,
+				i,
+				mDbOnline[i].miSiteId
+				);
+	}
+
 	bool bFlag = false;
 
 	mTotal = 0;
@@ -95,11 +145,12 @@ void MatchServer::Run() {
 	mResponed = 0;
 
 	/* db manager */
-	bFlag = mDBManager.Init(miMaxMemoryCopy, false, 4);
-	bFlag = bFlag && mDBManager.InitSyncDataBase(
+	bFlag = mDBManager.Init(
+			miMaxMemoryCopy,
 			mDbQA,
 			mDbOnline,
-			4
+			miOnlineDbCount,
+			false
 			);
 
 	if( !bFlag ) {
@@ -172,18 +223,49 @@ bool MatchServer::Reload() {
 		mDbQA.mUser = conf->GetPrivate("DB", "DBUSER", "root");
 		mDbQA.mPasswd = conf->GetPrivate("DB", "DBPASS", "123456");
 		mDbQA.miMaxDatabaseThread = atoi(conf->GetPrivate("DB", "MAXDATABASETHREAD", "4").c_str());
+
 		miSyncTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZETIME", "30").c_str());
 		miSyncOnlineTime = atoi(conf->GetPrivate("DB", "SYNCHRONIZE_ONLINE_TIME", "1").c_str());
+		miOnlineDbCount = atoi(conf->GetPrivate("DB", "ONLINE_DB_COUNT", "0").c_str());
+		miOnlineDbCount = miOnlineDbCount > 4?4:miOnlineDbCount;
+		miOnlineDbCount = miOnlineDbCount < 0?0:miOnlineDbCount;
 
-		char domain[8] = {'\0'};
-		for(int i = 0; i < 4; i++) {
-			sprintf(domain, "DB_%d", i + 1);
+		char domain[4] = {'\0'};
+		for(int i = 0; i < miOnlineDbCount; i++) {
+			sprintf(domain, "DB_ONLINE_%d", i);
 			mDbOnline[i].mHost = conf->GetPrivate(domain, "DBHOST", "localhost");
 			mDbOnline[i].mPort = atoi(conf->GetPrivate(domain, "DBPORT", "3306").c_str());
 			mDbOnline[i].mDbName = conf->GetPrivate(domain, "DBNAME", "qpidnetwork_online");
 			mDbOnline[i].mUser = conf->GetPrivate(domain, "DBUSER", "root");
 			mDbOnline[i].mPasswd = conf->GetPrivate(domain, "DBPASS", "123456");
 			mDbOnline[i].miMaxDatabaseThread = atoi(conf->GetPrivate(domain, "MAXDATABASETHREAD", "4").c_str());
+			mDbOnline[i].miSiteId = atoi(conf->GetPrivate(domain, "SITEID", "-1").c_str());
+			LogManager::GetLogManager()->Log(
+					LOG_MSG,
+					"MatchServer::Reload( "
+					"mDbOnline[%d].mHost : %s, "
+					"mDbOnline[%d].mPort : %d, "
+					"mDbOnline[%d].mDbName : %s, "
+					"mDbOnline[%d].mUser : %s, "
+					"mDbOnline[%d].mPasswd : %s, "
+					"mDbOnline[%d].miMaxDatabaseThread : %d, "
+					"mDbOnline[i].miSiteId : %d "
+					")",
+					i,
+					mDbOnline[i].mHost.c_str(),
+					i,
+					mDbOnline[i].mPort,
+					i,
+					mDbOnline[i].mDbName.c_str(),
+					i,
+					mDbOnline[i].mUser.c_str(),
+					i,
+					mDbOnline[i].mPasswd.c_str(),
+					i,
+					mDbOnline[i].miMaxDatabaseThread,
+					i,
+					mDbOnline[i].miSiteId
+					);
 		}
 
 		// LOG
@@ -320,6 +402,7 @@ void MatchServer::OnTimeoutMessage(TcpServer *ts, Message *m) {
 
 		mCountMutex.lock();
 		mTotal++;
+		mResponed += sm->totaltime;
 		mCountMutex.unlock();
 
 		mRequestManager.HandleTimeoutMessage(m, sm);
@@ -371,13 +454,24 @@ void MatchServer::StateRunnableHandle() {
 			iCount++;
 		} else {
 			iCount = 0;
+			iSecondTotal = 0;
+			iSecondHit = 0;
+			iResponed = 0;
 
 			mCountMutex.lock();
-			iSecondTotal = 1.0 * (mTotal - iTotal) / iStateTime;
-			iSecondHit = 1.0 * (mHit - iHit) / iStateTime;
 			iTotal = mTotal;
 			iHit = mHit;
-			iResponed = 1.0 * mResponed / iHit;
+
+			if( iStateTime != 0 ) {
+				iSecondTotal = 1.0 * iTotal / iStateTime;
+				iSecondHit = 1.0 * iHit / iStateTime;
+			}
+			if( iTotal != 0 ) {
+				iResponed = 1.0 * mResponed / iTotal;
+			}
+
+			mHit = 0;
+			mTotal = 0;
 			mResponed = 0;
 			mCountMutex.unlock();
 
@@ -418,6 +512,23 @@ void MatchServer::StateRunnableHandle() {
 					iSecondHit,
 					iResponed,
 					iStateTime
+					);
+			LogManager::GetLogManager()->Log(LOG_WARNING,
+					"MatchServer::StateRunnable( "
+					"tid : %d, "
+					"过去%u秒共收到%u个请求, "
+					"成功处理%u个请求, "
+					"平均收到%.1lf个/秒, "
+					"平均处理%.1lf个/秒, "
+					"平均响应时间%.1lf毫秒/个"
+					")",
+					(int)syscall(SYS_gettid),
+					iStateTime,
+					iTotal,
+					iHit,
+					iSecondTotal,
+					iSecondHit,
+					iResponed
 					);
 
 			iStateTime = miStateTime;

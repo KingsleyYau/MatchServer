@@ -57,6 +57,7 @@ private:
 	DBSTRUCT mDbQA;
 	int miSyncTime;
 	int miSyncOnlineTime;
+	int miOnlineDbCount;
 	DBSTRUCT mDbOnline[4];
 
 	// LOG

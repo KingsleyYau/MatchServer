@@ -249,8 +249,29 @@ int RequestManager::HandleInsideRecvMessage(Message *m, Message *sm) {
 				);
 
 		if( strcmp(pPath, "/SYNC") == 0 ) {
+			LogManager::GetLogManager()->Log(
+					LOG_MSG,
+					"RequestManager::HandleInsideRecvMessage( "
+					"tid : %d, "
+					"m->fd : [%d], "
+					"start "
+					")",
+					(int)syscall(SYS_gettid),
+					m->fd
+					);
+
 			mpDBManager->SyncForce();
 		} else if( strcmp(pPath, "/RELOAD") == 0 ) {
+			LogManager::GetLogManager()->Log(
+					LOG_MSG,
+					"RequestManager::HandleInsideRecvMessage( "
+					"tid : %d, "
+					"m->fd : [%d], "
+					"start "
+					")",
+					(int)syscall(SYS_gettid),
+					m->fd
+					);
 			if( mpRequestManagerCallback != NULL ) {
 				mpRequestManagerCallback->OnReload(this);
 			}
@@ -413,7 +434,7 @@ bool RequestManager::QuerySameAnswerLadyList(
 									"RequestManager::QuerySameAnswerLadyList( "
 									"tid : %d, "
 									"m->fd: [%d], "
-									"Count iQueryTime : %d, "
+									"Count iQueryTime : %u m, "
 									"iQueryIndex : %d, "
 									"iNum : %d, "
 									"iMax : %d "
@@ -456,7 +477,7 @@ bool RequestManager::QuerySameAnswerLadyList(
 									"RequestManager::QuerySameAnswerLadyList( "
 									"tid : %d, "
 									"m->fd: [%d], "
-									"Query iQueryTime : %d, "
+									"Query iQueryTime : %u ms, "
 									"iQueryIndex : %d, "
 									"iRow2 : %d, "
 									"iColumn2 : %d, "
@@ -528,26 +549,29 @@ bool RequestManager::QuerySameAnswerLadyList(
 				}
 				mpDBManager->FinishQuery(result3);
 			}
+
+			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
 			iQueryTime = GetTickCount() - iQueryTime;
 			LogManager::GetLogManager()->Log(
 								LOG_STAT,
 								"RequestManager::QuerySameAnswerLadyList( "
 								"tid : %d, "
 								"m->fd: [%d], "
-								"Double Check iQueryTime : %d, "
+								"Double Check iQueryTime : %u ms, "
 								"iQueryIndex : %d, "
+								"iSingleQueryTime : %u ms "
 								")",
 								(int)syscall(SYS_gettid),
 								m->fd,
 								iQueryTime,
-								iQueryIndex
+								iQueryIndex,
+								iSingleQueryTime
 								);
 
 			i++;
 			i = ((i - 1) % iRow) + 1;
 
 			// 单词请求是否大于30ms
-			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
 			if( iSingleQueryTime > 30 ) {
 				bSleepAlready = true;
 				usleep(1000 * iSingleQueryTime);
@@ -619,8 +643,12 @@ bool RequestManager::QueryTheSameQuestionLadyList(
 
 	// 执行查询
 	char sql[1024] = {'\0'};
+
 	string qid = pQid;
-	qid = qid.substr(2, qid.length() - 2);
+	if(qid.length() > 2) {
+		qid = qid.substr(2, qid.length() - 2);
+	}
+
 	sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND siteid = %s;",
 			qid.c_str(),
 			pSiteId
@@ -679,7 +707,7 @@ bool RequestManager::QueryTheSameQuestionLadyList(
 							"RequestManager::QueryTheSameQuestionLadyList( "
 							"tid : %d, "
 							"m->fd: [%d], "
-							"Count iQueryTime : %d, "
+							"Count iQueryTime : %u ms, "
 							"iQueryIndex : %d, "
 							"iNum : %d, "
 							"iMax : %d "
@@ -732,7 +760,7 @@ bool RequestManager::QueryTheSameQuestionLadyList(
 							"RequestManager::QueryTheSameQuestionLadyList( "
 							"tid : %d, "
 							"m->fd: [%d], "
-							"Query iQueryTime : %d, "
+							"Query iQueryTime : %u ms, "
 							"iQueryIndex : %d, "
 							"iRow2 : %d, "
 							"iColumn2 : %d, "
@@ -875,7 +903,7 @@ bool RequestManager::QueryAnySameQuestionLadyList(
 						"RequestManager::QueryAnySameQuestionLadyList( "
 						"tid : %d, "
 						"m->fd: [%d], "
-						"Count iQueryTime : %d, "
+						"Count iQueryTime : %u ms, "
 						"iQueryIndex : %d, "
 						"iNum : %d, "
 						"iMax : %d "
@@ -917,7 +945,7 @@ bool RequestManager::QueryAnySameQuestionLadyList(
 						"RequestManager::QueryAnySameQuestionLadyList( "
 						"tid : %d, "
 						"m->fd: [%d], "
-						"Query iQueryTime : %d, "
+						"Query iQueryTime : %u ms, "
 						"iQueryIndex : %d, "
 						"iRow2 : %d, "
 						"iColumn2 : %d, "
@@ -1317,14 +1345,17 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 		pQid = strtok_r((char*)pQids, ",", &pFirst);
 		while( pQid != NULL && iCount < 7 ) {
 			iSingleQueryTime = GetTickCount();
+
+			qid = pQid;
+			if(qid.length() > 2) {
+				qid = qid.substr(2, qid.length() - 2);
+			}
+
 			if( !bEnougthLady ) {
 				// 查询当前问题相同答案的女士数量
 				char** result2 = NULL;
 				int iRow2;
 				int iColumn2;
-
-				qid = pQid;
-				qid = qid.substr(2, qid.length() - 2);
 
 				sprintf(sql, "SELECT count(*) FROM online_woman_%s as o "
 						"JOIN mq_woman_answer as m "
@@ -1349,7 +1380,7 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 									"RequestManager::QueryAnySameQuestionOnlineLadyList( "
 									"tid : %d, "
 									"m->fd: [%d], "
-									"Count iQueryTime : %d, "
+									"Count iQueryTime : %u ms, "
 									"iQueryIndex : %d, "
 									"iNum : %d, "
 									"iMax : %d "
@@ -1396,7 +1427,7 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 						"RequestManager::QueryAnySameQuestionOnlineLadyList( "
 						"tid : %d, "
 						"m->fd: [%d], "
-						"Query iQueryTime : %d, "
+						"Query iQueryTime : %u ms, "
 						"iQueryIndex : %d, "
 						"iRow2 : %d, "
 						"iColumn2 : %d, "
@@ -1455,7 +1486,7 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 				usleep(1000 * iSingleQueryTime);
 			}
 
-			pQid = strtok_r(NULL, " ", &pFirst);
+			pQid = strtok_r(NULL, ",", &pFirst);
 		}
 
 		for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {

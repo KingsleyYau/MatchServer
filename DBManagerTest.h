@@ -10,6 +10,7 @@
 
 #include "DBManager.h"
 #include "KThread.h"
+#include "ConfFile.hpp"
 
 class DBManagerTest {
 public:
@@ -17,7 +18,8 @@ public:
 	virtual ~DBManagerTest();
 
 	void StartTest(int iMaxThread, int iMaxMemoryCopy, int iMaxQuery);
-	void TestSql(string sql);
+	bool Reload();
+//	void TestSql(string sql);
 
 	void Test1(int index);
 	void Test2(int index);
@@ -46,6 +48,13 @@ public:
 
 	DBManager mDBManager;
 	int miMaxQuery;
+
+	// DB
+	DBSTRUCT mDbQA;
+	int miSyncTime;
+	int miSyncOnlineTime;
+	int miOnlineDbCount;
+	DBSTRUCT mDbOnline[4];
 
 	long miSleep;
 	long miQuery;
