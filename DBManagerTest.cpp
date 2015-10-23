@@ -34,10 +34,10 @@ protected:
 //			mpDBManagerTest->Test3(mIndex);
 //			mpDBManagerTest->Test4(mIndex);
 
-//			mpDBManagerTest->TestQuerySameAnswerLadyList(mIndex);				// 37 times/second
+			mpDBManagerTest->TestQuerySameAnswerLadyList(mIndex);				// 37 times/second
 //			mpDBManagerTest->TestQueryTheSameQuestionLadyList(mIndex); 			// 58 times/second
 //			mpDBManagerTest->TestQueryAnySameQuestionLadyList(mIndex);			// 66 time/second
-			mpDBManagerTest->TestQueryAnySameQuestionOnlineLadyList(mIndex);	// 28 times/second
+//			mpDBManagerTest->TestQueryAnySameQuestionOnlineLadyList(mIndex);	// 28 times/second
 
 			gettimeofday(&tEnd, NULL);
 			long usec = (1000 * 1000 * tEnd.tv_sec + tEnd.tv_usec - (1000 * 1000 * tStart.tv_sec + tStart.tv_usec));
@@ -609,7 +609,7 @@ void DBManagerTest::Test4(int index) {
  */
 bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 	Json::Value womanListNode;
-	const char* pManId = "CM100";
+	const char* pManId = "CM1000";
 	const char* pSiteId = "1";
 	int iQueryIndex = index;
 
@@ -622,7 +622,7 @@ bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 
 	// 执行查询
 	char sql[1024] = {'\0'};
-	sprintf(sql, "SELECT qid, aid FROM mq_man_answer WHERE manid = '%s';", pManId);
+	sprintf(sql, "SELECT qid, aid FROM mq_man_answer_%s WHERE manid = '%s';", pManId, pSiteId);
 
 	bool bResult = false;
 	char** result = NULL;
@@ -650,11 +650,12 @@ bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 
 				int iNum = 0;
 
-				sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
-										result[i * iColumn],
-										result[i * iColumn + 1],
-										pSiteId
-										);
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND aid = %s AND question_status = 1;",
+						pSiteId,
+						result[i * iColumn],
+						result[i * iColumn + 1]
+						);
 
 				iQueryTime = GetTickCount();
 				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
@@ -679,10 +680,12 @@ bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 					iLadyIndex = (rand() % (iNum -iLadyCount));
 				}
 
-				sprintf(sql, "SELECT womanid FROM mq_woman_answer WHERE qid = %s AND aid = %s AND siteid = %s AND question_status = 1 LIMIT %d OFFSET %d;",
+				sprintf(sql, "SELECT womanid FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND aid = %s AND question_status = 1 "
+						"LIMIT %d OFFSET %d;",
+						pSiteId,
 						result[i * iColumn],
 						result[i * iColumn + 1],
-						pSiteId,
 						iLadyCount,
 						iLadyIndex
 						);
@@ -719,11 +722,12 @@ bool DBManagerTest::TestQuerySameAnswerLadyList(int index) {
 				int iRow3;
 				int iColumn3;
 
-				sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s "
+						"WHERE womanid = '%s' AND qid = %s AND aid = %s AND question_status = 1;",
+						pSiteId,
 						itr->first.c_str(),
 						result[i * iColumn],
-						result[i * iColumn + 1],
-						pSiteId
+						result[i * iColumn + 1]
 						);
 
 				bResult = mDBManager.Query(sql, &result3, &iRow3, &iColumn3, iQueryIndex);

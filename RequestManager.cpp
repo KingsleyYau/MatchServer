@@ -366,7 +366,7 @@ bool RequestManager::QuerySameAnswerLadyList(
 
 	// 执行查询
 	char sql[1024] = {'\0'};
-	sprintf(sql, "SELECT qid, aid FROM mq_man_answer WHERE manid = '%s';", pManId);
+	sprintf(sql, "SELECT qid, aid FROM mq_man_answer_%s WHERE manid = '%s';", pSiteId, pManId);
 
 	bool bResult = false;
 	char** result = NULL;
@@ -415,11 +415,12 @@ bool RequestManager::QuerySameAnswerLadyList(
 				int iRow2;
 				int iColumn2;
 
-				sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
-										result[i * iColumn],
-										result[i * iColumn + 1],
-										pSiteId
-										);
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND aid = %s AND question_status = 1;",
+						pSiteId,
+						result[i * iColumn],
+						result[i * iColumn + 1]
+						);
 
 				iQueryTime = GetTickCount();
 				bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
@@ -461,10 +462,12 @@ bool RequestManager::QuerySameAnswerLadyList(
 					iLadyIndex = (rand() % (iNum -iLadyCount));
 				}
 
-				sprintf(sql, "SELECT womanid FROM mq_woman_answer WHERE qid = %s AND aid = %s AND siteid = %s AND question_status = 1 LIMIT %d OFFSET %d;",
+				sprintf(sql, "SELECT womanid FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND aid = %s AND question_status = 1 "
+						"LIMIT %d OFFSET %d;",
+						pSiteId,
 						result[i * iColumn],
 						result[i * iColumn + 1],
-						pSiteId,
 						iLadyCount,
 						iLadyIndex
 						);
@@ -536,11 +539,12 @@ bool RequestManager::QuerySameAnswerLadyList(
 				int iRow3;
 				int iColumn3;
 
-				sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE womanid = '%s' AND qid = %s AND aid = %s AND siteid = %s AND question_status = 1;",
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s "
+						"WHERE womanid = '%s' AND qid = %s AND aid = %s AND question_status = 1;",
+						pSiteId,
 						itr->first.c_str(),
 						result[i * iColumn],
-						result[i * iColumn + 1],
-						pSiteId
+						result[i * iColumn + 1]
 						);
 
 				bResult = mpDBManager->Query(sql, &result3, &iRow3, &iColumn3, iQueryIndex);
@@ -649,9 +653,10 @@ bool RequestManager::QueryTheSameQuestionLadyList(
 		qid = qid.substr(2, qid.length() - 2);
 	}
 
-	sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND siteid = %s;",
-			qid.c_str(),
-			pSiteId
+	sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s "
+			"WHERE qid = %s;",
+			pSiteId,
+			qid.c_str()
 			);
 
 	bool bResult = false;
@@ -734,9 +739,11 @@ bool RequestManager::QueryTheSameQuestionLadyList(
 			iLadyIndex = (rand() % (iNum -iLadyCount));
 		}
 
-		sprintf(sql, "SELECT womanid FROM mq_woman_answer WHERE qid = %s AND siteid = %s LIMIT %d OFFSET %d;",
-				qid.c_str(),
+		sprintf(sql, "SELECT womanid FROM mq_woman_answer_%s "
+				"WHERE qid = %s "
+				"LIMIT %d OFFSET %d;",
 				pSiteId,
+				qid.c_str(),
 				iLadyCount,
 				iLadyIndex
 				);
@@ -834,7 +841,11 @@ bool RequestManager::QueryAnySameQuestionLadyList(
 
 	// 执行查询
 	char sql[1024] = {'\0'};
-	sprintf(sql, "SELECT qid FROM mq_man_answer WHERE manid = '%s';", pManId);
+	sprintf(sql, "SELECT qid FROM mq_man_answer_%s "
+			"WHERE manid = '%s';",
+			pSiteId,
+			pManId
+			);
 
 	bool bResult = false;
 	char** result = NULL;
@@ -885,10 +896,11 @@ bool RequestManager::QueryAnySameQuestionLadyList(
 				int iRow2;
 				int iColumn2;
 
-				sprintf(sql, "SELECT count(*) FROM mq_woman_answer WHERE qid = %s AND siteid = %s AND question_status = 1;",
-										result[i * iColumn],
-										pSiteId
-										);
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND question_status = 1;",
+						pSiteId,
+						result[i * iColumn]
+						);
 
 				iQueryTime = GetTickCount();
 				bResult = mpDBManager->Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
@@ -930,9 +942,11 @@ bool RequestManager::QueryAnySameQuestionLadyList(
 					iLadyIndex = (rand() % (iNum -iLadyCount));
 				}
 
-				sprintf(sql, "SELECT womanid FROM mq_woman_answer WHERE qid = %s AND siteid = %s AND question_status = 1 LIMIT %d OFFSET %d;",
-						result[i * iColumn],
+				sprintf(sql, "SELECT womanid FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND question_status = 1 "
+						"LIMIT %d OFFSET %d;",
 						pSiteId,
+						result[i * iColumn],
 						iLadyCount,
 						iLadyIndex
 						);
@@ -1358,10 +1372,11 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 				int iColumn2;
 
 				sprintf(sql, "SELECT count(*) FROM online_woman_%s as o "
-						"JOIN mq_woman_answer as m "
+						"JOIN mq_woman_answer_%s as m "
 						"ON o.womanid = m.womanid "
 						"WHERE m.qid = %s AND m.siteid = %s "
 						";",
+						pSiteId,
 						pSiteId,
 						qid.c_str(),
 						pSiteId
@@ -1408,10 +1423,11 @@ bool RequestManager::QueryAnySameQuestionOnlineLadyList(
 				}
 
 				sprintf(sql, "SELECT m.womanid FROM online_woman_%s as o "
-						"JOIN mq_woman_answer as m "
+						"JOIN mq_woman_answer_%s as m "
 						"ON o.womanid = m.womanid "
 						"WHERE m.qid = %s AND m.siteid = %s "
 						"LIMIT %d OFFSET %d;",
+						pSiteId,
 						pSiteId,
 						qid.c_str(),
 						pSiteId,
