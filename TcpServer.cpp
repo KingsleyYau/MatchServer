@@ -818,33 +818,33 @@ void TcpServer::Recv_Callback(ev_io *w, int revents) {
 }
 
 
-void TcpServer::SendMessage(Message *m) {
-//	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
-//				"tid : %d, "
-//				"m->fd : [%d] "
-//				"ok"
-//				")",
-//				(int)syscall(SYS_gettid),
-//				m->fd
-//				);
-//
-//	/* push socket into send queue */
-//	mHandleSendMessageList.PushBack(m);
-//
-//	LockWatcherList();
-//	/* signal main thread to send resopne */
-//	ev_async_send(GetEvLoop(), &mAsync_send_watcher);
-//	UnLockWatcherList();
-//
-//	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
-//				"tid : %d, "
-//				"m->fd : [%d] "
-//				"end "
-//				")",
-//				(int)syscall(SYS_gettid),
-//				m->fd
-//				);
-}
+//void TcpServer::SendMessage(Message *m) {
+////	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
+////				"tid : %d, "
+////				"m->fd : [%d] "
+////				"ok"
+////				")",
+////				(int)syscall(SYS_gettid),
+////				m->fd
+////				);
+////
+////	/* push socket into send queue */
+////	mHandleSendMessageList.PushBack(m);
+////
+////	LockWatcherList();
+////	/* signal main thread to send resopne */
+////	ev_async_send(GetEvLoop(), &mAsync_send_watcher);
+////	UnLockWatcherList();
+////
+////	LogManager::GetLogManager()->Log(LOG_MSG, "TcpServer::SendMessage( "
+////				"tid : %d, "
+////				"m->fd : [%d] "
+////				"end "
+////				")",
+////				(int)syscall(SYS_gettid),
+////				m->fd
+////				);
+//}
 
 void TcpServer::SendMessageByQueue(Message *m) {
 	LogManager::GetLogManager()->Log(
@@ -1089,13 +1089,13 @@ MessageList *TcpServer::GetSendImmediatelyMessageList() {
 	return &mSendImmediatelyMessageList;
 }
 
-MessageList *TcpServer::GetHandleSendMessageList() {
-	return &mHandleSendMessageList;
-}
-
-MessageList* TcpServer::GetSendMessageList() {
-	return mpSendMessageList;
-}
+//MessageList *TcpServer::GetHandleSendMessageList() {
+//	return &mHandleSendMessageList;
+//}
+//
+//MessageList* TcpServer::GetSendMessageList() {
+//	return mpSendMessageList;
+//}
 
 WatcherList *TcpServer::GetWatcherList() {
 	return &mWatcherList;

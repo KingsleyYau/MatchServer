@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 	printf("############## client ############## \n");
 	Parse(argc, argv);
 	srand(time(0));
-	int i = 0;
+	int i = 1;
 	bool bFlag = true;
 	while( i < iTotal && bFlag ) {
 		bFlag = Connnect(i++);
@@ -68,52 +68,42 @@ bool Parse(int argc, char *argv[]) {
 }
 
 bool Send(int client, int r, int i) {
-	char msg[1024] = {'\0'};
 	char sendBuffer[2048] = {'\0'};
 	memset(sendBuffer, '\0', 2048);
-	sprintf(msg, "client : %d", i);
 
 	switch(r) {
 	case 0:{
-		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
+		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
 				"/QUERY_SAME_ANSWER_LADY_LIST?MANID=CM100&SITEID=1&LIMIT=30",
-				(int)strlen(msg),
-				"Keep-alive",
-				msg
+				"Keep-alive"
 				);
 		break;
 	}
 	case 1:{
-		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
+		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
 				"/QUERY_THE_SAME_QUESTION_LADY_LIST?QID=QA0&SITEID=1&LIMIT=30",
-				(int)strlen(msg),
-				"Keep-alive",
-				msg
+				"Keep-alive"
 				);
 		break;
 	}
 	case 2:{
-		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
+		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
 				"/QUERY_ANY_SAME_QUESTION_LADY_LIST?MANID=CM100&SITEID=1&LIMIT=30",
-				(int)strlen(msg),
-				"Keep-alive",
-				msg
+				"Keep-alive"
 				);
 		break;
 	}
 	case 3:{
-		snprintf(sendBuffer, 2048 - 1, "POST %s HTTP/1.0\r\nContent-Length: %d\r\nConection: %s\r\n\r\n%s",
+		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
 				"/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST?QIDS=QA0%2cQA2%2cQA3%2cQA4%2cQA5%2cQA6%2cQA7&SITEID=1&LIMIT=30",
-				(int)strlen(msg),
-				"Keep-alive",
-				msg
+				"Keep-alive"
 				);
 		break;
 	}
 	}
 
 	send(client, sendBuffer, strlen(sendBuffer), 0);
-	printf("# Send( fd : %d, client : %d, msg : \n%s\n) \n", client, i, sendBuffer);
+	printf("# Send( fd : %d, client : %d ) \n", client, i);
 }
 
 bool Connnect(int i) {
@@ -136,7 +126,7 @@ bool Connnect(int i) {
 
 	if( connect(mClient, (struct sockaddr *)&mAddr, sizeof(mAddr)) != -1 ) {
 		printf("# Connnect( connect ok fd : %d ) \n", mClient);
-		int r = rand() % 3;
+		int r = i % 4;
 		Send(mClient, r, i);
 //
 //		while( 1 ) {
@@ -154,7 +144,7 @@ bool Connnect(int i) {
 		return false;
 	}
 
-//	close(mClient);
+	close(mClient);
 	printf("# Connnect( exit ) \n");
 	return true;
 }

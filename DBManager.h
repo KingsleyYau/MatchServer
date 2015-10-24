@@ -45,6 +45,12 @@ typedef struct DBStruct {
 	int miSiteId;
 } DBSTRUCT;
 
+class DBManager;
+class DBManagerListener {
+public:
+	virtual ~DBManagerListener(){};
+	virtual void OnSyncFinish(DBManager* pDBManager) = 0;
+};
 class DBManager {
 public:
 	DBManager();
@@ -57,7 +63,7 @@ public:
 			int iDbOnlineCount,
 			bool addTestData = false
 			);
-//	bool InitSyncDataBase(const DBSTRUCT& dbQA, const DBSTRUCT* dbOnline, int iDbOnlineCount);
+	void SetDBManagerListener(DBManagerListener *pDBManagerListener);
 
 	bool Query(char* sql, char*** result, int* iRow, int* iColumn, int index = 0);
 	void FinishQuery(char** result);
@@ -75,6 +81,7 @@ public:
 	void HandleSyncDatabase();
 
 private:
+	DBManagerListener *mpDBManagerListener;
 	int miQueryIndex;
 	int miMaxMemoryCopy;
 	sqlite3** mdbs;

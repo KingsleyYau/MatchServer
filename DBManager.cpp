@@ -23,6 +23,8 @@ protected:
 
 DBManager::DBManager() {
 	// TODO Auto-generated constructor stub
+	mpDBManagerListener = NULL;
+
 	miQueryIndex = 0;
 	miMaxMemoryCopy = 1;
 
@@ -173,97 +175,9 @@ bool DBManager::Init(
 	return bFlag;
 }
 
-//bool DBManager::InitSyncDataBase(
-//		const DBSTRUCT& dbQA,
-//		const DBSTRUCT* dbOnline,
-//		int iDbOnlineCount
-//	        ) {
-//	printf("# DBManager synchronizing... \n");
-//
-//	bool bFlag = false;
-//
-//	bFlag = mDBSpool.SetConnection(dbQA.miMaxDatabaseThread);
-//	bFlag = bFlag && mDBSpool.SetDBparm(
-//			dbQA.mHost.c_str(),
-//			dbQA.mPort,
-//			dbQA.mDbName.c_str(),
-//			dbQA.mUser.c_str(),
-//			dbQA.mPasswd.c_str()
-//			);
-//	bFlag = bFlag && mDBSpool.Connect();
-//
-//	miDbOnlineCount = miDbOnlineCount > iDbOnlineCount?iDbOnlineCount:miDbOnlineCount;
-//
-//	LogManager::GetLogManager()->Log(
-//			LOG_STAT,
-//			"DBManager::InitSyncDataBase( "
-//			"dbQA.mHost : %s, "
-//			"dbQA.mPort : %d, "
-//			"dbQA.mDbName : %s, "
-//			"dbQA.mUser : %s, "
-//			"dbQA.mPasswd : %s, "
-//			"dbQA.miMaxDatabaseThread : %d, "
-//			"miDbOnlineCount : %d, "
-//			"bFlag : %s "
-//			")",
-//			dbQA.mHost.c_str(),
-//			dbQA.mPort,
-//			dbQA.mDbName.c_str(),
-//			dbQA.mUser.c_str(),
-//			dbQA.mPasswd.c_str(),
-//			dbQA.miMaxDatabaseThread,
-//			miDbOnlineCount,
-//			bFlag?"true":"false"
-//			);
-//
-//	for(int i = 0; i < iDbOnlineCount && bFlag; i++) {
-//		bFlag = mDBSpoolOnline[i].SetConnection(dbOnline[i].miMaxDatabaseThread);
-//		bFlag = bFlag && mDBSpoolOnline[i].SetDBparm(
-//				dbOnline[i].mHost.c_str(),
-//				dbOnline[i].mPort,
-//				dbOnline[i].mDbName.c_str(),
-//				dbOnline[i].mUser.c_str(),
-//				dbOnline[i].mPasswd.c_str()
-//				);
-//		bFlag = bFlag && mDBSpoolOnline[i].Connect();
-//
-//		LogManager::GetLogManager()->Log(
-//				LOG_STAT,
-//				"DBManager::InitSyncDataBase( "
-//				"dbOnline[%d].mHost : %s, "
-//				"dbOnline[%d].mPort : %d, "
-//				"dbOnline[%d].mDbName : %s, "
-//				"dbOnline[%d].mUser : %s, "
-//				"dbOnline[%d].mPasswd : %s, "
-//				"dbOnline[%d].miMaxDatabaseThread : %d "
-//				"bFlag : %s "
-//				")",
-//				i,
-//				dbOnline[i].mHost.c_str(),
-//				i,
-//				dbOnline[i].mPort,
-//				i,
-//				dbOnline[i].mDbName.c_str(),
-//				i,
-//				dbOnline[i].mUser.c_str(),
-//				i,
-//				dbOnline[i].mPasswd.c_str(),
-//				i,
-//				dbOnline[i].miMaxDatabaseThread,
-//				bFlag?"true":"false"
-//				);
-//	}
-//
-//	if( bFlag ) {
-//		SyncDataFromDataBase();
-//
-//		// Start sync thread
-//		mSyncThread.start(mpSyncRunnable);
-//	}
-//
-//	printf("# DBManager synchronizie OK. \n");
-//	return bFlag;
-//}
+void DBManager::SetDBManagerListener(DBManagerListener *pDBManagerListener) {
+	mpDBManagerListener = pDBManagerListener;
+}
 
 bool DBManager::Query(char* sql, char*** result, int* iRow, int* iColumn, int index) {
 	char *msg = NULL;
@@ -1399,28 +1313,39 @@ void DBManager::HandleSyncDatabase() {
 			mbSyncForce = false;
 			mSyncMutex.unlock();
 
-			SyncDataFromDataBase();
+			// 同步所有表
+//			SyncDataFromDataBase();
+			// 同步男士女士问题
+			SyncManAndLady();
 
-			i = 0;
+			if( mpDBManagerListener != NULL ) {
+				mpDBManagerListener->OnSyncFinish(this);
+			}
 		} else {
 			mSyncMutex.unlock();
 
 			if( i % miSyncOnlineTime == 0 ) {
 				// 同步在线女士
-				for(int i = 0; i < miDbOnlineCount; i++) {
-					SyncOnlineLady(i);
+				for(int j = 0; j < miDbOnlineCount; j++) {
+					SyncOnlineLady(j);
 				}
 			}
 
 			if( i % miSyncTime == 0 ) {
 				// 同步男士女士问题
 				SyncManAndLady();
+
+				if( mpDBManagerListener != NULL ) {
+					mpDBManagerListener->OnSyncFinish(this);
+				}
 			}
 
 			if( (i > miSyncOnlineTime) && (i > miSyncTime) ) {
 				i = 1;
 			}
+
 		}
+
 		i++;
 		sleep(1);
 	}

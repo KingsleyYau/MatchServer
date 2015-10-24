@@ -64,8 +64,7 @@ public:
 	/**
 	 * deprecated
 	 */
-	void SendMessage(Message *m);
-
+//	void SendMessage(Message *m);
 	void SendMessageByQueue(Message *m);
 	void SendMessageImmediately(Message *m);
 	void SendAllMessageImmediately();
@@ -80,8 +79,8 @@ public:
 	/**
 	 * deprecated
 	 */
-	MessageList* GetSendMessageList();
-	MessageList* GetHandleSendMessageList();
+//	MessageList* GetSendMessageList();
+//	MessageList* GetHandleSendMessageList();
 
 	WatcherList *GetWatcherList();
 	ev_io *GetAcceptWatcher();
