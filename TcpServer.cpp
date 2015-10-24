@@ -569,9 +569,11 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 					LOG_STAT,
 					"TcpServer::Accept_Callback( "
 					"tid : %d, "
+					"fd : [%d], "
 					"errno == EAGAIN ||errno == EWOULDBLOCK "
 					")",
-					(int)syscall(SYS_gettid)
+					(int)syscall(SYS_gettid),
+					w->fd
 					);
 			continue;
 		} else {
@@ -579,9 +581,11 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 					LOG_STAT,
 					"TcpServer::Accept_Callback( "
 					"tid : %d, "
+					"fd : [%d], "
 					"accept error "
 					")",
-					(int)syscall(SYS_gettid)
+					(int)syscall(SYS_gettid),
+					w->fd
 					);
 			break;
 		}
@@ -604,11 +608,11 @@ void TcpServer::Accept_Callback(ev_io *w, int revents) {
 	if( m == NULL ) {
 		LogManager::GetLogManager()->Log(LOG_WARNING, "TcpServer::Accept_Callback( "
 				"tid : %d, "
-				"fd : [%d], "
+				"accept client fd : [%d], "
 				"m == NULL "
 				")",
 				(int)syscall(SYS_gettid),
-				w->fd
+				client
 				);
 		OnDisconnect(client, NULL);
 		return;
@@ -1129,8 +1133,10 @@ void TcpServer::OnDisconnect(int fd, Message *m) {
 			fd
 			);
 
-	StopEvio(m->wr);
-	StopEvio(m->ww);
+	if( m != NULL ) {
+		StopEvio(m->wr);
+		StopEvio(m->ww);
+	}
 
 	if( mpTcpServerObserver != NULL ) {
 		mpTcpServerObserver->OnDisconnect(this, fd);

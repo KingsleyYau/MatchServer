@@ -106,6 +106,11 @@ private:
 	SyncMessageMap mWaitForSendMessageMap;
 	KMutex mWaitForSendMessageMapMutex;
 
+	/**
+	 * 配置文件锁
+	 */
+	KMutex mConfigMutex;
+
 	// BASE
 	short miPort;
 	int miMaxClient;
