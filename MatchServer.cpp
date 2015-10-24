@@ -552,6 +552,9 @@ void MatchServer::StateRunnableHandle() {
 
 int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 	int ret = -1;
+	int code = 200;
+	char reason[16] = {"OK"};
+	string param;
 
 	Json::FastWriter writer;
 	Json::Value rootSend;
@@ -601,6 +604,8 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 					}
 				}
 
+				param = writer.write(rootSend);
+
 			} else if( strcmp(pPath, "/QUERY_THE_SAME_QUESTION_LADY_LIST") == 0 ) {
 				// 2.获取跟男士有指定共同问题的女士Id列表接口(http get)
 				const char* pSiteId = dataHttpParser.GetParam("SITEID");
@@ -614,6 +619,8 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 						rootSend["womaninfo"] = womanListNode;
 					}
 				}
+
+				param = writer.write(rootSend);
 
 			} else if( strcmp(pPath, "/QUERY_ANY_SAME_QUESTION_LADY_LIST") == 0 ) {
 				// 3.获取跟男士有任意共同问题的女士Id列表接口(http get)
@@ -629,6 +636,8 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 					}
 				}
 
+				param = writer.write(rootSend);
+
 			} else if( strcmp(pPath, "/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST") == 0 ) {
 				// 4.获取回答过注册问题的在线女士Id列表接口(http get)
 				const char* pQIds = dataHttpParser.GetParam("QIDS");
@@ -643,7 +652,17 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 					}
 				}
 
+				param = writer.write(rootSend);
+
+			} else {
+				code = 404;
+				sprintf(reason, "Not Found");
+				param = "404 Not Found";
 			}
+		} else {
+			code = 404;
+			sprintf(reason, "Not Found");
+			param = "404 Not Found";
 		}
 	}
 
@@ -665,10 +684,12 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 //	rootSend["fd"] = m->fd;
 //	rootSend["iTotaltime"] = sm->totaltime;
 
-	string param = writer.write(rootSend);
-
-	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 200 ok\r\nContext-Length:%d\r\n\r\n%s",
-			(int)param.length(), param.c_str());
+	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 %d %s\r\nContext-Length:%d\r\n\r\n%s",
+			code,
+			reason,
+			(int)param.length(),
+			param.c_str()
+			);
 	sm->len = strlen(sm->buffer);
 
 	return ret;
@@ -724,6 +745,9 @@ int MatchServer::HandleTimeoutMessage(Message *m, Message *sm) {
 
 int MatchServer::HandleInsideRecvMessage(Message *m, Message *sm) {
 	int ret = -1;
+	int code = 200;
+	char reason[16] = {"OK"};
+	string param;
 
 	Json::FastWriter writer;
 	Json::Value rootSend, womanListNode, womanNode;
@@ -744,63 +768,83 @@ int MatchServer::HandleInsideRecvMessage(Message *m, Message *sm) {
 	}
 
 	if( ret == 1 ) {
+		ret = -1;
 		const char* pPath = dataHttpParser.GetPath();
+		HttpType type = dataHttpParser.GetType();
+
 		LogManager::GetLogManager()->Log(
 				LOG_MSG,
 				"MatchServer::HandleInsideRecvMessage( "
 				"tid : %d, "
 				"m->fd: [%d], "
+				"type : %d, "
 				"pPath : %s, "
 				"parse "
 				")",
 				(int)syscall(SYS_gettid),
 				m->fd,
+				type,
 				pPath
 				);
 
-		if( strcmp(pPath, "/SYNC") == 0 ) {
-			LogManager::GetLogManager()->Log(
-					LOG_MSG,
-					"MatchServer::HandleInsideRecvMessage( "
-					"tid : %d, "
-					"m->fd : [%d], "
-					"start "
-					")",
-					(int)syscall(SYS_gettid),
-					m->fd
-					);
+		if( type == GET ) {
+			if( strcmp(pPath, "/SYNC") == 0 ) {
+				LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"MatchServer::HandleInsideRecvMessage( "
+						"tid : %d, "
+						"m->fd : [%d], "
+						"start "
+						")",
+						(int)syscall(SYS_gettid),
+						m->fd
+						);
 
-			mWaitForSendMessageMapMutex.lock();
-			mWaitForSendMessageMap.insert(SyncMessageMap::value_type(m->fd, sm));
-			mWaitForSendMessageMapMutex.unlock();
+				mWaitForSendMessageMapMutex.lock();
+				mWaitForSendMessageMap.insert(SyncMessageMap::value_type(m->fd, sm));
+				mWaitForSendMessageMapMutex.unlock();
 
-			mDBManager.SyncForce();
+				mDBManager.SyncForce();
 
-			rootSend["ret"] = 1;
-			ret = 0;
-		} else if( strcmp(pPath, "/RELOAD") == 0 ) {
-			LogManager::GetLogManager()->Log(
-					LOG_MSG,
-					"MatchServer::HandleInsideRecvMessage( "
-					"tid : %d, "
-					"m->fd : [%d], "
-					"start "
-					")",
-					(int)syscall(SYS_gettid),
-					m->fd
-					);
-			Reload();
-			rootSend["ret"] = 1;
+				rootSend["ret"] = 1;
+				param = writer.write(rootSend);
+				ret = 0;
+			} else if( strcmp(pPath, "/RELOAD") == 0 ) {
+				LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"MatchServer::HandleInsideRecvMessage( "
+						"tid : %d, "
+						"m->fd : [%d], "
+						"start "
+						")",
+						(int)syscall(SYS_gettid),
+						m->fd
+						);
+				if( Reload()) {
+					rootSend["ret"] = 1;
+				} else {
+					rootSend["ret"] = 0;
+				}
+				param = writer.write(rootSend);
+				ret = 1;
+			} else {
+				code = 404;
+				sprintf(reason, "Not Found");
+				param = "404 Not Found";
+			}
 		} else {
-			ret = -1;
-			rootSend["ret"] = 0;
+			code = 404;
+			sprintf(reason, "Not Found");
+			param = "404 Not Found";
 		}
+
 	}
 
-	string param = writer.write(rootSend);
-
-	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 200 ok\r\nContext-Length:%d\r\n\r\n%s",
-			(int)param.length(), param.c_str()
+	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 %d %s\r\nContext-Length:%d\r\n\r\n%s",
+			code,
+			reason,
+			(int)param.length(),
+			param.c_str()
 			);
 	sm->len = strlen(sm->buffer);
 
