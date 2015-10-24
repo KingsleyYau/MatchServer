@@ -47,5 +47,5 @@ size_t MessageList::Size() {
 	pthread_rwlock_rdlock(&m_Lock);
 	size = m_Size;
 	pthread_rwlock_unlock(&m_Lock);
-	return m_Size;
+	return size;
 }

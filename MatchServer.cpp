@@ -330,7 +330,7 @@ void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
 	if( sm != NULL ) {
 		sm->fd = m->fd;
 		sm->wr = m->wr;
-		int ret;
+		int ret = -1;
 
 		if( &mClientTcpServer == ts ) {
 			// 外部服务请求
@@ -568,6 +568,8 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 		if( m->buffer != NULL ) {
 			ret = dataHttpParser.ParseData(m->buffer);
 		}
+	} else {
+		param = writer.write(rootSend);
 	}
 
 	if( ret == 1 ) {
@@ -752,13 +754,11 @@ int MatchServer::HandleInsideRecvMessage(Message *m, Message *sm) {
 	Json::FastWriter writer;
 	Json::Value rootSend, womanListNode, womanNode;
 
-	unsigned int iHandleTime = 0;
-
 	if( m == NULL ) {
 		return ret;
+	} else {
+		param = writer.write(rootSend);
 	}
-
-	iHandleTime = GetTickCount();
 
 	DataHttpParser dataHttpParser;
 	if ( DiffGetTickCount(m->starttime, GetTickCount()) < miTimeout * 1000 ) {
@@ -1026,7 +1026,7 @@ bool MatchServer::QuerySameAnswerLadyList(
 					for( int j = 1; j < iRow2 + 1; j++ ) {
 						// insert womanid
 						womanid = result2[j * iColumn2];
-						if( womanidMap.size() < iMax ) {
+						if( (int)womanidMap.size() < iMax ) {
 							// 结果集合还不够iMax个女士, 插入
 							womanidMap.insert(map<string, int>::value_type(womanid, 0));
 						} else {
@@ -1036,7 +1036,7 @@ bool MatchServer::QuerySameAnswerLadyList(
 					}
 
 					// 标记为已经获取够iMax个女士
-					if( womanidMap.size() >= iMax ) {
+					if( (int)womanidMap.size() >= iMax ) {
 						LogManager::GetLogManager()->Log(
 								LOG_STAT,
 								"MatchServer::QuerySameAnswerLadyList( "
@@ -1510,7 +1510,7 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 					for( int j = 1; j < iRow2 + 1; j++ ) {
 						// insert womanid
 						womanid = result2[j * iColumn2];
-						if( womanidMap.size() < iMax ) {
+						if( (int)womanidMap.size() < iMax ) {
 							// 结果集合还不够iMax个女士, 插入
 							womanidMap.insert(map<string, int>::value_type(womanid, 0));
 						} else {
@@ -1520,7 +1520,7 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 					}
 
 					// 标记为已经获取够iMax个女士
-					if( womanidMap.size() >= iMax ) {
+					if( (int)womanidMap.size() >= iMax ) {
 						LogManager::GetLogManager()->Log(
 								LOG_STAT,
 								"MatchServer::QueryAnySameQuestionLadyList( "
@@ -1757,7 +1757,7 @@ bool MatchServer::QueryAnySameQuestionOnlineLadyList(
 					}
 
 					// 标记为已经获取够iMax个女士
-					if( womanidMap.size() >= iMax ) {
+					if( (int)womanidMap.size() >= iMax ) {
 						LogManager::GetLogManager()->Log(
 								LOG_STAT,
 								"MatchServer::QueryAnySameQuestionOnlineLadyList( "

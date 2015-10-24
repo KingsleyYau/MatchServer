@@ -115,7 +115,7 @@ private:
 	/**
 	 * 请求超时(秒)
 	 */
-	int miTimeout;
+	unsigned int miTimeout;
 
 	// DB
 	DBSTRUCT mDbQA;
