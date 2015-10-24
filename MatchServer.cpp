@@ -425,10 +425,15 @@ void MatchServer::OnTimeoutMessage(TcpServer *ts, Message *m) {
  * OnDisconnect
  */
 void MatchServer::OnDisconnect(TcpServer *ts, int fd) {
-//	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnDisconnect( tid: %d, fd : [%d] )", (int)syscall(SYS_gettid), fd);
-	mWaitForSendMessageMapMutex.lock();
-	mWaitForSendMessageMap.erase(fd);
-	mWaitForSendMessageMapMutex.unlock();
+	if( ts == &mClientTcpInsideServer ) {
+		mWaitForSendMessageMapMutex.lock();
+		SyncMessageMap::iterator itr = mWaitForSendMessageMap.find(fd);
+		if( itr != mWaitForSendMessageMap.end() ) {
+			ts->GetIdleMessageList()->PushBack(itr->second);
+			mWaitForSendMessageMap.erase(itr);
+		}
+		mWaitForSendMessageMapMutex.unlock();
+	}
 }
 
 /* callback by DBManager */
