@@ -1,7 +1,7 @@
 /*
  * server.cpp
  *
- *  Created on: 2015-1-14
+ *  Created on: 2015-9-28
  *      Author: Max.Chiu
  *      Email: Kingsleyyau@gmail.com
  */
@@ -17,13 +17,15 @@ using namespace std;
 
 #include "MatchServer.h"
 
+#define VERSION_STRING "Version : 1.0.1"
+
 string sConf = "";  // 配置文件
 
 bool Parse(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
 	printf("############## Match Server ############## \n");
-	printf("# Version : 1.0.0 \n");
+	printf("# %s \n", VERSION_STRING);
 	printf("# Build date : %s %s \n", __DATE__, __TIME__ );
 
 	srand(time(0));

@@ -165,7 +165,7 @@ void MatchServer::Run() {
 	/* inside server */
 	mClientTcpInsideServer.SetTcpServerObserver(this);
 	mClientTcpInsideServer.SetHandleSize(1000);
-	mClientTcpInsideServer.Start(20, miPort + 1, 1);
+	mClientTcpInsideServer.Start(1000, miPort + 1, 2);
 	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( Inside TcpServer Init OK )");
 
 	/* match server */
