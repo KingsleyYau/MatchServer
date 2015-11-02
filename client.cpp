@@ -72,41 +72,41 @@ bool Send(int client, int r, int i) {
 	char sendBuffer[2048] = {'\0'};
 	memset(sendBuffer, '\0', 2048);
 
-//	switch(r) {
-//	case 0:{
-//		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
-//				"/QUERY_SAME_ANSWER_LADY_LIST?MANID=CM100&SITEID=1&LIMIT=30",
-//				"Keep-alive"
-//				);
-//		break;
-//	}
-//	case 1:{
-//		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
-//				"/QUERY_THE_SAME_QUESTION_LADY_LIST?QID=QA0&SITEID=1&LIMIT=30",
-//				"Keep-alive"
-//				);
-//		break;
-//	}
-//	case 2:{
-//		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
-//				"/QUERY_ANY_SAME_QUESTION_LADY_LIST?MANID=CM100&SITEID=1&LIMIT=30",
-//				"Keep-alive"
-//				);
-//		break;
-//	}
-//	case 3:{
-//		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
-//				"/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST?QIDS=QA0%2cQA2%2cQA3%2cQA4%2cQA5%2cQA6%2cQA7&SITEID=1&LIMIT=30",
-//				"Keep-alive"
-//				);
-//		break;
-//	}
-//	}
+	switch(r) {
+	case 0:{
+		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
+				"/QUERY_SAME_ANSWER_LADY_LIST?MANID=CM100&SITEID=1&LIMIT=30",
+				"Keep-alive"
+				);
+		break;
+	}
+	case 1:{
+		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
+				"/QUERY_THE_SAME_QUESTION_LADY_LIST?QID=QA0&SITEID=1&LIMIT=30",
+				"Keep-alive"
+				);
+		break;
+	}
+	case 2:{
+		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
+				"/QUERY_ANY_SAME_QUESTION_LADY_LIST?MANID=CM100&SITEID=1&LIMIT=30",
+				"Keep-alive"
+				);
+		break;
+	}
+	case 3:{
+		snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
+				"/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST?QIDS=QA0%2cQA2%2cQA3%2cQA4%2cQA5%2cQA6%2cQA7&SITEID=1&LIMIT=30",
+				"Keep-alive"
+				);
+		break;
+	}
+	}
 
-	snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
-			"/SYNC",
-			"Keep-alive"
-			);
+//	snprintf(sendBuffer, 2048 - 1, "GET %s HTTP/1.0\r\nConection: %s\r\n\r\n",
+//			"/SYNC",
+//			"Keep-alive"
+//			);
 
 	send(client, sendBuffer, strlen(sendBuffer), 0);
 	printf("# Send( fd : %d, client : %d ) \n", client, i);

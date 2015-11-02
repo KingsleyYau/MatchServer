@@ -17,7 +17,7 @@ public:
 	virtual ~DataParser();
 
 	void SetParseData(IDataParser *parser);
-	virtual int ParseData(char* buffer);
+	virtual int ParseData(char* buffer, int len);
 
 private:
 	IDataParser *mParser;

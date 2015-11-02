@@ -7,7 +7,6 @@
  */
 
 #include "MatchServer.h"
-#include "DataHttpParser.h"
 #include "TimeProc.hpp"
 
 #include <sys/syscall.h>
@@ -181,7 +180,6 @@ void MatchServer::Run() {
 
 	mpStateThread = new KThread(mpStateRunnable);
 	if( mpStateThread->start() != 0 ) {
-//		printf("# Create state thread ok \n");
 	}
 
 	printf("# MatchServer start OK. \n");
@@ -343,16 +341,21 @@ void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
 					mHit++;
 				}
 				mCountMutex.unlock();
-			}
 
+				// Process finish, send respond
+				ts->SendMessageByQueue(sm);
+			} else {
+				// receive continue
+				ts->GetIdleMessageList()->PushBack(sm);
+			}
 		} else if( &mClientTcpInsideServer == ts ){
 			// 内部服务请求
 			ret = HandleInsideRecvMessage(m, sm);
-		}
 
-		if( ret != 0 ) {
-			// Process finish, send respond
-			ts->SendMessageByQueue(sm);
+			if( ret != 0 ) {
+				// Process finish, send respond
+				ts->SendMessageByQueue(sm);
+			}
 		}
 	} else {
 		LogManager::GetLogManager()->Log(
@@ -435,7 +438,15 @@ void MatchServer::OnDisconnect(TcpServer *ts, int fd) {
 		mWaitForSendMessageMapMutex.lock();
 		SyncMessageMap::iterator itr = mWaitForSendMessageMap.find(fd);
 		if( itr != mWaitForSendMessageMap.end() ) {
-
+			LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnDisconnect( "
+					"tid : %d, "
+					"fd : [%d], "
+					"erase message : %s "
+					")",
+					(int)syscall(SYS_gettid),
+					fd,
+					itr->second->buffer
+					);
 			ts->GetIdleMessageList()->PushBack(itr->second);
 			mWaitForSendMessageMap.erase(itr);
 		}
@@ -586,7 +597,7 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 	DataHttpParser dataHttpParser;
 	if ( DiffGetTickCount(m->starttime, GetTickCount()) < miTimeout * 1000 ) {
 		if( m->buffer != NULL ) {
-			ret = dataHttpParser.ParseData(m->buffer);
+			ret = dataHttpParser.ParseData(m->buffer, m->len);
 		}
 	} else {
 		param = writer.write(rootSend);
@@ -617,10 +628,11 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 				const char* pManId = dataHttpParser.GetParam("MANID");
 				const char* pSiteId = dataHttpParser.GetParam("SITEID");
 				const char* pLimit = dataHttpParser.GetParam("LIMIT");
+				long long iRegTime = atoll(dataHttpParser.GetParam("SUBMITTIME"));
 
 				if( (pManId != NULL) && (pSiteId != NULL) ) {
 					Json::Value womanListNode;
-					if( QuerySameAnswerLadyList(womanListNode, pManId, pSiteId, pLimit, m) ) {
+					if( QuerySameAnswerLadyList(womanListNode, pManId, pSiteId, pLimit, iRegTime, m) ) {
 						ret = 1;
 						rootSend["womaninfo"] = womanListNode;
 					}
@@ -629,7 +641,7 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 				param = writer.write(rootSend);
 
 			} else if( strcmp(pPath, "/QUERY_THE_SAME_QUESTION_LADY_LIST") == 0 ) {
-				// 2.获取跟男士有指定共同问题的女士Id列表接口(http get)
+				// 2.获取有指定共同问题的女士Id列表接口(http get)
 				const char* pSiteId = dataHttpParser.GetParam("SITEID");
 				const char* pQId = dataHttpParser.GetParam("QID");
 				const char* pLimit = dataHttpParser.GetParam("LIMIT");
@@ -645,7 +657,7 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 				param = writer.write(rootSend);
 
 			} else if( strcmp(pPath, "/QUERY_ANY_SAME_QUESTION_LADY_LIST") == 0 ) {
-				// 3.获取跟男士有任意共同问题的女士Id列表接口(http get)
+				// 3.获取有任意共同问题的女士Id列表接口(http get)
 				const char* pManId = dataHttpParser.GetParam("MANID");
 				const char* pSiteId = dataHttpParser.GetParam("SITEID");
 				const char* pLimit = dataHttpParser.GetParam("LIMIT");
@@ -660,7 +672,7 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 
 				param = writer.write(rootSend);
 
-			} else if( strcmp(pPath, "/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST") == 0 ) {
+			} else if( strcmp(pPath, "/QUERY_SAME_QUESTION_ONLINE_LADY_LIST") == 0 ) {
 				// 4.获取回答过注册问题的在线女士Id列表接口(http get)
 				const char* pQIds = dataHttpParser.GetParam("QIDS");
 				const char* pSiteId = dataHttpParser.GetParam("SITEID");
@@ -668,7 +680,7 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 
 				if( (pQIds != NULL) && (pSiteId != NULL) ) {
 					Json::Value womanListNode;
-					if( QueryAnySameQuestionOnlineLadyList(womanListNode, pQIds, pSiteId, pLimit, m) ) {
+					if( QuerySameQuestionOnlineLadyList(womanListNode, pQIds, pSiteId, pLimit, m) ) {
 						ret = 1;
 						rootSend["womaninfo"] = womanListNode;
 					}
@@ -676,6 +688,38 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 
 				param = writer.write(rootSend);
 
+			} else if( strcmp(pPath, "/QUERY_SAME_QUESTION_ANSWER_LADY_LIST") == 0 ) {
+				// 5.获取指定问题有共同答案的女士Id列表接口(http get)
+				const char* pQIds = dataHttpParser.GetParam("QIDS");
+				const char* pAIds = dataHttpParser.GetParam("AIDS");
+				const char* pSiteId = dataHttpParser.GetParam("SITEID");
+				const char* pLimit = dataHttpParser.GetParam("LIMIT");
+
+				if( (pQIds != NULL) && (pAIds != NULL) && (pSiteId != NULL) ) {
+					Json::Value womanListNode;
+					if( QuerySameQuestionAnswerLadyList(womanListNode, pQIds, pAIds, pSiteId, pLimit, m) ) {
+						ret = 1;
+						rootSend["womaninfo"] = womanListNode;
+					}
+				}
+
+				param = writer.write(rootSend);
+
+			} else if( strcmp(pPath, "/QUERY_SAME_QUESTION_LADY_LIST") == 0 ) {
+				// 6.获取回答过注册问题的女士Id列表接口(http get)
+				const char* pQIds = dataHttpParser.GetParam("QIDS");
+				const char* pSiteId = dataHttpParser.GetParam("SITEID");
+				const char* pLimit = dataHttpParser.GetParam("LIMIT");
+
+				if( (pQIds != NULL) && (pSiteId != NULL) ) {
+					Json::Value womanListNode;
+					if( QuerySameQuestionLadyList(womanListNode, pQIds, pSiteId, pLimit, m) ) {
+						ret = 1;
+						rootSend["womaninfo"] = womanListNode;
+					}
+				}
+
+				param = writer.write(rootSend);
 			} else {
 				code = 404;
 				sprintf(reason, "Not Found");
@@ -703,9 +747,6 @@ int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
 			ret
 			);
 
-//	rootSend["fd"] = m->fd;
-//	rootSend["iTotaltime"] = sm->totaltime;
-
 	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 %d %s\r\nContext-Length:%d\r\n\r\n%s",
 			code,
 			reason,
@@ -729,30 +770,16 @@ int MatchServer::HandleTimeoutMessage(Message *m, Message *sm) {
 		return ret;
 	}
 
-	iHandleTime = GetTickCount();
-
-	DataHttpParser dataHttpParser;
-	if( m->buffer != NULL ) {
-		ret = dataHttpParser.ParseData(m->buffer);
-	}
-
-	if( ret == 1 ) {
-
-	}
-
-	iHandleTime = GetTickCount() - iHandleTime;
 	sm->totaltime = GetTickCount() - m->starttime;
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
 			"MatchServer::HandleTimeoutMessage( "
 			"tid : %d, "
 			"m->fd: [%d], "
-			"iHandleTime : %u ms, "
 			"iTotaltime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
-			iHandleTime,
 			sm->totaltime
 			);
 
@@ -783,7 +810,7 @@ int MatchServer::HandleInsideRecvMessage(Message *m, Message *sm) {
 	DataHttpParser dataHttpParser;
 	if ( DiffGetTickCount(m->starttime, GetTickCount()) < miTimeout * 1000 ) {
 		if( m->buffer != NULL ) {
-			ret = dataHttpParser.ParseData(m->buffer);
+			ret = dataHttpParser.ParseData(m->buffer, m->len);
 		}
 	}
 
@@ -814,7 +841,7 @@ int MatchServer::HandleInsideRecvMessage(Message *m, Message *sm) {
 						"MatchServer::HandleInsideRecvMessage( "
 						"tid : %d, "
 						"m->fd : [%d], "
-						"start "
+						"SYNC "
 						")",
 						(int)syscall(SYS_gettid),
 						m->fd
@@ -835,7 +862,7 @@ int MatchServer::HandleInsideRecvMessage(Message *m, Message *sm) {
 						"MatchServer::HandleInsideRecvMessage( "
 						"tid : %d, "
 						"m->fd : [%d], "
-						"start "
+						"RELOAD "
 						")",
 						(int)syscall(SYS_gettid),
 						m->fd
@@ -879,6 +906,7 @@ bool MatchServer::QuerySameAnswerLadyList(
 		const char* pManId,
 		const char* pSiteId,
 		const char* pLimit,
+		long long iRegTime,
 		Message *m
 		) {
 	unsigned int iQueryTime = 0;
@@ -890,6 +918,9 @@ bool MatchServer::QuerySameAnswerLadyList(
 
 	int iQueryIndex = m->index;
 
+	time_t t;
+	long long unixTime = time(&t);
+
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
 			"MatchServer::QuerySameAnswerLadyList( "
@@ -897,28 +928,72 @@ bool MatchServer::QuerySameAnswerLadyList(
 			"m->fd: [%d], "
 			"manid : %s, "
 			"siteid : %s, "
-			"limit : %s "
+			"limit : %s, "
+			"iRegTime : %ld, "
+			"unixTime : %ld "
 			")",
 			(int)syscall(SYS_gettid),
 			m->fd,
 			pManId,
 			pSiteId,
-			pLimit
+			pLimit,
+			iRegTime,
+			unixTime
 			);
 
 	// 执行查询
 	char sql[1024] = {'\0'};
-	sprintf(sql, "SELECT qid, aid FROM mq_man_answer_%s WHERE manid = '%s';", pSiteId, pManId);
 
 	bool bResult = false;
 	char** result = NULL;
 	int iRow = 0;
 	int iColumn = 0;
 
+	int iManCount = 0;
+	long long iRegTimeout = unixTime - iRegTime;
+	sprintf(sql, "SELECT count(*) aid FROM mq_man_answer WHERE manid = '%s';", pManId);
+	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn, iQueryIndex);
+	if( bResult && result && iRow > 0 ) {
+		iManCount = atoi(result[1 * iColumn]);
+	}
+	mDBManager.FinishQuery(result);
+
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"MatchServer::QuerySameAnswerLadyList( "
+			"tid : %d, "
+			"m->fd: [%d], "
+			"iManCount : %d, "
+			"iRegTimeout : %lld "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd,
+			iManCount,
+			iRegTimeout
+			);
+	if( (iManCount == 0) && (iRegTimeout < (long long)miSyncTime * 60) ) {
+		LogManager::GetLogManager()->Log(
+				LOG_STAT,
+				"MatchServer::QuerySameAnswerLadyList( "
+				"tid : %d, "
+				"m->fd: [%d], "
+				"no man question and reg not timeout "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd,
+				iManCount,
+				iRegTimeout
+				);
+
+		// 同步
+		mDBManager.SyncManAndLady();
+	}
+
 	map<string, int> womanidMap;
 	map<string, int>::iterator itr;
 	string womanid;
 
+	sprintf(sql, "SELECT qid, aid FROM mq_man_answer WHERE manid = '%s';", pManId);
 	bResult = mDBManager.Query(sql, &result, &iRow, &iColumn, iQueryIndex);
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
@@ -1389,9 +1464,8 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 
 	// 执行查询
 	char sql[1024] = {'\0'};
-	sprintf(sql, "SELECT qid FROM mq_man_answer_%s "
+	sprintf(sql, "SELECT qid FROM mq_man_answer "
 			"WHERE manid = '%s';",
-			pSiteId,
 			pManId
 			);
 
@@ -1601,7 +1675,7 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 /**
  * 4.获取回答过注册问题的在线女士Id列表接口(http get)
  */
-bool MatchServer::QueryAnySameQuestionOnlineLadyList(
+bool MatchServer::QuerySameQuestionOnlineLadyList(
 		Json::Value& womanListNode,
 		const char* pQids,
 		const char* pSiteId,
@@ -1619,7 +1693,7 @@ bool MatchServer::QueryAnySameQuestionOnlineLadyList(
 
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
-			"MatchServer::QueryAnySameQuestionOnlineLadyList( "
+			"MatchServer::QuerySameQuestionOnlineLadyList( "
 			"tid : %d, "
 			"m->fd: [%d], "
 			"qids : %s, "
@@ -1694,7 +1768,7 @@ bool MatchServer::QueryAnySameQuestionOnlineLadyList(
 				iQueryTime = GetTickCount() - iQueryTime;
 				LogManager::GetLogManager()->Log(
 									LOG_STAT,
-									"MatchServer::QueryAnySameQuestionOnlineLadyList( "
+									"MatchServer::QuerySameQuestionOnlineLadyList( "
 									"tid : %d, "
 									"m->fd: [%d], "
 									"Count iQueryTime : %u ms, "
@@ -1741,7 +1815,7 @@ bool MatchServer::QueryAnySameQuestionOnlineLadyList(
 				iQueryTime = GetTickCount() - iQueryTime;
 				LogManager::GetLogManager()->Log(
 						LOG_STAT,
-						"MatchServer::QueryAnySameQuestionOnlineLadyList( "
+						"MatchServer::QuerySameQuestionOnlineLadyList( "
 						"tid : %d, "
 						"m->fd: [%d], "
 						"Query iQueryTime : %u ms, "
@@ -1780,7 +1854,7 @@ bool MatchServer::QueryAnySameQuestionOnlineLadyList(
 					if( (int)womanidMap.size() >= iMax ) {
 						LogManager::GetLogManager()->Log(
 								LOG_STAT,
-								"MatchServer::QueryAnySameQuestionOnlineLadyList( "
+								"MatchServer::QuerySameQuestionOnlineLadyList( "
 								"tid : %d, "
 								"m->fd: [%d], "
 								"womanidMap.size() >= %d break "
@@ -1820,7 +1894,567 @@ bool MatchServer::QueryAnySameQuestionOnlineLadyList(
 
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
-			"MatchServer::QueryAnySameQuestionOnlineLadyList( "
+			"MatchServer::QuerySameQuestionOnlineLadyList( "
+			"tid : %d, "
+			"m->fd: [%d], "
+			"bSleepAlready : %s, "
+			"iHandleTime : %u ms "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd,
+			bSleepAlready?"true":"false",
+			iHandleTime
+			);
+
+	return bResult;
+}
+
+/**
+ * 5.获取回答过注册问题有共同答案的女士Id列表接口(http get)
+ * @param pQids		问题Id列表(逗号隔开, 最多:7个)
+ * @param pAids		答案Id列表(逗号隔开, 最多:7个)
+ * @param pSiteId	当前站点Id
+ * @param pLimit	最大返回记录数目(默认:4, 最大:30)
+ */
+bool MatchServer::QuerySameQuestionAnswerLadyList(
+		Json::Value& womanListNode,
+		const char* pQids,
+		const char* pAids,
+		const char* pSiteId,
+		const char* pLimit,
+		Message *m
+		) {
+	unsigned int iQueryTime = 0;
+	unsigned int iSingleQueryTime = 0;
+	unsigned int iHandleTime = GetTickCount();
+	bool bSleepAlready = false;
+
+	Json::Value womanNode;
+
+	int iQueryIndex = m->index;
+
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"MatchServer::QuerySameQuestionAnswerLadyList( "
+			"tid : %d, "
+			"m->fd: [%d], "
+			"qids : %s, "
+			"aids : %s, "
+			"siteid : %s, "
+			"limit : %s "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd,
+			pQids,
+			pAids,
+			pSiteId,
+			pLimit
+			);
+
+	// 执行查询
+	char sql[1024] = {'\0'};
+
+	map<string, int> womanidMap;
+	map<string, int>::iterator itr;
+	string womanid;
+
+	bool bResult = false;
+	int iCount = 0;
+
+	if( pQids != NULL && pAids != NULL ) {
+		int iNum = 0;
+		int iMax = 0;
+		if( pLimit != NULL ) {
+			iMax = atoi(pLimit);
+		}
+
+		iMax = (iMax < 4)?4:iMax;
+		iMax = (iMax > 30)?30:iMax;
+
+		bool bEnougthLady = false;
+
+		string qpids = pQids;
+		qpids += ",";
+		string qid;
+
+		string aids = pAids;
+		aids += ",";
+		string aid;
+
+	    string::size_type posQid;
+	    string::size_type posAid;
+
+	    int i = 0;
+	    int j = 0;
+	    posQid = qpids.find(",", i);
+	    posAid = aids.find(",", j);
+
+		while( posQid != string::npos && posAid != string::npos && iCount < 7 ) {
+			iSingleQueryTime = GetTickCount();
+
+			qid = qpids.substr(i, posQid - i);
+			aid = aids.substr(j, posAid - j);
+
+			if(qid.length() > 2) {
+				qid = qid.substr(2, qid.length() - 2);
+			}
+
+			LogManager::GetLogManager()->Log(
+								LOG_STAT,
+								"MatchServer::QuerySameQuestionAnswerLadyList( "
+								"tid : %d, "
+								"m->fd: [%d], "
+								"qid : %s, "
+								"aid : %s "
+								")",
+								(int)syscall(SYS_gettid),
+								m->fd,
+								qid.c_str(),
+								aid.c_str()
+								);
+
+			if( !bEnougthLady ) {
+				// 查询当前问题相同答案的女士数量
+				char** result2 = NULL;
+				int iRow2;
+				int iColumn2;
+
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND aid = %s;",
+						pSiteId,
+						qid.c_str(),
+						aid.c_str()
+						);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				if( bResult && result2 && iRow2 > 0 ) {
+					iNum = atoi(result2[1 * iColumn2]);
+				}
+				mDBManager.FinishQuery(result2);
+
+				iQueryTime = GetTickCount() - iQueryTime;
+				LogManager::GetLogManager()->Log(
+									LOG_STAT,
+									"MatchServer::QuerySameQuestionAnswerLadyList( "
+									"tid : %d, "
+									"m->fd: [%d], "
+									"Count iQueryTime : %u m, "
+									"iQueryIndex : %d, "
+									"iNum : %d, "
+									"iMax : %d "
+									")",
+									(int)syscall(SYS_gettid),
+									m->fd,
+									iQueryTime,
+									iQueryIndex,
+									iNum,
+									iMax
+									);
+
+				/*
+				 * 查询当前问题相同答案的女士Id集合
+				 * 1.超过iMax个, 随机选取iMax个
+				 * 2.不够iMax个, 全部选择
+				 */
+				int iLadyIndex = 0;
+				int iLadyCount = 0;
+				if( iNum <= iMax ) {
+					iLadyCount = iNum;
+				} else {
+					iLadyCount = iMax;
+					iLadyIndex = (rand() % (iNum -iLadyCount));
+				}
+
+				sprintf(sql, "SELECT womanid FROM mq_woman_answer_%s "
+						"WHERE qid = %s AND aid = %s "
+						"LIMIT %d OFFSET %d;",
+						pSiteId,
+						qid.c_str(),
+						aid.c_str(),
+						iLadyCount,
+						iLadyIndex
+						);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				iQueryTime = GetTickCount() - iQueryTime;
+				LogManager::GetLogManager()->Log(
+									LOG_STAT,
+									"MatchServer::QuerySameQuestionAnswerLadyList( "
+									"tid : %d, "
+									"m->fd: [%d], "
+									"Query iQueryTime : %u ms, "
+									"iQueryIndex : %d, "
+									"iRow2 : %d, "
+									"iColumn2 : %d, "
+									"iLadyCount : %d, "
+									"iLadyIndex : %d, "
+									"womanidMap.size() : %d "
+									")",
+									(int)syscall(SYS_gettid),
+									m->fd,
+									iQueryTime,
+									iQueryIndex,
+									iRow2,
+									iColumn2,
+									iLadyCount,
+									iLadyIndex,
+									womanidMap.size()
+									);
+
+
+				if( bResult && result2 && iRow2 > 0 ) {
+					for( int j = 1; j < iRow2 + 1; j++ ) {
+						// insert womanid
+						womanid = result2[j * iColumn2];
+						if( (int)womanidMap.size() < iMax ) {
+							// 结果集合还不够iMax个女士, 插入
+							womanidMap.insert(map<string, int>::value_type(womanid, 0));
+						} else {
+							// 已满
+							break;
+						}
+					}
+
+					// 标记为已经获取够iMax个女士
+					if( (int)womanidMap.size() >= iMax ) {
+						LogManager::GetLogManager()->Log(
+								LOG_STAT,
+								"MatchServer::QuerySameQuestionAnswerLadyList( "
+								"tid : %d, "
+								"m->fd: [%d], "
+								"womanidMap.size() >= %d break "
+								")",
+								(int)syscall(SYS_gettid),
+								m->fd,
+								iMax
+								);
+						bEnougthLady = true;
+					}
+				}
+				mDBManager.FinishQuery(result2);
+			}
+
+			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
+			LogManager::GetLogManager()->Log(
+								LOG_STAT,
+								"MatchServer::QuerySameQuestionAnswerLadyList( "
+								"tid : %d, "
+								"m->fd: [%d], "
+								"Double Check iQueryTime : %u ms, "
+								"iQueryIndex : %d, "
+								"iSingleQueryTime : %u ms "
+								")",
+								(int)syscall(SYS_gettid),
+								m->fd,
+								iQueryTime,
+								iQueryIndex,
+								iSingleQueryTime
+								);
+
+			// 单词请求是否大于30ms
+			if( iSingleQueryTime > 30 ) {
+				bSleepAlready = true;
+				usleep(1000 * iSingleQueryTime);
+			}
+
+			i = posQid + 1;
+		    posQid = qpids.find(",", i);
+
+			j = posAid + 1;
+		    posAid = aids.find(",", j);
+
+			iCount++;
+		}
+
+		for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+			womanListNode.append(itr->first);
+		}
+
+	}
+
+	iSingleQueryTime = GetTickCount() - iHandleTime;
+	if( !bSleepAlready ) {
+		usleep(1000 * iSingleQueryTime);
+	}
+
+	iHandleTime =  GetTickCount() - iHandleTime;
+
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"MatchServer::QuerySameQuestionAnswerLadyList( "
+			"tid : %d, "
+			"m->fd: [%d], "
+			"bSleepAlready : %s, "
+			"iHandleTime : %u ms "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd,
+			bSleepAlready?"true":"false",
+			iHandleTime
+			);
+
+	return bResult;
+}
+
+/**
+ * 6.获取回答过注册问题有共同答案的女士Id列表接口(http get)
+ * @param pQids		问题Id列表(逗号隔开, 最多:7个)
+ * @param pSiteId	当前站点Id
+ * @param pLimit	最大返回记录数目(默认:4, 最大:30)
+ */
+bool MatchServer::QuerySameQuestionLadyList(
+		Json::Value& womanListNode,
+		const char* pQids,
+		const char* pSiteId,
+		const char* pLimit,
+		Message *m
+		) {
+	unsigned int iQueryTime = 0;
+	unsigned int iSingleQueryTime = 0;
+	unsigned int iHandleTime = GetTickCount();
+	bool bSleepAlready = false;
+
+	Json::Value womanNode;
+
+	int iQueryIndex = m->index;
+
+	LogManager::GetLogManager()->Log(
+			LOG_STAT,
+			"MatchServer::QuerySameQuestionLadyList( "
+			"tid : %d, "
+			"m->fd: [%d], "
+			"qids : %s, "
+			"siteid : %s, "
+			"limit : %s "
+			")",
+			(int)syscall(SYS_gettid),
+			m->fd,
+			pQids,
+			pSiteId,
+			pLimit
+			);
+
+	// 执行查询
+	char sql[1024] = {'\0'};
+
+	map<string, int> womanidMap;
+	map<string, int>::iterator itr;
+	string womanid;
+
+	bool bResult = false;
+	int iCount = 0;
+
+	if( pQids != NULL ) {
+		int iNum = 0;
+		int iMax = 0;
+		if( pLimit != NULL ) {
+			iMax = atoi(pLimit);
+		}
+
+		iMax = (iMax < 4)?4:iMax;
+		iMax = (iMax > 30)?30:iMax;
+
+		bool bEnougthLady = false;
+
+		string qpids = pQids;
+		qpids += ",";
+		string qid;
+
+	    string::size_type posQid;
+
+	    int i = 0;
+	    int j = 0;
+	    posQid = qpids.find(",", i);
+
+		while( posQid != string::npos && iCount < 7 ) {
+			iSingleQueryTime = GetTickCount();
+
+			qid = qpids.substr(i, posQid - i);
+
+			if(qid.length() > 2) {
+				qid = qid.substr(2, qid.length() - 2);
+			}
+
+			LogManager::GetLogManager()->Log(
+								LOG_STAT,
+								"MatchServer::QuerySameQuestionLadyList( "
+								"tid : %d, "
+								"m->fd: [%d], "
+								"qid : %s "
+								")",
+								(int)syscall(SYS_gettid),
+								m->fd,
+								qid.c_str()
+								);
+
+			if( !bEnougthLady ) {
+				char** result2 = NULL;
+				int iRow2;
+				int iColumn2;
+
+				sprintf(sql, "SELECT count(*) FROM mq_woman_answer_%s "
+						"WHERE qid = %s"
+						";",
+						pSiteId,
+						qid.c_str()
+						);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				if( bResult && result2 && iRow2 > 0 ) {
+					iNum = atoi(result2[1 * iColumn2]);
+				}
+				mDBManager.FinishQuery(result2);
+
+				iQueryTime = GetTickCount() - iQueryTime;
+				LogManager::GetLogManager()->Log(
+									LOG_STAT,
+									"MatchServer::QuerySameQuestionLadyList( "
+									"tid : %d, "
+									"m->fd: [%d], "
+									"Count iQueryTime : %u m, "
+									"iQueryIndex : %d, "
+									"iNum : %d, "
+									"iMax : %d "
+									")",
+									(int)syscall(SYS_gettid),
+									m->fd,
+									iQueryTime,
+									iQueryIndex,
+									iNum,
+									iMax
+									);
+
+				/*
+				 * 查询当前问题相同答案的女士Id集合
+				 * 1.超过iMax个, 随机选取iMax个
+				 * 2.不够iMax个, 全部选择
+				 */
+				int iLadyIndex = 0;
+				int iLadyCount = 0;
+				if( iNum <= iMax ) {
+					iLadyCount = iNum;
+				} else {
+					iLadyCount = iMax;
+					iLadyIndex = (rand() % (iNum -iLadyCount));
+				}
+
+				sprintf(sql, "SELECT womanid FROM mq_woman_answer_%s "
+						"WHERE qid = %s "
+						"LIMIT %d OFFSET %d;",
+						pSiteId,
+						qid.c_str(),
+						iLadyCount,
+						iLadyIndex
+						);
+
+				iQueryTime = GetTickCount();
+				bResult = mDBManager.Query(sql, &result2, &iRow2, &iColumn2, iQueryIndex);
+				iQueryTime = GetTickCount() - iQueryTime;
+				LogManager::GetLogManager()->Log(
+									LOG_STAT,
+									"MatchServer::QuerySameQuestionLadyList( "
+									"tid : %d, "
+									"m->fd: [%d], "
+									"Query iQueryTime : %u ms, "
+									"iQueryIndex : %d, "
+									"iRow2 : %d, "
+									"iColumn2 : %d, "
+									"iLadyCount : %d, "
+									"iLadyIndex : %d, "
+									"womanidMap.size() : %d "
+									")",
+									(int)syscall(SYS_gettid),
+									m->fd,
+									iQueryTime,
+									iQueryIndex,
+									iRow2,
+									iColumn2,
+									iLadyCount,
+									iLadyIndex,
+									womanidMap.size()
+									);
+
+
+				if( bResult && result2 && iRow2 > 0 ) {
+					for( int j = 1; j < iRow2 + 1; j++ ) {
+						// insert womanid
+						womanid = result2[j * iColumn2];
+						if( (int)womanidMap.size() < iMax ) {
+							// 结果集合还不够iMax个女士, 插入
+							womanidMap.insert(map<string, int>::value_type(womanid, 0));
+						} else {
+							// 已满
+							break;
+						}
+					}
+
+					// 标记为已经获取够iMax个女士
+					if( (int)womanidMap.size() >= iMax ) {
+						LogManager::GetLogManager()->Log(
+								LOG_STAT,
+								"MatchServer::QuerySameQuestionLadyList( "
+								"tid : %d, "
+								"m->fd: [%d], "
+								"womanidMap.size() >= %d break "
+								")",
+								(int)syscall(SYS_gettid),
+								m->fd,
+								iMax
+								);
+						bEnougthLady = true;
+					}
+				}
+				mDBManager.FinishQuery(result2);
+			}
+
+			iSingleQueryTime = GetTickCount() - iSingleQueryTime;
+			LogManager::GetLogManager()->Log(
+								LOG_STAT,
+								"MatchServer::QuerySameQuestionLadyList( "
+								"tid : %d, "
+								"m->fd: [%d], "
+								"Double Check iQueryTime : %u ms, "
+								"iQueryIndex : %d, "
+								"iSingleQueryTime : %u ms "
+								")",
+								(int)syscall(SYS_gettid),
+								m->fd,
+								iQueryTime,
+								iQueryIndex,
+								iSingleQueryTime
+								);
+
+			// 单词请求是否大于30ms
+			if( iSingleQueryTime > 30 ) {
+				bSleepAlready = true;
+				usleep(1000 * iSingleQueryTime);
+			}
+
+			i = posQid + 1;
+		    posQid = qpids.find(",", i);
+
+			iCount++;
+		}
+
+		for( itr = womanidMap.begin(); itr != womanidMap.end(); itr++ ) {
+			womanListNode.append(itr->first);
+		}
+
+	}
+
+	iSingleQueryTime = GetTickCount() - iHandleTime;
+	if( !bSleepAlready ) {
+		usleep(1000 * iSingleQueryTime);
+	}
+
+	iHandleTime =  GetTickCount() - iHandleTime;
+
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"MatchServer::QuerySameQuestionLadyList( "
 			"tid : %d, "
 			"m->fd: [%d], "
 			"bSleepAlready : %s, "

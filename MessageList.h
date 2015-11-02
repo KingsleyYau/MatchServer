@@ -1,7 +1,7 @@
 /*
  * MessageList.h
  *
- *  Created on: 2015-1-5
+ *  Created on: 2015-9-28
  *      Author: Max.Chiu
  *      Email: Kingsleyyau@gmail.com
  */

@@ -10,6 +10,7 @@
 
 #include "DataParser.h"
 #include "Arithmetic.hpp"
+#include "MessageList.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,19 +35,24 @@ public:
 	DataHttpParser();
 	virtual ~DataHttpParser();
 
-	int ParseData(char* buffer);
+	int ParseData(char* buffer, int len);
 
 	const char* GetParam(const char* key);
 	const char* GetPath();
 	HttpType GetType();
 
+	void Reset();
 private:
 	HttpType mHttpType;
 	int miContentLength;
 	Parameters mParameters;
 	string mPath;
 
-	void ParseFirstLine(char* buffer);
+	char mHeaderBuffer[MAXLEN + 1];
+	int mHeaderIndex;
+	bool mbReceiveHeaderFinish;
+
+	bool ParseFirstLine(char* buffer);
 	void ParseParameters(char* buffer);
 };
 

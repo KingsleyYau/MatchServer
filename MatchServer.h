@@ -13,6 +13,7 @@
 #include "TcpServer.h"
 #include "DBManager.h"
 #include "ConfFile.hpp"
+#include "DataHttpParser.h"
 #include "json/json.h"
 
 #include <map>
@@ -53,17 +54,25 @@ private:
 
 	/**
 	 * 1.获取跟男士有任意共同答案的问题的女士Id列表接口(http get)
+	 * @param pManId	男士Id
+	 * @param pSiteId	当前站点Id
+	 * @param pLimit	最大返回记录数目(默认:4, 最大:30)
+	 * @param iRegTime 	男士注册时间(UNIX TIMESTAMP)
 	 */
 	bool QuerySameAnswerLadyList(
 			Json::Value& womanListNode,
 			const char* pManId,
 			const char* pSiteId,
 			const char* pLimit,
+			long long iRegTime,
 			Message *m
 			);
 
 	/**
-	 * 2.获取跟男士有指定共同问题的女士Id列表接口(http get)
+	 * 2.获取有指定共同问题的女士Id列表接口(http get)
+	 * @param pQid		问题Id
+	 * @param pSiteId	当前站点Id
+	 * @param pLimit	最大返回记录数目(默认:4, 最大:30)
 	 */
 	bool QueryTheSameQuestionLadyList(
 			Json::Value& womanListNode,
@@ -74,7 +83,10 @@ private:
 			);
 
 	/**
-	 * 3.获取跟男士有任意共同问题的女士Id列表接口(http get)
+	 * 3.获取有任意共同问题的女士Id列表接口(http get)
+	 * @param pManId	男士Id
+	 * @param pSiteId	当前站点Id
+	 * @param pLimit	最大返回记录数目(默认:4, 最大:30)
 	 */
 	bool QueryAnySameQuestionLadyList(
 			Json::Value& womanListNode,
@@ -86,8 +98,11 @@ private:
 
 	/**
 	 * 4.获取回答过注册问题的在线女士Id列表接口(http get)
+	 * @param pQids		问题Id列表(逗号隔开, 最多:7个)
+	 * @param pSiteId	当前站点Id
+	 * @param pLimit	最大返回记录数目(默认:4, 最大:30)
 	 */
-	bool QueryAnySameQuestionOnlineLadyList(
+	bool QuerySameQuestionOnlineLadyList(
 			Json::Value& womanListNode,
 			const char* pQids,
 			const char* pSiteId,
@@ -95,6 +110,35 @@ private:
 			Message *m
 			);
 
+	/**
+	 * 5.获取回答过注册问题有共同答案的女士Id列表接口(http get)
+	 * @param pQids		问题Id列表(逗号隔开, 最多:7个)
+	 * @param pAids		答案Id列表(逗号隔开, 最多:7个)
+	 * @param pSiteId	当前站点Id
+	 * @param pLimit	最大返回记录数目(默认:4, 最大:30)
+	 */
+	bool QuerySameQuestionAnswerLadyList(
+			Json::Value& womanListNode,
+			const char* pQids,
+			const char* pAids,
+			const char* pSiteId,
+			const char* pLimit,
+			Message *m
+			);
+
+	/**
+	 * 6.获取回答过注册问题有共同答案的女士Id列表接口(http get)
+	 * @param pQids		问题Id列表(逗号隔开, 最多:7个)
+	 * @param pSiteId	当前站点Id
+	 * @param pLimit	最大返回记录数目(默认:4, 最大:30)
+	 */
+	bool QuerySameQuestionLadyList(
+			Json::Value& womanListNode,
+			const char* pQids,
+			const char* pSiteId,
+			const char* pLimit,
+			Message *m
+			);
 
 	TcpServer mClientTcpServer;
 	TcpServer mClientTcpInsideServer;
@@ -162,7 +206,6 @@ private:
 	 * 监听线程输出间隔
 	 */
 	unsigned int miStateTime;
-
 };
 
 #endif /* MatchServer_H_ */

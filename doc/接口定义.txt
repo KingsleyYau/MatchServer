@@ -17,10 +17,11 @@
 1.获取跟男士有任意共同答案的问题的女士Id列表接口(http get)
 路径		http://127.0.0.1:9876/QUERY_SAME_ANSWER_LADY_LIST
 参数
-MANID		男士Id
-SITEID	当前站点Id
-LIMIT		最大返回记录数目(默认:4, 最大:30)
-例子 http://127.0.0.1:9876/QUERY_SAME_ANSWER_LADY_LIST?MANID=CM77236328&SITEID=1&LIMIT=4
+MANID				男士Id
+SUBMITTIME  男士注册时间(UNIX TIMESTAMP)
+SITEID			当前站点Id
+LIMIT				最大返回记录数目(默认:4, 最大:30)
+例子 http://127.0.0.1:9876/QUERY_SAME_ANSWER_LADY_LIST?MANID=M19&SUBMITTIME=1436749680&SITEID=0&LIMIT=4
 
 返回json
 {"womaninfo": [{"女士Id": 答案相同的问题数量}, ...}
@@ -51,7 +52,7 @@ LIMIT		最大返回记录数目(默认:4, 最大:30)
     "womaninfo": ["P202741", "P202827"]
 }
 
-3.获取跟男士有任意共同问题的女士Id列表接口(http get)
+3.获取有任意共同问题的女士Id列表接口(http get)
 路径		http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_LADY_LIST
 参数
 MANID		男士Id
@@ -67,14 +68,44 @@ LIMIT		最大返回记录数目(默认:4, 最大:30)
 }
 
 4.获取回答过注册问题的在线女士Id列表接口(http get)
-路径		http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_LADY_LIST
+路径		http://127.0.0.1:9876/QUERY_SAME_QUESTION_ONLINE_LADY_LIST
 参数
 
-QIDS		问题Id列表(逗号隔开, 最多;7个)
+QIDS		问题Id列表(逗号隔开, 最多:7个)
 SITEID	当前站点Id
 LIMIT		最大返回记录数目(默认:4, 最大:30)
-例子 http://127.0.0.1:9876/QUERY_ANY_SAME_QUESTION_ONLINE_LADY_LIST?QIDS=QA143105050495%2cQA143105062388%2cQA143105065917&SITEID=1&LIMIT=4
+例子 http://127.0.0.1:9876/QUERY_SAME_QUESTION_ONLINE_LADY_LIST?QIDS=QA143105050495,QA143105062388,QA143105065917&SITEID=1&LIMIT=4
 
+返回json
+{"womaninfo": ["女士Id", ...}
+例子json
+{
+    "womaninfo": ["P202741", "P202827"]
+}
+
+5.获取回答过注册问题且有共同答案的女士Id列表接口(http get)
+路径		http://127.0.0.1:9876/QUERY_SAME_QUESTION_ANSWER_LADY_LIST
+参数
+QIDS		问题Id列表(逗号隔开, 最多:7个)
+AIDS		答案Id列表(逗号隔开, 最多:7个)
+SITEID	当前站点Id
+LIMIT		最大返回记录数目(默认:4, 最大:30)
+例子 http://127.0.0.1:9876/QUERY_SAME_QUESTION_ANSWER_LADY_LIST?QIDS=QA143105050495,QA143105139965,QA143105065917,QA143105080420,QA143105071823&AIDS=1,1,1,1,1&SITEID=0&LIMIT=4
+返回json
+{"womaninfo": ["女士Id", ...}
+例子json
+{
+    "womaninfo": ["P202741", "P202827"]
+}
+
+
+6.获取回答过注册问题的女士Id列表接口(http get)
+路径		http://127.0.0.1:9876/QUERY_SAME_QUESTION_LADY_LIST
+参数
+QIDS		问题Id列表(逗号隔开, 最多:7个)
+SITEID	当前站点Id
+LIMIT		最大返回记录数目(默认:4, 最大:30)
+例子 http://127.0.0.1:9876/QUERY_SAME_QUESTION_LADY_LIST?QIDS=QA143105050495,QA143105139965,QA143105065917,QA143105080420,QA143105071823&SITEID=0&LIMIT=4
 返回json
 {"womaninfo": ["女士Id", ...}
 例子json

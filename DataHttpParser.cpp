@@ -9,57 +9,82 @@
 
 DataHttpParser::DataHttpParser() {
 	// TODO Auto-generated constructor stub
-	miContentLength = -1;
-	mHttpType = UNKNOW;
+	Reset();
 }
 
 DataHttpParser::~DataHttpParser() {
 	// TODO Auto-generated destructor stub
 }
 
-int DataHttpParser::ParseData(char* buffer) {
+void DataHttpParser::Reset() {
+	miContentLength = -1;
+	mHeaderIndex = 0;
+	mbReceiveHeaderFinish = false;
+	mHttpType = UNKNOW;
+}
+
+int DataHttpParser::ParseData(char* buffer, int len) {
 	char temp[16] = {'\0'};
-	int result = 1;
+	int result = 0;
 	int j = 0;
 	char* pParam = NULL;
-
-//	// find Body
-//	char *pBody = strstr(buffer, "\r\n\r\n");
-//	if( pBody != NULL ) {
-//		pBody += strlen("\r\n\r\n");
-//	}
 
 	// parse header
 	char *pFirst = NULL;
 	char*p = strtok_r(buffer, "\r\n", &pFirst);
 	while( p != NULL ) {
 		if( j == 0 ) {
-			ParseFirstLine(p);
+			if( ParseFirstLine(p) ) {
+				result = 1;
+			}
+
 			// only first line is useful
 			break;
-		} else {
-			if( (pParam = strstr(p, "Content-Length:")) != NULL ) {
-				int len = strlen("Content-Length:");
-				// find Content-Length
-				pParam += len;
-				if( pParam != NULL  ) {
-					memcpy(temp, pParam, strlen(p) - len);
-					miContentLength = atoi(temp);
-				}
-			}
 		}
 		j++;
 		p = strtok_r(NULL, "\r\n", &pFirst);
 	}
 
-//	if( pBody != NULL ) {
-//		if( pBody != NULL && miContentLength > 0 ) {
-//			if( pBody + miContentLength != NULL ) {
-//				*(pBody + miContentLength) = '\0';
-//				result = DataParser::ParseData(pBody);
+//	if( !mbReceiveHeaderFinish ) {
+//		int recvLen = (len < MAXLEN - mHeaderIndex)?len:MAXLEN - mHeaderIndex;
+//		if( recvLen > 0 ) {
+//			memcpy(mHeaderBuffer + mHeaderIndex, buffer, recvLen);
+//			mHeaderIndex += recvLen;
+//			mHeaderBuffer[mHeaderIndex + 1] = '\0';
+//
+//			// find Header Sep
+//			char *pBody = strstr(mHeaderBuffer, "\r\n\r\n");
+//			if( pBody != NULL ) {
+//				pBody += strlen("\r\n\r\n");
+//				mbReceiveHeaderFinish = true;
+//
+//				// parse header
+//				char *pFirst = NULL;
+//				char*p = strtok_r(mHeaderBuffer, "\r\n", &pFirst);
+//				while( p != NULL ) {
+//					if( j == 0 ) {
+//						ParseFirstLine(p);
+//						result = 1;
+//						// only first line is useful
+//						break;
+//					} else {
+//						if( (pParam = strstr(p, "Content-Length:")) != NULL ) {
+//							int len = strlen("Content-Length:");
+//							// find Content-Length
+//							pParam += len;
+//							if( pParam != NULL  ) {
+//								memcpy(temp, pParam, strlen(p) - len);
+//								miContentLength = atoi(temp);
+//							}
+//						}
+//					}
+//					j++;
+//					p = strtok_r(NULL, "\r\n", &pFirst);
+//				}
 //			}
 //		}
 //	}
+
 
 	return result;
 }
@@ -81,7 +106,8 @@ HttpType DataHttpParser::GetType() {
 	return mHttpType;
 }
 
-void DataHttpParser::ParseFirstLine(char* buffer) {
+bool DataHttpParser::ParseFirstLine(char* buffer) {
+	bool bFlag = true;
 	char temp[1024];
 	char* p = NULL;
 	int j = 0;
@@ -97,6 +123,9 @@ void DataHttpParser::ParseFirstLine(char* buffer) {
 				mHttpType = GET;
 			} else if( strcmp("POST", p) == 0 ) {
 				mHttpType = POST;
+			} else {
+				bFlag = false;
+				break;
 			}
 		}break;
 		case 1:{
@@ -124,6 +153,8 @@ void DataHttpParser::ParseFirstLine(char* buffer) {
 		j++;
 		p = strtok_r(NULL, " ", &pFirst);
 	}
+
+	return bFlag;
 }
 
 void DataHttpParser::ParseParameters(char* buffer) {

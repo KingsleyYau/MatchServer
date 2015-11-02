@@ -15,7 +15,7 @@ else
 CXXFLAGS =  -O3 
 endif
 
-CXXFLAGS +=	-O2 -g -Wall -fmessage-length=0 -Wunused-variable
+CXXFLAGS +=	-Wall -fmessage-length=0 -Wunused-variable
 CXXFLAGS +=	-I. -Isqlite -Ilibev -I/usr/include/mysql
 
 LIBS =		-L. \

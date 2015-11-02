@@ -13,7 +13,7 @@ public:
 	/*
 	 *	return : -1:error/0:continue/1:ok
 	 */
-	virtual int ParseData(char* buffer) = 0;
+	virtual int ParseData(char* buffer, int len) = 0;
 	virtual ~IDataParser(){};
 };
 

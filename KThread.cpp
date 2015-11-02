@@ -26,8 +26,10 @@ KThread::~KThread() {
 }
 
 void* KThread::thread_proc_func(void *args){
+	pthread_t threadId = 0;
 	KThread *pKThread = (KThread*)args;
 	if(pKThread){
+		threadId = pKThread->getThreadId();
 		pKThread->onRun();
 	}
 	return (void*)0;

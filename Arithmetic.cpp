@@ -177,7 +177,7 @@ int Arithmetic::Base64Decode(const char* data, int length, char* code)
     int i = 0;
 	int j = 0;
 	int l = length;
-	int k;
+	int k = 0;
 	
 	if (length == 0){
 		return 0;

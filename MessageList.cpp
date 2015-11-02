@@ -1,7 +1,7 @@
 /*
  * MessageList.cpp
  *
- *  Created on: 2015-1-5
+ *  Created on: 2015-9-28
  *      Author: Max.Chiu
  *      Email: Kingsleyyau@gmail.com
  */
@@ -47,5 +47,5 @@ size_t MessageList::Size() {
 	pthread_rwlock_rdlock(&m_Lock);
 	size = m_Size;
 	pthread_rwlock_unlock(&m_Lock);
-	return size;
+	return m_Size;
 }

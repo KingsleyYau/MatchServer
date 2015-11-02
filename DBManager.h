@@ -88,8 +88,9 @@ private:
 
 	int miLastManRecordId;
 	int miLastLadyRecordId;
-	long long miLastUpdateMan;
-	long long miLastUpdateLady;
+
+	string mLastUpdateMan;
+	string mLastUpdateLady;
 
 	int miSyncTime;
 	int miSyncOnlineTime;

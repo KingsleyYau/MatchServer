@@ -20,9 +20,9 @@ void DataParser::SetParseData(IDataParser *parser) {
 	mParser = parser;
 }
 
-int DataParser::ParseData(char* buffer) {
+int DataParser::ParseData(char* buffer, int len) {
 	if( mParser != NULL ) {
-		return mParser->ParseData(buffer);
+		return mParser->ParseData(buffer, len);
 	}
 	return 1;
 }
