@@ -302,8 +302,8 @@ void DBManager::SyncOnlineLady(int index) {
 					bool bFlag = InsertOnlineLadyFromDataBase(stmtOnlineLady[j], row, iFields);
 					if( !bFlag ) {
 						string value = "[";
-						for( int j = 0; j < iFields; j++ ) {
-							value += row[j];
+						for( int k = 0; k < iFields; k++ ) {
+							value += row[k];
 							value += ",";
 						}
 						if( value.length() > 1 ) {
@@ -445,8 +445,8 @@ void DBManager::SyncManAndLady() {
 					bool bFlag = InsertManFromDataBase(stmtMan[j], row, iFields);
 					if( !bFlag ) {
 						string value = "[";
-						for( int j = 0; j < iFields; j++ ) {
-							value += row[j];
+						for( int k = 0; k < iFields; k++ ) {
+							value += row[k];
 							value += ",";
 						}
 						if( value.length() > 1 ) {
@@ -568,8 +568,8 @@ void DBManager::SyncManAndLady() {
 						bool bFlag = InsertLadyFromDataBase(stmtLady[j * miDbOnlineCount + index], row, iFields);
 						if( !bFlag ) {
 							string value = "[";
-							for( int j = 0; j < iFields; j++ ) {
-								value += row[j];
+							for( int k = 0; k < iFields; k++ ) {
+								value += row[k];
 								value += ",";
 							}
 							if( value.length() > 1 ) {

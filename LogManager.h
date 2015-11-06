@@ -11,14 +11,16 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 #include <sys/syscall.h>
 
 #include "MessageList.h"
 #include "KThread.h"
-#include "KLog.h"
 #include "LogFile.hpp"
+
+#include <string>
+using namespace std;
 
 #define DiffGetTickCount(start, end)    ((start) <= (end) ? (end) - (start) : ((unsigned int)(-1)) - (start) + (end))
 
