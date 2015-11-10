@@ -8,11 +8,11 @@
 
 export MAKE	:=	make
 
-debug=1
-ifeq ($(debug), 1)
-CXXFLAGS =	-O2 -g
+release=0
+ifeq ($(release), 1)
+CXXFLAGS = -O3 
 else
-CXXFLAGS =  -O3 
+CXXFLAGS = -O2 -g
 endif
 
 CXXFLAGS +=	-Wall -fmessage-length=0 -Wunused-variable
