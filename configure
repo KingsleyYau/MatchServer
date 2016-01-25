@@ -9,6 +9,7 @@
 #
 
 cd sqlite &&
+autoreconf -ivf &&
 chmod +x configure &&
 ./configure &&
 cd ..
