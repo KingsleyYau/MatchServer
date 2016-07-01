@@ -18,6 +18,8 @@ class KSafeList {
 	typedef list<Value> SafeList;
 
 public:
+	typedef typename SafeList::iterator iterator;
+
 	KSafeList() {
 		pthread_rwlock_init(&mLock, NULL);
 		mSize = 0;
@@ -59,7 +61,29 @@ public:
 		pthread_rwlock_rdlock(&mLock);
 		size = mSize;
 		pthread_rwlock_unlock(&mLock);
-		return mSize;
+		return size;
+	}
+
+	void PopValueUnSafe(iterator itr) {
+		if( itr != mList.end() ) {
+			mList.erase(itr);
+		}
+	}
+
+	iterator Begin() {
+		return mList.begin();
+	}
+
+	iterator End() {
+		return mList.end();
+	}
+
+	void Lock() {
+		pthread_rwlock_wrlock(&mLock);
+	}
+
+	void Unlock() {
+		pthread_rwlock_unlock(&mLock);
 	}
 
 private:

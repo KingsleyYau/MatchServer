@@ -8,6 +8,13 @@
 #ifndef DBMANAGER_H_
 #define DBMANAGER_H_
 
+#include "LogManager.h"
+
+#include <common/TimeProc.hpp>
+#include <common/StringHandle.h>
+#include <common/KThread.h>
+#include <common/DBSpool.hpp>
+
 using namespace std;
 #include <string.h>
 
@@ -17,11 +24,6 @@ using namespace std;
 #include <stdlib.h>
 #include <sys/time.h>
 #include <unistd.h>
-
-#include "KThread.h"
-#include "DBSpool.hpp"
-#include "LogManager.h"
-#include "TimeProc.hpp"
 
 class SyncRunnable;
 
@@ -76,6 +78,7 @@ public:
 	void SyncDataFromDataBase();
 
 	void Status();
+	void CountStatus();
 
 	void SyncForce();
 	void HandleSyncDatabase();
@@ -95,7 +98,13 @@ private:
 	int miSyncTime;
 	int miSyncOnlineTime;
 	bool mbSyncForce;
-	KMutex mSyncMutex;
+	KMutex mSyncForceMutex;
+
+	/**
+	 * 数据库同步完成信号
+	 */
+	KCond mSyncCond;
+	bool mSyncAlready;
 
 	char* mpSqliteHeapBuffer;
 	char* mpSqlitePageBuffer;
@@ -111,6 +120,7 @@ private:
 	SyncRunnable* mpSyncRunnable;
 
 	bool CreateTable(sqlite3 *db);
+	bool CreateTableOnlineLady(sqlite3 *db);
 	bool DumpDB(sqlite3 *db);
 	bool InitTestData(sqlite3 *db);
 

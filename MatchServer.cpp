@@ -7,7 +7,7 @@
  */
 
 #include "MatchServer.h"
-#include "TimeProc.hpp"
+#include "DataHttpParser.h"
 
 #include <sys/syscall.h>
 
@@ -30,7 +30,36 @@ private:
 
 MatchServer::MatchServer() {
 	// TODO Auto-generated constructor stub
+	// 基本参数
+	miPort = 0;
+	miMaxClient = 0;
+	miMaxHandleThread = 0;
+	miMaxMemoryCopy = 0;
+	miMaxQueryPerThread = 0;
+	miTimeout = 0;
+
+	// 数据库参数
+	miSyncOnlineTime = 0;
+	miSyncTime = 0;
+	miOnlineDbCount = 0;
+
+	// 日志参数
+	miStateTime = 0;
+	miDebugMode = 0;
+	miLogLevel = 0;
+
+	// 统计参数
+	mTotal = 0;
+	mHit = 0;
+	mResponedTime = 0;
+	mHandleTime = 0;
+
+	// 其他
+	mIsRunning = false;
+
+	// 运行参数
 	mpStateRunnable = new StateRunnable(this);
+	mpStateThread = NULL;
 }
 
 MatchServer::~MatchServer() {
@@ -40,7 +69,7 @@ MatchServer::~MatchServer() {
 	}
 }
 
-void MatchServer::Run(const string& config) {
+bool MatchServer::Run(const string& config) {
 	if( config.length() > 0 ) {
 		mConfigFile = config;
 
@@ -52,22 +81,47 @@ void MatchServer::Run(const string& config) {
 				LogManager::LogSetFlushBuffer(5 * BUFFER_SIZE_1K * BUFFER_SIZE_1K);
 			}
 
-			Run();
+			return Run();
 		} else {
 			printf("# Match Server can not load config file exit. \n");
 		}
-
 	} else {
 		printf("# No config file can be use exit. \n");
 	}
+
+	return false;
 }
 
-void MatchServer::Run() {
+bool MatchServer::Run() {
 	/* log system */
 	LogManager::GetLogManager()->Start(1000, miLogLevel, mLogDir);
+
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_ERR_SYS,
 			"MatchServer::Run( "
+			"############## Match Server ############## "
+			")"
+			);
+	LogManager::GetLogManager()->Log(
+			LOG_ERR_SYS,
+			"MatchServer::Run( "
+			"Version : %s "
+			")",
+			VERSION_STRING
+			);
+	LogManager::GetLogManager()->Log(
+			LOG_ERR_SYS,
+			"MatchServer::Run( "
+			"Build date : %s %s "
+			")",
+			__DATE__,
+			__TIME__
+			);
+
+	LogManager::GetLogManager()->Log(
+			LOG_ERR_SYS,
+			"MatchServer::Run( "
+			"[启动, 初始化基本配置], "
 			"miPort : %d, "
 			"miMaxClient : %d, "
 			"miMaxMemoryCopy : %d, "
@@ -90,8 +144,9 @@ void MatchServer::Run() {
 			);
 
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_ERR_SYS,
 			"MatchServer::Run( "
+			"[启动, 初始化数据库配置], "
 			"mDbQA.mHost : %s, "
 			"mDbQA.mPort : %d, "
 			"mDbQA.mDbName : %s, "
@@ -111,8 +166,9 @@ void MatchServer::Run() {
 
 	for(int i = 0; i < miOnlineDbCount; i++) {
 		LogManager::GetLogManager()->Log(
-				LOG_MSG,
+				LOG_ERR_SYS,
 				"MatchServer::Run( "
+				"[启动, 初始化数据库配置], "
 				"mDbOnline[%d].mHost : %s, "
 				"mDbOnline[%d].mPort : %d, "
 				"mDbOnline[%d].mDbName : %s, "
@@ -140,9 +196,14 @@ void MatchServer::Run() {
 
 	bool bFlag = false;
 
-	mTotal = 0;
-	mHit = 0;
-	mResponed = 0;
+	/**
+	 * 客户端解析包缓存buffer
+	 */
+	for(int i = 0; i < miMaxClient; i++) {
+		/* create idle buffers */
+		Message *m = new Message();
+		mIdleMessageList.PushBack(m);
+	}
 
 	/* db manager */
 	mDBManager.SetDBManagerListener(this);
@@ -156,26 +217,25 @@ void MatchServer::Run() {
 
 	if( !bFlag ) {
 		printf("# Match Server can not initialize database exit. \n");
-		LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( Database Init fail )");
-		return;
+		LogManager::GetLogManager()->Log(LOG_ERR_SYS, "MatchServer::Run( [启动, 初始化数据库失败] )");
+		return false;
 	}
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( Database Init OK )");
 
-	/* inside server */
-	mClientTcpInsideServer.SetTcpServerObserver(this);
-	mClientTcpInsideServer.SetHandleSize(1000);
-	mClientTcpInsideServer.Start(1000, miPort + 1, 2);
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( Inside TcpServer Init OK )");
+	/* 外部服务(HTTP) */
+	mTcpServerPublic.SetTcpServerObserver(this);
+	mTcpServerPublic.SetHandleSize(1000);
+	mTcpServerPublic.Start(1000, miPort + 1, 2);
 
-	/* match server */
-	mClientTcpServer.SetTcpServerObserver(this);
 	/**
-	 * 预估相应时间,内存数目*超时间隔*每秒处理的任务
+	 * 内部服务(HTTP), 预估相应时间,内存数目*超时间隔*每秒处理的任务
 	 */
-	mClientTcpServer.SetHandleSize(miMaxMemoryCopy * miTimeout * miMaxQueryPerThread);
-	mClientTcpServer.Start(miMaxClient, miPort, miMaxHandleThread);
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::Run( TcpServer Init OK )");
+	mTcpServer.SetTcpServerObserver(this);
+	mTcpServer.SetHandleSize(miMaxMemoryCopy * miTimeout * miMaxQueryPerThread);
+	mTcpServer.Start(miMaxClient, miPort, miMaxHandleThread);
 
+	/**
+	 * Match Server
+	 */
 	mIsRunning = true;
 
 	mpStateThread = new KThread(mpStateRunnable);
@@ -183,13 +243,9 @@ void MatchServer::Run() {
 	}
 
 	printf("# MatchServer start OK. \n");
-	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( Init OK )");
+	LogManager::GetLogManager()->Log(LOG_WARNING, "MatchServer::Run( [启动, 成功] )");
 
-	/* call server */
-	while( true ) {
-		/* do nothing here */
-		sleep(5);
-	}
+	return true;
 }
 
 bool MatchServer::Reload() {
@@ -269,7 +325,7 @@ bool MatchServer::Reload() {
 			mDBManager.SetSyncTime(miSyncTime * 60);
 			mDBManager.SetSyncOnlineTime(miSyncOnlineTime * 60);
 
-			mClientTcpServer.SetHandleSize(miMaxMemoryCopy * miTimeout * miMaxQueryPerThread);
+			mTcpServer.SetHandleSize(miMaxMemoryCopy * miTimeout * miMaxQueryPerThread);
 
 			LogManager::GetLogManager()->Log(
 					LOG_WARNING,
@@ -306,191 +362,768 @@ bool MatchServer::IsRunning() {
 	return mIsRunning;
 }
 
-/**
- * New request
- */
-bool MatchServer::OnAccept(TcpServer *ts, Message *m) {
+bool MatchServer::OnAccept(TcpServer *ts, int fd, char* ip) {
+	Client *client = new Client();
+	client->SetClientCallback(this);
+	client->SetMessageList(&mIdleMessageList);
+	client->fd = fd;
+	client->ip = ip;
+	client->isOnline = true;
+
+	// 记录在线客户端
+	mClientMap.Lock();
+	mClientMap.Insert(fd, client);
+	mClientMap.Unlock();
+
+	if( ts == &mTcpServer ) {
+		// 统计请求
+		mCountMutex.lock();
+		mTotal++;
+		mCountMutex.unlock();
+
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::OnAccept( "
+				"tid : %d, "
+				"[内部服务(HTTP), 建立连接], "
+				"fd : [%d], "
+				"client : %p "
+				")",
+				(int)syscall(SYS_gettid),
+				fd,
+				client
+				);
+
+	} else if( &mTcpServerPublic == ts ) {
+		// 外部服务(HTTP)
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::OnAccept( "
+				"tid : %d, "
+				"[外部服务(HTTP), 建立连接], "
+				"fd : [%d], "
+				"client : %p "
+				")",
+				(int)syscall(SYS_gettid),
+				fd,
+				client
+				);
+	}
+
 	return true;
 }
 
-void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnRecvMessage( "
-			"tid : %d, "
-			"m->fd : [%d], "
-			"start "
-			")",
-			(int)syscall(SYS_gettid),
-			m->fd
-			);
-	Message *sm = ts->GetIdleMessageList()->PopFront();
-	if( sm != NULL ) {
-		sm->fd = m->fd;
-		sm->wr = m->wr;
-		int ret = -1;
+void MatchServer::OnDisconnect(TcpServer *ts, int fd) {
+	mClientMap.Lock();
+	ClientMap::iterator itr = mClientMap.Find(fd);
+	if( itr != mClientMap.End() ) {
+		Client* client = itr->second;
+		if( client != NULL ) {
+			client->isOnline = false;
 
-		if( &mClientTcpServer == ts ) {
-			// 外部服务请求
-			mCountMutex.lock();
-			mTotal++;
-			mCountMutex.unlock();
-			ret = HandleRecvMessage(m, sm);
-			if( 0 != ret ) {
-				mCountMutex.lock();
-				mResponed += sm->totaltime;
-				if( ret == 1 ) {
-					mHit++;
-				}
-				mCountMutex.unlock();
+			if( ts == &mTcpServer ) {
+				LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"MatchServer::OnDisconnect( "
+						"tid : %d, "
+						"[内部服务(HTTP), 断开连接, 找到对应连接], "
+						"fd : [%d], "
+						"client : %p "
+						")",
+						(int)syscall(SYS_gettid),
+						fd,
+						client
+						);
 
-				// Process finish, send respond
-				ts->SendMessageByQueue(sm);
-			} else {
-				// receive continue
-				ts->GetIdleMessageList()->PushBack(sm);
+			} else if( &mTcpServerPublic == ts ) {
+				LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"MatchServer::OnDisconnect( "
+						"tid : %d, "
+						"[外部服务(HTTP), 断开连接, 找到对应连接], "
+						"fd : [%d], "
+						"client : %p "
+						")",
+						(int)syscall(SYS_gettid),
+						fd,
+						client
+						);
+
 			}
-		} else if( &mClientTcpInsideServer == ts ){
-			// 内部服务请求
-			ret = HandleInsideRecvMessage(m, sm);
 
-			if( ret != 0 ) {
-				// Process finish, send respond
-				ts->SendMessageByQueue(sm);
+		} else {
+			if( ts == &mTcpServer ) {
+				LogManager::GetLogManager()->Log(
+						LOG_WARNING,
+						"MatchServer::OnDisconnect( "
+						"tid : %d, "
+						"[内部服务(HTTP), 断开连接, 找不到对应连接, client ==  NULL], "
+						"fd : [%d] "
+						")",
+						(int)syscall(SYS_gettid),
+						fd
+						);
+
+			} else if( &mTcpServerPublic == ts ) {
+				LogManager::GetLogManager()->Log(
+						LOG_WARNING,
+						"MatchServer::OnDisconnect( "
+						"tid : %d, "
+						"[外部服务(HTTP), 断开连接, 找不到对应连接, client ==  NULL], "
+						"fd : [%d] "
+						")",
+						(int)syscall(SYS_gettid),
+						fd
+						);
 			}
 		}
 	} else {
+		if( ts == &mTcpServer ) {
+			LogManager::GetLogManager()->Log(
+					LOG_WARNING,
+					"MatchServer::OnDisconnect( "
+					"tid : %d, "
+					"[内部服务(HTTP), 断开连接, 找不到对应连接], "
+					"fd : [%d] "
+					")",
+					(int)syscall(SYS_gettid),
+					fd
+					);
+
+		} else if( &mTcpServerPublic == ts ) {
+			LogManager::GetLogManager()->Log(
+					LOG_WARNING,
+					"MatchServer::OnDisconnect( "
+					"tid : %d, "
+					"[外部服务(HTTP), 断开连接, 找不到对应连接], "
+					"fd : [%d] "
+					")",
+					(int)syscall(SYS_gettid),
+					fd
+					);
+		}
+
+	}
+	mClientMap.Unlock();
+}
+
+void MatchServer::OnClose(TcpServer *ts, int fd) {
+	// 释放资源下线
+	mClientMap.Lock();
+	ClientMap::iterator itr = mClientMap.Find(fd);
+	if( itr != mClientMap.End() ) {
+		Client* client = itr->second;
+
+		if( client != NULL ) {
+			if( ts == &mTcpServer ) {
+				LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"MatchServer::OnClose( "
+						"tid : %d, "
+						"[内部服务(HTTP), 关闭socket, 找到对应连接], "
+						"fd : [%d], "
+						"client : %p "
+						")",
+						(int)syscall(SYS_gettid),
+						fd,
+						client
+						);
+
+			} else if( &mTcpServerPublic == ts ) {
+				LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"MatchServer::OnClose( "
+						"tid : %d, "
+						"[外部服务(HTTP), 关闭socket, 找到对应连接], "
+						"fd : [%d], "
+						"client : %p "
+						")",
+						(int)syscall(SYS_gettid),
+						fd,
+						client
+						);
+
+			}
+			delete client;
+
+		} else {
+			if( ts == &mTcpServer ) {
+				LogManager::GetLogManager()->Log(
+						LOG_WARNING,
+						"MatchServer::OnClose( "
+						"tid : %d, "
+						"[内部服务(HTTP), 关闭socket, 找不到对应连接, client ==  NULL], "
+						"fd : [%d] "
+						")",
+						(int)syscall(SYS_gettid),
+						fd
+						);
+
+			} else if( &mTcpServerPublic == ts ) {
+				LogManager::GetLogManager()->Log(
+						LOG_WARNING,
+						"MatchServer::OnClose( "
+						"tid : %d, "
+						"[外部服务(HTTP), 关闭socket, 找不到对应连接, client ==  NULL], "
+						"fd : [%d] "
+						")",
+						(int)syscall(SYS_gettid),
+						fd
+						);
+			}
+
+		}
+
+		mClientMap.Erase(itr);
+
+	} else {
+		if( ts == &mTcpServer ) {
+			LogManager::GetLogManager()->Log(
+					LOG_WARNING,
+					"MatchServer::OnClose( "
+					"tid : %d, "
+					"[内部服务(HTTP), 关闭socket, 找不到对应连接], "
+					"fd : [%d] "
+					")",
+					(int)syscall(SYS_gettid),
+					fd
+					);
+
+		} else if( &mTcpServerPublic == ts ) {
+			LogManager::GetLogManager()->Log(
+					LOG_WARNING,
+					"MatchServer::OnClose( "
+					"tid : %d, "
+					"[外部服务(HTTP), 关闭socket, 找不到对应连接], "
+					"fd : [%d] "
+					")",
+					(int)syscall(SYS_gettid),
+					fd
+					);
+		}
+
+	}
+	mClientMap.Unlock();
+
+}
+
+void MatchServer::OnRecvMessage(TcpServer *ts, Message *m) {
+	// 接收完成
+	if( &mTcpServer == ts ) {
+		// 内部服务(HTTP), 接收完成处理
 		LogManager::GetLogManager()->Log(
-				LOG_WARNING,
+				LOG_MSG,
 				"MatchServer::OnRecvMessage( "
 				"tid : %d, "
-				"m->fd : [%d], "
-				"No idle message can be use "
+				"[内部服务(HTTP), 收到数据], "
+				"fd : [%d], "
+				"len : %d "
 				")",
 				(int)syscall(SYS_gettid),
-				m->fd
+				m->fd,
+				m->len
 				);
-		// 断开连接
-		ts->Disconnect(m->fd);
+
+		TcpServerRecvMessageHandle(ts, m);
+
+	} else if( &mTcpServerPublic == ts ) {
+		// 外部服务(HTTP), 接收完成处理
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::OnRecvMessage( "
+				"tid : %d, "
+				"[外部服务(HTTP), 收到数据], "
+				"fd : [%d], "
+				"len : %d "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd,
+				m->len
+				);
+
+		TcpServerPublicRecvMessageHandle(ts, m);
 	}
-	LogManager::GetLogManager()->Log(
-			LOG_STAT,
-			"MatchServer::OnRecvMessage( "
-			"tid : %d, "
-			"m->fd : [%d], "
-			"end "
-			")",
-			(int)syscall(SYS_gettid),
-			m->fd
-			);
 }
 
 void MatchServer::OnSendMessage(TcpServer *ts, Message *m) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnSendMessage( tid : %d, m->fd : [%d], start )", (int)syscall(SYS_gettid), m->fd);
-	// 发送成功，断开连接
-	ts->Disconnect(m->fd);
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnSendMessage( tid : %d, m->fd : [%d], end )", (int)syscall(SYS_gettid), m->fd);
+	if( &mTcpServer == ts ) {
+		// 内部服务(HTTP)
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::OnSendMessage( "
+				"tid : %d, "
+				"[内部服务(HTTP), 发送数据], "
+				"fd : [%d], "
+				"len : %d "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd,
+				m->len
+				);
+
+	} else if( &mTcpServerPublic == ts ) {
+		// 外部服务(HTTP)
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::OnSendMessage( "
+				"tid : %d, "
+				"[外部服务(HTTP), 发送数据], "
+				"fd : [%d], "
+				"len : %d "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd,
+				m->len
+				);
+	}
+
+	// 发送完成
+	mClientMap.Lock();
+	ClientMap::iterator itr = mClientMap.Find(m->fd);
+	if( itr != mClientMap.End() ) {
+		Client* client = itr->second;
+		if( client != NULL ) {
+			client->AddSentPacket();
+			if( client->IsAllPacketSent() ) {
+				// 发送完成处理
+				ts->Disconnect(m->fd);
+			}
+		}
+	}
+	mClientMap.Unlock();
 }
 
 void MatchServer::OnTimeoutMessage(TcpServer *ts, Message *m) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnTimeoutMessage( tid : %d, m->fd : [%d], start )", (int)syscall(SYS_gettid), m->fd);
-	Message *sm = ts->GetIdleMessageList()->PopFront();
-	if( sm != NULL ) {
-		sm->fd = m->fd;
-		sm->wr = m->wr;
-
-		mCountMutex.lock();
-		mTotal++;
-		mResponed += sm->totaltime;
-		mCountMutex.unlock();
-
-		HandleTimeoutMessage(m, sm);
-		// Process finish, send respond
-		ts->SendMessageByQueue(sm);
-	} else {
+	// 接收超时
+	if( &mTcpServer == ts ) {
+		// 内部服务(HTTP)
 		LogManager::GetLogManager()->Log(
 				LOG_WARNING,
 				"MatchServer::OnTimeoutMessage( "
 				"tid : %d, "
-				"m->fd : [%d], "
-				"No idle message can be use "
+				"[内部服务(HTTP), 收到超时数据], "
+				"fd : [%d], "
+				"len : %d "
 				")",
 				(int)syscall(SYS_gettid),
-				m->fd
+				m->fd,
+				m->len
 				);
-		// 断开连接
+
+		TcpServerTimeoutMessageHandle(ts, m);
+
+	} else {
+		// 外部服务(HTTP)
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::OnTimeoutMessage( "
+				"tid : %d, "
+				"[外部服务(HTTP), 收到超时数据], "
+				"fd : [%d], "
+				"len : %d "
+				")",
+				(int)syscall(SYS_gettid),
+				m->fd,
+				m->len
+				);
+
+		TcpServerPublicTimeoutMessageHandle(ts, m);
+
+	}
+
+}
+
+void MatchServer::TcpServerRecvMessageHandle(TcpServer *ts, Message *m) {
+	int ret = 0;
+
+	if( m->buffer != NULL && m->len > 0 ) {
+		Client *client = NULL;
+
+		/**
+		 * 因为还有数据包处理队列中, TcpServer不会回调OnClose, 所以不怕client被释放
+		 * 放开锁就可以使多个client并发解数据包, 单个client解包只能同步解包, 在client内部加锁
+		 */
+		mClientMap.Lock();
+		ClientMap::iterator itr = mClientMap.Find(m->fd);
+		if( itr != mClientMap.End() ) {
+			client = itr->second;
+			mClientMap.Unlock();
+
+		} else {
+			mClientMap.Unlock();
+
+		}
+
+		if( client != NULL ) {
+			if ( DiffGetTickCount(m->starttime, GetTickCount()) < miTimeout * 1000 ) {
+				// 解析数据包
+				LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"MatchServer::TcpServerRecvMessageHandle( "
+						"tid : %d, "
+						"[内部服务(HTTP), 处理客户端请求], "
+						"fd : [%d], "
+						"buffer : [\n%s\n]"
+						")",
+						(int)syscall(SYS_gettid),
+						client->fd,
+						m->buffer
+						);
+
+				ret = client->ParseData(m);
+
+			} else {
+				// 超时不解析
+				LogManager::GetLogManager()->Log(
+						LOG_WARNING,
+						"MatchServer::TcpServerRecvMessageHandle( "
+						"tid : %d, "
+						"[内部服务(HTTP), 处理客户端请求, 超时不处理, 发送返回], "
+						"fd : [%d], "
+						"buffer : [\n%s\n]"
+						")",
+						(int)syscall(SYS_gettid),
+						client->fd,
+						m->buffer
+						);
+				client->starttime = m->starttime;
+
+				Json::Value root;
+				Json::Value womanListNode;
+				root["womaninfo"] = womanListNode;
+
+				// 发送返回
+				SendRespond2Client(&mTcpServer, client, root, false);
+			}
+		}
+	}
+
+	if( ret == -1 ) {
 		ts->Disconnect(m->fd);
 	}
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnTimeoutMessage( tid : %d, m->fd : [%d], end )", (int)syscall(SYS_gettid), m->fd);
 }
 
-/**
- * OnDisconnect
- */
-void MatchServer::OnDisconnect(TcpServer *ts, int fd) {
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnDisconnect( "
-			"tid : %d, "
-			"fd : [%d], "
-			"start "
-			")",
-			(int)syscall(SYS_gettid),
-			fd
-			);
-	if( ts == &mClientTcpInsideServer ) {
-		mWaitForSendMessageMapMutex.lock();
-		SyncMessageMap::iterator itr = mWaitForSendMessageMap.find(fd);
-		if( itr != mWaitForSendMessageMap.end() ) {
-			LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnDisconnect( "
+void MatchServer::TcpServerTimeoutMessageHandle(TcpServer *ts, Message *m) {
+	Client *client = NULL;
+
+	/**
+	 * 因为还有数据包处理队列中, TcpServer不会回调OnClose, 所以不怕client被释放
+	 * 放开锁就可以使多个client并发解数据包, 单个client解包只能同步解包, 在client内部加锁
+	 */
+	mClientMap.Lock();
+	ClientMap::iterator itr = mClientMap.Find(m->fd);
+	if( itr != mClientMap.End() ) {
+		client = itr->second;
+		mClientMap.Unlock();
+
+	} else {
+		mClientMap.Unlock();
+
+	}
+
+	if( client != NULL ) {
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::TcpServerRecvMessageHandle( "
+				"tid : %d, "
+				"[内部服务(HTTP), 处理客户端超时请求, 发送返回], "
+				"fd : [%d] "
+				")",
+				(int)syscall(SYS_gettid),
+				client->fd
+				);
+		client->starttime = m->starttime;
+
+		Json::Value root;
+		Json::Value womanListNode;
+		root["womaninfo"] = womanListNode;
+
+		// 发送返回
+		SendRespond2Client(&mTcpServer, client, root, false);
+	}
+}
+
+void MatchServer::TcpServerPublicRecvMessageHandle(TcpServer *ts, Message *m) {
+	int ret = 0;
+
+	if( m->buffer != NULL && m->len > 0 ) {
+		Client *client = NULL;
+
+		/**
+		 * 因为还有数据包处理队列中, TcpServer不会回调OnClose, 所以不怕client被释放
+		 * 放开锁就可以使多个client并发解数据包, 单个client解包只能同步解包, 在client内部加锁
+		 */
+		mClientMap.Lock();
+		ClientMap::iterator itr = mClientMap.Find(m->fd);
+		if( itr != mClientMap.End() ) {
+			client = itr->second;
+			mClientMap.Unlock();
+
+		} else {
+			mClientMap.Unlock();
+
+		}
+
+		if( client != NULL ) {
+			// 解析数据包
+			LogManager::GetLogManager()->Log(
+					LOG_MSG,
+					"MatchServer::TcpServerPublicRecvMessageHandle( "
 					"tid : %d, "
+					"[外部服务(HTTP), 处理客户端请求], "
 					"fd : [%d], "
-					"erase message : %s "
+					"buffer : [\n%s\n]"
 					")",
 					(int)syscall(SYS_gettid),
-					fd,
-					itr->second->buffer
+					client->fd,
+					m->buffer
 					);
-			ts->GetIdleMessageList()->PushBack(itr->second);
-			mWaitForSendMessageMap.erase(itr);
+
+			ret = client->ParseData(m);
 		}
-		mWaitForSendMessageMapMutex.unlock();
 	}
-	LogManager::GetLogManager()->Log(LOG_STAT, "MatchServer::OnDisconnect( "
-			"tid : %d, "
-			"fd : [%d], "
-			"end "
-			")",
-			(int)syscall(SYS_gettid),
-			fd
-			);
+
+	if( ret == -1 ) {
+		ts->Disconnect(m->fd);
+	}
 }
 
+void MatchServer::TcpServerPublicTimeoutMessageHandle(TcpServer *ts, Message *m) {
+}
+
+/***************************** 内部服务(HTTP)接口 **************************************/
+bool MatchServer::SendRespond2Client(
+		TcpServer *ts,
+		Client* client,
+		Json::Value& root,
+		bool success,
+		bool found
+		) {
+	bool bFlag = false;
+
+	if( &mTcpServer == ts ) {
+		// 统计请求
+		long long respondTime = GetTickCount() - client->starttime;
+		AddResopnd(success, respondTime);
+
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::SendRespond2Client( "
+				"tid : %d, "
+				"[内部服务(HTTP), 返回请求到客户端], "
+				"fd : [%d] "
+				")",
+				(int)syscall(SYS_gettid),
+				client->fd
+				);
+
+	} else if( &mTcpServerPublic == ts ) {
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::SendRespond2Client( "
+				"tid : %d, "
+				"[外部服务(HTTP), 返回请求到客户端], "
+				"fd : [%d] "
+				")",
+				(int)syscall(SYS_gettid),
+				client->fd
+				);
+	}
+
+	// 发送头部
+	Message* m = ts->GetIdleMessageList()->PopFront();
+	if( m != NULL ) {
+		client->AddSendingPacket();
+
+		m->fd = client->fd;
+		snprintf(
+				m->buffer,
+				MAX_BUFFER_LEN - 1,
+				"HTTP/1.1 %d %s\r\n"
+				"Connection:Keep-Alive\r\n"
+				"Content-Type:text/html; charset=utf-8\r\n"
+				"\r\n",
+				found?200:404,
+				found?"OK":"Not Found"
+				);
+		m->len = strlen(m->buffer);
+
+		if( &mTcpServer == ts ) {
+			LogManager::GetLogManager()->Log(
+					LOG_MSG,
+					"MatchServer::SendRespond2Client( "
+					"tid : %d, "
+					"[内部服务(HTTP), 返回请求头部到客户端], "
+					"fd : [%d], "
+					"buffer : [\n%s\n]"
+					")",
+					(int)syscall(SYS_gettid),
+					client->fd,
+					m->buffer
+					);
+
+		} else if( &mTcpServerPublic == ts ) {
+			LogManager::GetLogManager()->Log(
+					LOG_MSG,
+					"MatchServer::SendRespond2Client( "
+					"tid : %d, "
+					"[外部服务(HTTP), 返回请求头部到客户端], "
+					"fd : [%d], "
+					"buffer : [\n%s\n]"
+					")",
+					(int)syscall(SYS_gettid),
+					client->fd,
+					m->buffer
+					);
+		}
+
+		ts->SendMessageByQueue(m);
+	}
+
+//	if( respond != NULL ) {
+		// 发送内容
+		bool more = false;
+		while( true ) {
+			Message* m = ts->GetIdleMessageList()->PopFront();
+			if( m != NULL ) {
+				m->fd = client->fd;
+				client->AddSendingPacket();
+
+				string param;
+				Json::FastWriter writer;
+				param = writer.write(root);
+				m->len = param.length();
+				sprintf(m->buffer, "%s", param.c_str());
+
+				if( &mTcpServer == ts ) {
+					LogManager::GetLogManager()->Log(
+							LOG_WARNING,
+							"MatchServer::SendRespond2Client( "
+							"tid : %d, "
+							"[内部服务(HTTP), 返回请求内容到客户端], "
+							"fd : [%d], "
+							"buffer : [\n%s\n]"
+							")",
+							(int)syscall(SYS_gettid),
+							client->fd,
+							m->buffer
+							);
+
+				} else if( &mTcpServerPublic == ts ) {
+					LogManager::GetLogManager()->Log(
+							LOG_WARNING,
+							"MatchServer::SendRespond2Client( "
+							"tid : %d, "
+							"[外部服务(HTTP), 返回请求内容到客户端], "
+							"fd : [%d], "
+							"buffer : [\n%s\n]"
+							")",
+							(int)syscall(SYS_gettid),
+							client->fd,
+							m->buffer
+							);
+				}
+
+				ts->SendMessageByQueue(m);
+				if( !more ) {
+					// 全部发送完成
+					bFlag = true;
+					break;
+				}
+
+			} else {
+				break;
+			}
+		}
+//	}
+
+	if( &mTcpServer == ts ) {
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::SendRespond2Client( "
+				"tid : %d, "
+				"[内部服务(HTTP), 返回请求到客户端, 完成], "
+				"fd : [%d], "
+				"bFlag : %s "
+				")",
+				(int)syscall(SYS_gettid),
+				client->fd,
+				bFlag?"true":"false"
+				);
+
+	} else if( &mTcpServerPublic == ts ) {
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"MatchServer::SendRespond2Client( "
+				"tid : %d, "
+				"[外部服务(HTTP), 返回请求到客户端], "
+				"fd : [%d], "
+				"bFlag : %s "
+				")",
+				(int)syscall(SYS_gettid),
+				client->fd,
+				bFlag?"true":"false"
+				);
+	}
+
+	return bFlag;
+}
 /* callback by DBManager */
 void MatchServer::OnSyncFinish(DBManager* pDBManager) {
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_WARNING,
 			"MatchServer::OnSyncFinish( "
 			"tid : %d "
+			"[同步数据库记录完成] "
 			")",
 			(int)syscall(SYS_gettid)
 			);
 
-	mWaitForSendMessageMapMutex.lock();
-	for(SyncMessageMap::iterator itr = mWaitForSendMessageMap.begin(); itr != mWaitForSendMessageMap.end(); itr++){
-		mClientTcpInsideServer.SendMessageByQueue(itr->second);
+}
+
+void MatchServer::AddResopnd(bool hit, long long respondTime) {
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"MatchServer::AddResopnd( "
+			"tid : %d, "
+			"[内部服务(HTTP), 统计返回时间], "
+			"hit : %s, "
+			"respondTime : %lld ms "
+			")",
+			(int)syscall(SYS_gettid),
+			hit?"true":"false",
+			respondTime
+			);
+
+	// 统计请求
+	mCountMutex.lock();
+	mResponedTime += respondTime;
+	if( hit ) {
+		mHit++;
 	}
-	mWaitForSendMessageMap.clear();
-	mWaitForSendMessageMapMutex.unlock();
+	mCountMutex.unlock();
+}
+
+void MatchServer::AddHandleTime(long long time) {
+	// 统计处理时间
+	mCountMutex.lock();
+	mHandleTime += time;
+	mCountMutex.unlock();
 }
 
 void MatchServer::StateRunnableHandle() {
 	unsigned int iCount = 0;
-
+	// 请求总数
 	unsigned int iTotal = 0;
 	double iSecondTotal = 0;
-
+	// 处理总数
 	unsigned int iHit = 0;
 	double iSecondHit = 0;
-
-	double iResponed = 0;
-
+	// 响应时间
+	double iResponedTime = 0;
+	// 处理时间
+	double iHandleTime = 0;
+	// 统计时间
 	unsigned int iStateTime = miStateTime;
 
 	while( IsRunning() ) {
@@ -500,7 +1133,7 @@ void MatchServer::StateRunnableHandle() {
 			iCount = 0;
 			iSecondTotal = 0;
 			iSecondHit = 0;
-			iResponed = 0;
+			iResponedTime = 0;
 
 			mCountMutex.lock();
 			iTotal = mTotal;
@@ -511,69 +1144,41 @@ void MatchServer::StateRunnableHandle() {
 				iSecondHit = 1.0 * iHit / iStateTime;
 			}
 			if( iTotal != 0 ) {
-				iResponed = 1.0 * mResponed / iTotal;
+				iResponedTime = 1.0 * mResponedTime / iTotal;
+			}
+			if( iHit != 0 ) {
+				iHandleTime = 1.0 * mHandleTime / iHit;
 			}
 
 			mHit = 0;
 			mTotal = 0;
-			mResponed = 0;
+			mResponedTime = 0;
+			mHandleTime = 0;
 			mCountMutex.unlock();
 
-//			LogManager::GetLogManager()->Log(LOG_WARNING,
-//					"MatchServer::StateRunnable( tid : %d, TcpServer::GetIdleMessageList() : %d )",
-//					(int)syscall(SYS_gettid),
-//					(MessageList*) mClientTcpServer.GetIdleMessageList()->Size()
-//					);
-			LogManager::GetLogManager()->Log(LOG_WARNING,
-					"MatchServer::StateRunnable( tid : %d, TcpServer::GetHandleMessageList() : %d )",
-					(int)syscall(SYS_gettid),
-					(MessageList*) mClientTcpServer.GetHandleMessageList()->Size()
-					);
-			LogManager::GetLogManager()->Log(LOG_WARNING,
-					"MatchServer::StateRunnable( tid : %d, TcpServer::GetSendImmediatelyMessageList() : %d )",
-					(int)syscall(SYS_gettid),
-					(MessageList*) mClientTcpServer.GetSendImmediatelyMessageList()->Size()
-					);
-//			LogManager::GetLogManager()->Log(LOG_WARNING,
-//					"MatchServer::StateRunnable( tid : %d, TcpServer::GetWatcherList() : %d )",
-//					(int)syscall(SYS_gettid),
-//					(WatcherList*) mClientTcpServer.GetWatcherList()->Size()
-//					);
-			LogManager::GetLogManager()->Log(LOG_WARNING,
-					"MatchServer::StateRunnable( "
-					"tid : %d, "
-					"iTotal : %u, "
-					"iHit : %u, "
-					"iSecondTotal : %.1lf, "
-					"iSecondHit : %.1lf, "
-					"iResponed : %.1lf, "
-					"iStateTime : %u "
-					")",
-					(int)syscall(SYS_gettid),
-					iTotal,
-					iHit,
-					iSecondTotal,
-					iSecondHit,
-					iResponed,
-					iStateTime
-					);
-			LogManager::GetLogManager()->Log(LOG_WARNING,
-					"MatchServer::StateRunnable( "
+			LogManager::GetLogManager()->Log(
+					LOG_ERR_USER,
+					"MatchServer::StateRunnableHandle( "
 					"tid : %d, "
 					"过去%u秒共收到%u个请求, "
-					"成功处理%u个请求, "
 					"平均收到%.1lf个/秒, "
+					"成功处理%u个请求, "
 					"平均处理%.1lf个/秒, "
+					"平均处理时间%.1lf毫秒/个, "
 					"平均响应时间%.1lf毫秒/个"
 					")",
 					(int)syscall(SYS_gettid),
 					iStateTime,
 					iTotal,
-					iHit,
 					iSecondTotal,
+					iHit,
 					iSecondHit,
-					iResponed
+					iHandleTime,
+					iResponedTime
 					);
+
+			// 统计问题数目
+			mDBManager.CountStatus();
 
 			iStateTime = miStateTime;
 		}
@@ -581,325 +1186,266 @@ void MatchServer::StateRunnableHandle() {
 	}
 }
 
-int MatchServer::HandleRecvMessage(Message *m, Message *sm) {
-	int ret = -1;
-	int code = 200;
-	char reason[16] = {"OK"};
-	string param;
-
-	Json::FastWriter writer;
-	Json::Value rootSend;
-
-	if( m == NULL ) {
-		return ret;
-	}
-
-	DataHttpParser dataHttpParser;
-	if ( DiffGetTickCount(m->starttime, GetTickCount()) < miTimeout * 1000 ) {
-		if( m->buffer != NULL ) {
-			ret = dataHttpParser.ParseData(m->buffer, m->len);
-		}
-	} else {
-		param = writer.write(rootSend);
-	}
-
-	if( ret == 1 ) {
-		ret = -1;
-		const char* pPath = dataHttpParser.GetPath();
-		HttpType type = dataHttpParser.GetType();
-
-		LogManager::GetLogManager()->Log(
-				LOG_STAT,
-				"MatchServer::HandleRecvMessage( "
-				"tid : %d, "
-				"m->fd: [%d], "
-				"type : %d, "
-				"pPath : %s "
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd,
-				type,
-				pPath
-				);
-
-		if( type == GET ) {
-			if( strcmp(pPath, "/QUERY_SAME_ANSWER_LADY_LIST") == 0 ) {
-				// 1.获取跟男士有任意共同答案的问题的女士Id列表接口(http get)
-				const char* pManId = dataHttpParser.GetParam("MANID");
-				const char* pSiteId = dataHttpParser.GetParam("SITEID");
-				const char* pLimit = dataHttpParser.GetParam("LIMIT");
-				long long iRegTime = atoll(dataHttpParser.GetParam("SUBMITTIME"));
-
-				if( (pManId != NULL) && (pSiteId != NULL) ) {
-					Json::Value womanListNode;
-					if( QuerySameAnswerLadyList(womanListNode, pManId, pSiteId, pLimit, iRegTime, m) ) {
-						ret = 1;
-						rootSend["womaninfo"] = womanListNode;
-					}
-				}
-
-				param = writer.write(rootSend);
-
-			} else if( strcmp(pPath, "/QUERY_THE_SAME_QUESTION_LADY_LIST") == 0 ) {
-				// 2.获取有指定共同问题的女士Id列表接口(http get)
-				const char* pSiteId = dataHttpParser.GetParam("SITEID");
-				const char* pQId = dataHttpParser.GetParam("QID");
-				const char* pLimit = dataHttpParser.GetParam("LIMIT");
-
-				if( (pQId != NULL) && (pSiteId != NULL) ) {
-					Json::Value womanListNode;
-					if( QueryTheSameQuestionLadyList(womanListNode, pQId, pSiteId, pLimit, m) ) {
-						ret = 1;
-						rootSend["womaninfo"] = womanListNode;
-					}
-				}
-
-				param = writer.write(rootSend);
-
-			} else if( strcmp(pPath, "/QUERY_ANY_SAME_QUESTION_LADY_LIST") == 0 ) {
-				// 3.获取有任意共同问题的女士Id列表接口(http get)
-				const char* pManId = dataHttpParser.GetParam("MANID");
-				const char* pSiteId = dataHttpParser.GetParam("SITEID");
-				const char* pLimit = dataHttpParser.GetParam("LIMIT");
-
-				if( (pManId != NULL) && (pSiteId != NULL) ) {
-					Json::Value womanListNode;
-					if( QueryAnySameQuestionLadyList(womanListNode, pManId, pSiteId, pLimit, m) ) {
-						ret = 1;
-						rootSend["womaninfo"] = womanListNode;
-					}
-				}
-
-				param = writer.write(rootSend);
-
-			} else if( strcmp(pPath, "/QUERY_SAME_QUESTION_ONLINE_LADY_LIST") == 0 ) {
-				// 4.获取回答过注册问题的在线女士Id列表接口(http get)
-				const char* pQIds = dataHttpParser.GetParam("QIDS");
-				const char* pSiteId = dataHttpParser.GetParam("SITEID");
-				const char* pLimit = dataHttpParser.GetParam("LIMIT");
-
-				if( (pQIds != NULL) && (pSiteId != NULL) ) {
-					Json::Value womanListNode;
-					if( QuerySameQuestionOnlineLadyList(womanListNode, pQIds, pSiteId, pLimit, m) ) {
-						ret = 1;
-						rootSend["womaninfo"] = womanListNode;
-					}
-				}
-
-				param = writer.write(rootSend);
-
-			} else if( strcmp(pPath, "/QUERY_SAME_QUESTION_ANSWER_LADY_LIST") == 0 ) {
-				// 5.获取指定问题有共同答案的女士Id列表接口(http get)
-				const char* pQIds = dataHttpParser.GetParam("QIDS");
-				const char* pAIds = dataHttpParser.GetParam("AIDS");
-				const char* pSiteId = dataHttpParser.GetParam("SITEID");
-				const char* pLimit = dataHttpParser.GetParam("LIMIT");
-
-				if( (pQIds != NULL) && (pAIds != NULL) && (pSiteId != NULL) ) {
-					Json::Value womanListNode;
-					if( QuerySameQuestionAnswerLadyList(womanListNode, pQIds, pAIds, pSiteId, pLimit, m) ) {
-						ret = 1;
-						rootSend["womaninfo"] = womanListNode;
-					}
-				}
-
-				param = writer.write(rootSend);
-
-			} else if( strcmp(pPath, "/QUERY_SAME_QUESTION_LADY_LIST") == 0 ) {
-				// 6.获取回答过注册问题的女士Id列表接口(http get)
-				const char* pQIds = dataHttpParser.GetParam("QIDS");
-				const char* pSiteId = dataHttpParser.GetParam("SITEID");
-				const char* pLimit = dataHttpParser.GetParam("LIMIT");
-
-				if( (pQIds != NULL) && (pSiteId != NULL) ) {
-					Json::Value womanListNode;
-					if( QuerySameQuestionLadyList(womanListNode, pQIds, pSiteId, pLimit, m) ) {
-						ret = 1;
-						rootSend["womaninfo"] = womanListNode;
-					}
-				}
-
-				param = writer.write(rootSend);
-			} else {
-				code = 404;
-				sprintf(reason, "Not Found");
-				param = "404 Not Found";
-			}
-		} else {
-			code = 404;
-			sprintf(reason, "Not Found");
-			param = "404 Not Found";
-		}
-	}
-
-	sm->totaltime = GetTickCount() - m->starttime;
+/***************************** 内部服务(HTTP) 回调处理 **************************************/
+void MatchServer::OnClientQuerySameAnswerLadyList(
+		Client* client,
+		const char* pManId,
+		const char* pSiteId,
+		const char* pLimit,
+		long long iRegTime
+		) {
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
-			"MatchServer::HandleRecvMessage( "
+			LOG_WARNING,
+			"MatchServer::OnClientQuerySameAnswerLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
-			"iTotaltime : %u ms, "
-			"ret : %d "
+			"[内部服务(HTTP), 收到命令:获取跟男士有任意共同答案的问题的女士Id列表], "
+			"fd : [%d], "
+			"pManId : %s, "
+			"pSiteId : %s, "
+			"pLimit : %s, "
+			"iRegTime : %lld, "
+			"client->index : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
-			sm->totaltime,
-			ret
+			client->fd,
+			pManId,
+			pSiteId,
+			pLimit,
+			iRegTime,
+			client->index
 			);
 
-	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 %d %s\r\nContext-Length:%d\r\n\r\n%s",
-			code,
-			reason,
-			(int)param.length(),
-			param.c_str()
-			);
-	sm->len = strlen(sm->buffer);
+	Json::Value root;
+	Json::Value womanListNode;
+	if( (pManId != NULL) && strlen(pManId) > 0 && (pSiteId != NULL) && strlen(pSiteId) > 0 ) {
+		if( QuerySameAnswerLadyList(womanListNode, pManId, pSiteId, pLimit, iRegTime, client->index) ) {
 
-	return ret;
+		}
+	}
+	root["womaninfo"] = womanListNode;
+
+	// 发送返回
+	SendRespond2Client(&mTcpServer, client, root);
 }
 
-int MatchServer::HandleTimeoutMessage(Message *m, Message *sm) {
-	int ret = -1;
-
-	Json::FastWriter writer;
-	Json::Value rootSend, womanListNode, womanNode;
-
-	unsigned int iHandleTime = 0;
-
-	if( m == NULL ) {
-		return ret;
-	}
-
-	sm->totaltime = GetTickCount() - m->starttime;
+void MatchServer::OnClientQueryTheSameQuestionLadyList(
+		Client* client,
+		const char* pQId,
+		const char* pSiteId,
+		const char* pLimit
+		) {
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
-			"MatchServer::HandleTimeoutMessage( "
+			LOG_WARNING,
+			"MatchServer::OnClientQueryTheSameQuestionLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
-			"iTotaltime : %u ms "
+			"[内部服务(HTTP), 收到命令:获取有指定共同问题的女士Id列表], "
+			"fd : [%d], "
+			"pQId : %s, "
+			"pSiteId : %s, "
+			"pLimit : %s "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
-			sm->totaltime
+			client->fd,
+			pQId,
+			pSiteId,
+			pLimit
 			);
 
-	string param = writer.write(rootSend);
+	Json::Value root;
+	Json::Value womanListNode;
+	if( (pQId != NULL) && strlen(pQId) > 0 && (pSiteId != NULL) && strlen(pSiteId) > 0 ) {
+		if( QueryTheSameQuestionLadyList(womanListNode, pQId, pSiteId, pLimit, client->index) ) {
+		}
+	}
+	root["womaninfo"] = womanListNode;
 
-	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 200 ok\r\nContext-Length:%d\r\n\r\n%s",
-			(int)param.length(), param.c_str());
-	sm->len = strlen(sm->buffer);
-
-	return ret;
+	// 发送返回
+	SendRespond2Client(&mTcpServer, client, root);
 }
 
-int MatchServer::HandleInsideRecvMessage(Message *m, Message *sm) {
-	int ret = -1;
-	int code = 200;
-	char reason[16] = {"OK"};
-	string param;
-
-	Json::FastWriter writer;
-	Json::Value rootSend, womanListNode, womanNode;
-
-	if( m == NULL ) {
-		return ret;
-	} else {
-		param = writer.write(rootSend);
-	}
-
-	DataHttpParser dataHttpParser;
-	if ( DiffGetTickCount(m->starttime, GetTickCount()) < miTimeout * 1000 ) {
-		if( m->buffer != NULL ) {
-			ret = dataHttpParser.ParseData(m->buffer, m->len);
-		}
-	}
-
-	if( ret == 1 ) {
-		ret = -1;
-		const char* pPath = dataHttpParser.GetPath();
-		HttpType type = dataHttpParser.GetType();
-
-		LogManager::GetLogManager()->Log(
-				LOG_MSG,
-				"MatchServer::HandleInsideRecvMessage( "
-				"tid : %d, "
-				"m->fd: [%d], "
-				"type : %d, "
-				"pPath : %s, "
-				"parse "
-				")",
-				(int)syscall(SYS_gettid),
-				m->fd,
-				type,
-				pPath
-				);
-
-		if( type == GET ) {
-			if( strcmp(pPath, "/SYNC") == 0 ) {
-				LogManager::GetLogManager()->Log(
-						LOG_MSG,
-						"MatchServer::HandleInsideRecvMessage( "
-						"tid : %d, "
-						"m->fd : [%d], "
-						"SYNC "
-						")",
-						(int)syscall(SYS_gettid),
-						m->fd
-						);
-
-				mWaitForSendMessageMapMutex.lock();
-				mWaitForSendMessageMap.insert(SyncMessageMap::value_type(m->fd, sm));
-				mWaitForSendMessageMapMutex.unlock();
-
-				mDBManager.SyncForce();
-
-				rootSend["ret"] = 1;
-				param = writer.write(rootSend);
-				ret = 0;
-			} else if( strcmp(pPath, "/RELOAD") == 0 ) {
-				LogManager::GetLogManager()->Log(
-						LOG_MSG,
-						"MatchServer::HandleInsideRecvMessage( "
-						"tid : %d, "
-						"m->fd : [%d], "
-						"RELOAD "
-						")",
-						(int)syscall(SYS_gettid),
-						m->fd
-						);
-				if( Reload()) {
-					rootSend["ret"] = 1;
-				} else {
-					rootSend["ret"] = 0;
-				}
-				param = writer.write(rootSend);
-				ret = 1;
-			} else {
-				code = 404;
-				sprintf(reason, "Not Found");
-				param = "404 Not Found";
-			}
-		} else {
-			code = 404;
-			sprintf(reason, "Not Found");
-			param = "404 Not Found";
-		}
-
-	}
-
-	snprintf(sm->buffer, MAXLEN - 1, "HTTP/1.1 %d %s\r\nContext-Length:%d\r\n\r\n%s",
-			code,
-			reason,
-			(int)param.length(),
-			param.c_str()
+void MatchServer::OnClientQueryAnySameQuestionLadyList(
+		Client* client,
+		const char* pManId,
+		const char* pSiteId,
+		const char* pLimit
+		) {
+	LogManager::GetLogManager()->Log(
+			LOG_WARNING,
+			"MatchServer::OnClientQueryAnySameQuestionLadyList( "
+			"tid : %d, "
+			"[内部服务(HTTP), 收到命令:获取有任意共同问题的女士Id列表], "
+			"fd : [%d], "
+			"pManId : %s, "
+			"pSiteId : %s, "
+			"pLimit : %s "
+			")",
+			(int)syscall(SYS_gettid),
+			client->fd,
+			pManId,
+			pSiteId,
+			pLimit
 			);
-	sm->len = strlen(sm->buffer);
 
-	return ret;
+	Json::Value root;
+	Json::Value womanListNode;
+	if( (pManId != NULL) && strlen(pManId) > 0 && (pSiteId != NULL) && strlen(pSiteId) > 0 ) {
+		if( QueryAnySameQuestionLadyList(womanListNode, pManId, pSiteId, pLimit, client->index) ) {
+		}
+	}
+	root["womaninfo"] = womanListNode;
+
+	// 发送返回
+	SendRespond2Client(&mTcpServer, client, root);
 }
 
+void MatchServer::OnClientQuerySameQuestionOnlineLadyList(
+		Client* client,
+		const char* pQIds,
+		const char* pSiteId,
+		const char* pLimit
+		) {
+	LogManager::GetLogManager()->Log(
+			LOG_WARNING,
+			"MatchServer::OnClientQuerySameQuestionOnlineLadyList( "
+			"tid : %d, "
+			"[内部服务(HTTP), 收到命令:获取回答过注册问题的在线女士Id列表], "
+			"fd : [%d], "
+			"pQIds : %s, "
+			"pSiteId : %s, "
+			"pLimit : %s "
+			")",
+			(int)syscall(SYS_gettid),
+			client->fd,
+			pQIds,
+			pSiteId,
+			pLimit
+			);
+
+	Json::Value root;
+	Json::Value womanListNode;
+	if( (pQIds != NULL) && strlen(pQIds) > 0 && (pSiteId != NULL) && strlen(pSiteId) > 0 ) {
+		if( QuerySameQuestionOnlineLadyList(womanListNode, pQIds, pSiteId, pLimit, client->index) ) {
+		}
+	}
+	root["womaninfo"] = womanListNode;
+
+	// 发送返回
+	SendRespond2Client(&mTcpServer, client, root);
+}
+
+void MatchServer::OnClientQuerySameQuestionAnswerLadyList(
+		Client* client,
+		const char* pQIds,
+		const char* pAIds,
+		const char* pSiteId,
+		const char* pLimit
+		) {
+	LogManager::GetLogManager()->Log(
+			LOG_WARNING,
+			"MatchServer::OnClientQuerySameQuestionAnswerLadyList( "
+			"tid : %d, "
+			"[内部服务(HTTP), 收到命令:获取指定问题有共同答案的女士Id列表], "
+			"fd : [%d], "
+			"pQIds : %s, "
+			"pAIds : %s, "
+			"pSiteId : %s, "
+			"pLimit : %s "
+			")",
+			(int)syscall(SYS_gettid),
+			client->fd,
+			pQIds,
+			pAIds,
+			pSiteId,
+			pLimit
+			);
+
+	Json::Value root;
+	Json::Value womanListNode;
+	if(
+		(pQIds != NULL) && strlen(pQIds) > 0 &&
+		(pAIds != NULL) && strlen(pAIds) > 0 &&
+		(pSiteId != NULL) && strlen(pSiteId) > 0
+		) {
+		if( QuerySameQuestionAnswerLadyList(womanListNode, pQIds, pAIds, pSiteId, pLimit, client->index) ) {
+		}
+	}
+	root["womaninfo"] = womanListNode;
+
+	// 发送返回
+	SendRespond2Client(&mTcpServer, client, root);
+}
+
+void MatchServer::OnClientQuerySameQuestionLadyList(
+		Client* client,
+		const char* pQIds,
+		const char* pSiteId,
+		const char* pLimit
+		) {
+	LogManager::GetLogManager()->Log(
+			LOG_WARNING,
+			"MatchServer::OnClientQuerySameQuestionLadyList( "
+			"tid : %d, "
+			"[内部服务(HTTP), 收到命令:获取回答过注册问题的女士Id列表], "
+			"fd : [%d], "
+			"pQIds : %s, "
+			"pSiteId : %s, "
+			"pLimit : %s "
+			")",
+			(int)syscall(SYS_gettid),
+			client->fd,
+			pQIds,
+			pSiteId,
+			pLimit
+			);
+
+	Json::Value root;
+	Json::Value womanListNode;
+	if( (pQIds != NULL) && strlen(pQIds) > 0 && (pSiteId != NULL) && strlen(pSiteId) > 0 ) {
+		if( QuerySameQuestionLadyList(womanListNode, pQIds, pSiteId, pLimit, client->index) ) {
+		}
+	}
+	root["womaninfo"] = womanListNode;
+
+	// 发送返回
+	SendRespond2Client(&mTcpServer, client, root);
+}
+
+void MatchServer::OnClientSync(Client* client) {
+	LogManager::GetLogManager()->Log(
+			LOG_WARNING,
+			"MatchServer::OnClientSync( "
+			"tid : %d, "
+			"[外部服务(HTTP), 收到命令:同步数据库], "
+			"fd : [%d] "
+			")",
+			(int)syscall(SYS_gettid),
+			client->fd
+			);
+	// 接口已经废弃, 直接返回
+	Json::Value root = "{ret:1}";
+	// 发送返回
+	SendRespond2Client(&mTcpServer, client, root, false, false);
+}
+
+void MatchServer::OnClientUndefinedCommand(Client* client) {
+	LogManager::GetLogManager()->Log(
+			LOG_WARNING,
+			"MatchServer::OnClientUndefinedCommand( "
+			"tid : %d, "
+			"[内部服务(HTTP), 收到命令:未知命令], "
+			"fd : [%d] "
+			")",
+			(int)syscall(SYS_gettid),
+			client->fd
+			);
+	Json::Value root = "";
+	// 发送返回
+	SendRespond2Client(&mTcpServer, client, root, false, false);
+}
+
+/***************************** 内部服务(HTTP) 回调处理 end **************************************/
 /**
- * 1.获取跟男士有任意共同答案的问题的女士Id列表接口(http get)
+ * 1.获取跟男士有任意共同答案的问题的女士Id列表
  */
 bool MatchServer::QuerySameAnswerLadyList(
 		Json::Value& womanListNode,
@@ -907,7 +1453,7 @@ bool MatchServer::QuerySameAnswerLadyList(
 		const char* pSiteId,
 		const char* pLimit,
 		long long iRegTime,
-		Message *m
+		int iQueryIndex
 		) {
 	unsigned int iQueryTime = 0;
 	unsigned int iSingleQueryTime = 0;
@@ -916,8 +1462,6 @@ bool MatchServer::QuerySameAnswerLadyList(
 
 	Json::Value womanNode;
 
-	int iQueryIndex = m->index;
-
 	time_t t;
 	long long unixTime = time(&t);
 
@@ -925,20 +1469,21 @@ bool MatchServer::QuerySameAnswerLadyList(
 			LOG_STAT,
 			"MatchServer::QuerySameAnswerLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取跟男士有任意共同答案的问题的女士Id列表], "
 			"manid : %s, "
 			"siteid : %s, "
 			"limit : %s, "
-			"iRegTime : %ld, "
-			"unixTime : %ld "
+			"iRegTime : %lld, "
+			"unixTime : %lld, "
+			"iQueryIndex : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			pManId,
 			pSiteId,
 			pLimit,
 			iRegTime,
-			unixTime
+			unixTime,
+			iQueryIndex
 			);
 
 	// 执行查询
@@ -962,12 +1507,11 @@ bool MatchServer::QuerySameAnswerLadyList(
 			LOG_STAT,
 			"MatchServer::QuerySameAnswerLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取跟男士有任意共同答案的问题的女士Id列表], "
 			"iManCount : %d, "
 			"iRegTimeout : %lld "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			iManCount,
 			iRegTimeout
 			);
@@ -976,17 +1520,16 @@ bool MatchServer::QuerySameAnswerLadyList(
 				LOG_STAT,
 				"MatchServer::QuerySameAnswerLadyList( "
 				"tid : %d, "
-				"m->fd: [%d], "
-				"no man question and reg not timeout "
+				"[获取跟男士有任意共同答案的问题的女士Id列表, 没有男士问题并且注册时间没有超时] "
 				")",
 				(int)syscall(SYS_gettid),
-				m->fd,
 				iManCount,
 				iRegTimeout
 				);
 
 		// 同步
-		mDBManager.SyncManAndLady();
+		mDBManager.SyncForce();
+		bSleepAlready = true;
 	}
 
 	map<string, int> womanidMap;
@@ -999,13 +1542,13 @@ bool MatchServer::QuerySameAnswerLadyList(
 			LOG_STAT,
 			"MatchServer::QuerySameAnswerLadyList( "
 			"tid : %d, "
+			"[获取跟男士有任意共同答案的问题的女士Id列表], "
 			"m->fd: [%d], "
 			"iRow : %d, "
 			"iColumn : %d, "
 			"iQueryIndex : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			iRow,
 			iColumn,
 			iQueryIndex
@@ -1051,14 +1594,13 @@ bool MatchServer::QuerySameAnswerLadyList(
 									LOG_STAT,
 									"MatchServer::QuerySameAnswerLadyList( "
 									"tid : %d, "
-									"m->fd: [%d], "
+									"[获取跟男士有任意共同答案的问题的女士Id列表], "
 									"Count iQueryTime : %u m, "
 									"iQueryIndex : %d, "
 									"iNum : %d, "
 									"iMax : %d "
 									")",
 									(int)syscall(SYS_gettid),
-									m->fd,
 									iQueryTime,
 									iQueryIndex,
 									iNum,
@@ -1096,7 +1638,7 @@ bool MatchServer::QuerySameAnswerLadyList(
 									LOG_STAT,
 									"MatchServer::QuerySameAnswerLadyList( "
 									"tid : %d, "
-									"m->fd: [%d], "
+									"[获取跟男士有任意共同答案的问题的女士Id列表], "
 									"Query iQueryTime : %u ms, "
 									"iQueryIndex : %d, "
 									"iRow2 : %d, "
@@ -1106,7 +1648,6 @@ bool MatchServer::QuerySameAnswerLadyList(
 									"womanidMap.size() : %d "
 									")",
 									(int)syscall(SYS_gettid),
-									m->fd,
 									iQueryTime,
 									iQueryIndex,
 									iRow2,
@@ -1136,11 +1677,10 @@ bool MatchServer::QuerySameAnswerLadyList(
 								LOG_STAT,
 								"MatchServer::QuerySameAnswerLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取跟男士有任意共同答案的问题的女士Id列表], "
 								"womanidMap.size() >= %d break "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								iMax
 								);
 						bEnougthLady = true;
@@ -1177,13 +1717,12 @@ bool MatchServer::QuerySameAnswerLadyList(
 								LOG_STAT,
 								"MatchServer::QuerySameAnswerLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取跟男士有任意共同答案的问题的女士Id列表], "
 								"Double Check iQueryTime : %u ms, "
 								"iQueryIndex : %d, "
 								"iSingleQueryTime : %u ms "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								iQueryTime,
 								iQueryIndex,
 								iSingleQueryTime
@@ -1192,7 +1731,7 @@ bool MatchServer::QuerySameAnswerLadyList(
 			i++;
 			i = ((i - 1) % iRow) + 1;
 
-			// 单词请求是否大于30ms
+			// 单次请求是否大于30ms
 			if( iSingleQueryTime > 30 ) {
 				bSleepAlready = true;
 				usleep(1000 * iSingleQueryTime);
@@ -1213,17 +1752,29 @@ bool MatchServer::QuerySameAnswerLadyList(
 	}
 
 	iHandleTime =  GetTickCount() - iHandleTime;
+	AddHandleTime(iHandleTime);
 
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_WARNING,
 			"MatchServer::QuerySameAnswerLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取跟男士有任意共同答案的问题的女士Id列表], "
+			"manid : %s, "
+			"siteid : %s, "
+			"limit : %s, "
+			"iRegTime : %lld, "
+			"unixTime : %lld, "
+			"iQueryIndex : %d, "
 			"bSleepAlready : %s, "
 			"iHandleTime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
+			pManId,
+			pSiteId,
+			pLimit,
+			iRegTime,
+			unixTime,
+			iQueryIndex,
 			bSleepAlready?"true":"false",
 			iHandleTime
 			);
@@ -1232,14 +1783,14 @@ bool MatchServer::QuerySameAnswerLadyList(
 }
 
 /**
- * 2.获取跟男士有指定共同问题的女士Id列表接口(http get)
+ * 2.获取跟男士有指定共同问题的女士Id列表
  */
 bool MatchServer::QueryTheSameQuestionLadyList(
 		Json::Value& womanListNode,
 		const char* pQid,
 		const char* pSiteId,
 		const char* pLimit,
-		Message *m
+		int iQueryIndex
 		) {
 	unsigned int iQueryTime = 0;
 	unsigned int iSingleQueryTime = 0;
@@ -1247,22 +1798,21 @@ bool MatchServer::QueryTheSameQuestionLadyList(
 
 	Json::Value womanNode;
 
-	int iQueryIndex = m->index;
-
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
 			"MatchServer::QueryTheSameQuestionLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取跟男士有指定共同问题的女士Id列表], "
 			"qid : %s, "
 			"siteid : %s, "
-			"limit : %s "
+			"limit : %s, "
+			"iQueryIndex : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			pQid,
 			pSiteId,
-			pLimit
+			pLimit,
+			iQueryIndex
 			);
 
 	// 执行查询
@@ -1293,13 +1843,12 @@ bool MatchServer::QueryTheSameQuestionLadyList(
 			LOG_STAT,
 			"MatchServer::QueryTheSameQuestionLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取跟男士有指定共同问题的女士Id列表], "
 			"iRow : %d, "
 			"iColumn : %d, "
 			"iQueryIndex : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			iRow,
 			iColumn,
 			iQueryIndex
@@ -1331,14 +1880,13 @@ bool MatchServer::QueryTheSameQuestionLadyList(
 							LOG_STAT,
 							"MatchServer::QueryTheSameQuestionLadyList( "
 							"tid : %d, "
-							"m->fd: [%d], "
+							"[获取跟男士有指定共同问题的女士Id列表], "
 							"Count iQueryTime : %u ms, "
 							"iQueryIndex : %d, "
 							"iNum : %d, "
 							"iMax : %d "
 							")",
 							(int)syscall(SYS_gettid),
-							m->fd,
 							iQueryTime,
 							iQueryIndex,
 							iNum,
@@ -1386,7 +1934,7 @@ bool MatchServer::QueryTheSameQuestionLadyList(
 							LOG_STAT,
 							"MatchServer::QueryTheSameQuestionLadyList( "
 							"tid : %d, "
-							"m->fd: [%d], "
+							"[获取跟男士有指定共同问题的女士Id列表], "
 							"Query iQueryTime : %u ms, "
 							"iQueryIndex : %d, "
 							"iRow2 : %d, "
@@ -1395,7 +1943,6 @@ bool MatchServer::QueryTheSameQuestionLadyList(
 							"iLadyIndex : %d "
 							")",
 							(int)syscall(SYS_gettid),
-							m->fd,
 							iQueryTime,
 							iQueryIndex,
 							iRow2,
@@ -1411,16 +1958,24 @@ bool MatchServer::QueryTheSameQuestionLadyList(
 	iSingleQueryTime = GetTickCount() - iHandleTime;
 	usleep(1000 * iSingleQueryTime);
 	iHandleTime = GetTickCount() - iHandleTime;
+	AddHandleTime(iHandleTime);
 
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_WARNING,
 			"MatchServer::QueryTheSameQuestionLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取跟男士有指定共同问题的女士Id列表], "
+			"qid : %s, "
+			"siteid : %s, "
+			"limit : %s, "
+			"iQueryIndex : %d, "
 			"iHandleTime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
+			pQid,
+			pSiteId,
+			pLimit,
+			iQueryIndex,
 			iHandleTime
 			);
 
@@ -1428,14 +1983,14 @@ bool MatchServer::QueryTheSameQuestionLadyList(
 }
 
 /**
- * 3.获取跟男士有任意共同问题的女士Id列表接口(http get)
+ * 3.获取跟男士有任意共同问题的女士Id列表
  */
 bool MatchServer::QueryAnySameQuestionLadyList(
 		Json::Value& womanListNode,
 		const char* pManId,
 		const char* pSiteId,
 		const char* pLimit,
-		Message *m
+		int iQueryIndex
 		) {
 	unsigned int iQueryTime = 0;
 	unsigned int iSingleQueryTime = 0;
@@ -1444,22 +1999,21 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 
 	Json::Value womanNode;
 
-	int iQueryIndex = m->index;
-
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
 			"MatchServer::QueryAnySameQuestionLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取跟男士有任意共同问题的女士Id列表], "
 			"manid : %s, "
 			"siteid : %s, "
-			"limit : %s "
+			"limit : %s, "
+			"iQueryIndex : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			pManId,
 			pSiteId,
-			pLimit
+			pLimit,
+			iQueryIndex
 			);
 
 	// 执行查询
@@ -1483,13 +2037,12 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 			LOG_STAT,
 			"MatchServer::QueryAnySameQuestionLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取跟男士有任意共同问题的女士Id列表], "
 			"iRow : %d, "
 			"iColumn : %d, "
 			"iQueryIndex : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			iRow,
 			iColumn,
 			iQueryIndex
@@ -1536,14 +2089,13 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 						LOG_STAT,
 						"MatchServer::QueryAnySameQuestionLadyList( "
 						"tid : %d, "
-						"m->fd: [%d], "
+						"[获取跟男士有任意共同问题的女士Id列表], "
 						"Count iQueryTime : %u ms, "
 						"iQueryIndex : %d, "
 						"iNum : %d, "
 						"iMax : %d "
 						")",
 						(int)syscall(SYS_gettid),
-						m->fd,
 						iQueryTime,
 						iQueryIndex,
 						iNum,
@@ -1580,7 +2132,7 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 						LOG_STAT,
 						"MatchServer::QueryAnySameQuestionLadyList( "
 						"tid : %d, "
-						"m->fd: [%d], "
+						"[获取跟男士有任意共同问题的女士Id列表], "
 						"Query iQueryTime : %u ms, "
 						"iQueryIndex : %d, "
 						"iRow2 : %d, "
@@ -1590,7 +2142,6 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 						"womanidMap.size() : %d "
 						")",
 						(int)syscall(SYS_gettid),
-						m->fd,
 						iQueryTime,
 						iQueryIndex,
 						iRow2,
@@ -1619,11 +2170,10 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 								LOG_STAT,
 								"MatchServer::QueryAnySameQuestionLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取跟男士有任意共同问题的女士Id列表], "
 								"womanidMap.size() >= %d break "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								iMax
 								);
 						bEnougthLady = true;
@@ -1654,17 +2204,25 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 	}
 
 	iHandleTime =  GetTickCount() - iHandleTime;
+	AddHandleTime(iHandleTime);
 
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_WARNING,
 			"MatchServer::QueryAnySameQuestionLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取跟男士有任意共同问题的女士Id列表], "
+			"manid : %s, "
+			"siteid : %s, "
+			"limit : %s, "
+			"iQueryIndex : %d, "
 			"bSleepAlready : %s, "
 			"iHandleTime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
+			pManId,
+			pSiteId,
+			pLimit,
+			iQueryIndex,
 			bSleepAlready?"true":"false",
 			iHandleTime
 			);
@@ -1673,14 +2231,14 @@ bool MatchServer::QueryAnySameQuestionLadyList(
 }
 
 /**
- * 4.获取回答过注册问题的在线女士Id列表接口(http get)
+ * 4.获取回答过注册问题的在线女士Id列表
  */
 bool MatchServer::QuerySameQuestionOnlineLadyList(
 		Json::Value& womanListNode,
 		const char* pQids,
 		const char* pSiteId,
 		const char* pLimit,
-		Message *m
+		int iQueryIndex
 		) {
 	unsigned int iQueryTime = 0;
 	unsigned int iSingleQueryTime = 0;
@@ -1689,22 +2247,21 @@ bool MatchServer::QuerySameQuestionOnlineLadyList(
 
 	Json::Value womanNode;
 
-	int iQueryIndex = m->index;
-
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
 			"MatchServer::QuerySameQuestionOnlineLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取回答过注册问题的在线女士Id列表], "
 			"qids : %s, "
 			"siteid : %s, "
-			"limit : %s "
+			"limit : %s, "
+			"iQueryIndex : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			pQids,
 			pSiteId,
-			pLimit
+			pLimit,
+			iQueryIndex
 			);
 
 	// 执行查询
@@ -1770,14 +2327,13 @@ bool MatchServer::QuerySameQuestionOnlineLadyList(
 									LOG_STAT,
 									"MatchServer::QuerySameQuestionOnlineLadyList( "
 									"tid : %d, "
-									"m->fd: [%d], "
+									"[获取回答过注册问题的在线女士Id列表], "
 									"Count iQueryTime : %u ms, "
 									"iQueryIndex : %d, "
 									"iNum : %d, "
 									"iMax : %d "
 									")",
 									(int)syscall(SYS_gettid),
-									m->fd,
 									iQueryTime,
 									iQueryIndex,
 									iNum,
@@ -1817,7 +2373,7 @@ bool MatchServer::QuerySameQuestionOnlineLadyList(
 						LOG_STAT,
 						"MatchServer::QuerySameQuestionOnlineLadyList( "
 						"tid : %d, "
-						"m->fd: [%d], "
+						"[获取回答过注册问题的在线女士Id列表], "
 						"Query iQueryTime : %u ms, "
 						"iQueryIndex : %d, "
 						"iRow2 : %d, "
@@ -1827,7 +2383,6 @@ bool MatchServer::QuerySameQuestionOnlineLadyList(
 						"womanidMap.size() : %d "
 						")",
 						(int)syscall(SYS_gettid),
-						m->fd,
 						iQueryTime,
 						iQueryIndex,
 						iRow2,
@@ -1856,11 +2411,10 @@ bool MatchServer::QuerySameQuestionOnlineLadyList(
 								LOG_STAT,
 								"MatchServer::QuerySameQuestionOnlineLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取回答过注册问题的在线女士Id列表], "
 								"womanidMap.size() >= %d break "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								iMax
 								);
 						bEnougthLady = true;
@@ -1891,17 +2445,25 @@ bool MatchServer::QuerySameQuestionOnlineLadyList(
 	}
 
 	iHandleTime =  GetTickCount() - iHandleTime;
+	AddHandleTime(iHandleTime);
 
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_WARNING,
 			"MatchServer::QuerySameQuestionOnlineLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取回答过注册问题的在线女士Id列表], "
+			"qids : %s, "
+			"siteid : %s, "
+			"limit : %s, "
+			"iQueryIndex : %d, "
 			"bSleepAlready : %s, "
 			"iHandleTime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
+			pQids,
+			pSiteId,
+			pLimit,
+			iQueryIndex,
 			bSleepAlready?"true":"false",
 			iHandleTime
 			);
@@ -1910,11 +2472,7 @@ bool MatchServer::QuerySameQuestionOnlineLadyList(
 }
 
 /**
- * 5.获取回答过注册问题有共同答案的女士Id列表接口(http get)
- * @param pQids		问题Id列表(逗号隔开, 最多:7个)
- * @param pAids		答案Id列表(逗号隔开, 最多:7个)
- * @param pSiteId	当前站点Id
- * @param pLimit	最大返回记录数目(默认:4, 最大:30)
+ * 5.获取回答过注册问题有共同答案的女士Id列表
  */
 bool MatchServer::QuerySameQuestionAnswerLadyList(
 		Json::Value& womanListNode,
@@ -1922,7 +2480,7 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 		const char* pAids,
 		const char* pSiteId,
 		const char* pLimit,
-		Message *m
+		int iQueryIndex
 		) {
 	unsigned int iQueryTime = 0;
 	unsigned int iSingleQueryTime = 0;
@@ -1931,24 +2489,23 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 
 	Json::Value womanNode;
 
-	int iQueryIndex = m->index;
-
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
 			"MatchServer::QuerySameQuestionAnswerLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取回答过注册问题有共同答案的女士Id列表], "
 			"qids : %s, "
 			"aids : %s, "
 			"siteid : %s, "
-			"limit : %s "
+			"limit : %s, "
+			"iQueryIndex : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			pQids,
 			pAids,
 			pSiteId,
-			pLimit
+			pLimit,
+			iQueryIndex
 			);
 
 	// 执行查询
@@ -2003,12 +2560,11 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 								LOG_STAT,
 								"MatchServer::QuerySameQuestionAnswerLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取回答过注册问题有共同答案的女士Id列表], "
 								"qid : %s, "
 								"aid : %s "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								qid.c_str(),
 								aid.c_str()
 								);
@@ -2038,14 +2594,13 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 									LOG_STAT,
 									"MatchServer::QuerySameQuestionAnswerLadyList( "
 									"tid : %d, "
-									"m->fd: [%d], "
+									"[获取回答过注册问题有共同答案的女士Id列表], "
 									"Count iQueryTime : %u m, "
 									"iQueryIndex : %d, "
 									"iNum : %d, "
 									"iMax : %d "
 									")",
 									(int)syscall(SYS_gettid),
-									m->fd,
 									iQueryTime,
 									iQueryIndex,
 									iNum,
@@ -2083,7 +2638,7 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 									LOG_STAT,
 									"MatchServer::QuerySameQuestionAnswerLadyList( "
 									"tid : %d, "
-									"m->fd: [%d], "
+									"[获取回答过注册问题有共同答案的女士Id列表], "
 									"Query iQueryTime : %u ms, "
 									"iQueryIndex : %d, "
 									"iRow2 : %d, "
@@ -2093,7 +2648,6 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 									"womanidMap.size() : %d "
 									")",
 									(int)syscall(SYS_gettid),
-									m->fd,
 									iQueryTime,
 									iQueryIndex,
 									iRow2,
@@ -2123,11 +2677,10 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 								LOG_STAT,
 								"MatchServer::QuerySameQuestionAnswerLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取回答过注册问题有共同答案的女士Id列表], "
 								"womanidMap.size() >= %d break "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								iMax
 								);
 						bEnougthLady = true;
@@ -2141,13 +2694,12 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 								LOG_STAT,
 								"MatchServer::QuerySameQuestionAnswerLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取回答过注册问题有共同答案的女士Id列表], "
 								"Double Check iQueryTime : %u ms, "
 								"iQueryIndex : %d, "
 								"iSingleQueryTime : %u ms "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								iQueryTime,
 								iQueryIndex,
 								iSingleQueryTime
@@ -2180,17 +2732,27 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 	}
 
 	iHandleTime =  GetTickCount() - iHandleTime;
+	AddHandleTime(iHandleTime);
 
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_WARNING,
 			"MatchServer::QuerySameQuestionAnswerLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取回答过注册问题有共同答案的女士Id列表], "
+			"qids : %s, "
+			"aids : %s, "
+			"siteid : %s, "
+			"limit : %s, "
+			"iQueryIndex : %d, "
 			"bSleepAlready : %s, "
 			"iHandleTime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
+			pQids,
+			pAids,
+			pSiteId,
+			pLimit,
+			iQueryIndex,
 			bSleepAlready?"true":"false",
 			iHandleTime
 			);
@@ -2199,7 +2761,7 @@ bool MatchServer::QuerySameQuestionAnswerLadyList(
 }
 
 /**
- * 6.获取回答过注册问题有共同答案的女士Id列表接口(http get)
+ * 6.获取回答过注册问题有共同答案的女士Id列表
  * @param pQids		问题Id列表(逗号隔开, 最多:7个)
  * @param pSiteId	当前站点Id
  * @param pLimit	最大返回记录数目(默认:4, 最大:30)
@@ -2209,7 +2771,7 @@ bool MatchServer::QuerySameQuestionLadyList(
 		const char* pQids,
 		const char* pSiteId,
 		const char* pLimit,
-		Message *m
+		int iQueryIndex
 		) {
 	unsigned int iQueryTime = 0;
 	unsigned int iSingleQueryTime = 0;
@@ -2218,22 +2780,21 @@ bool MatchServer::QuerySameQuestionLadyList(
 
 	Json::Value womanNode;
 
-	int iQueryIndex = m->index;
-
 	LogManager::GetLogManager()->Log(
 			LOG_STAT,
 			"MatchServer::QuerySameQuestionLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取回答过注册问题有共同答案的女士Id列表], "
 			"qids : %s, "
 			"siteid : %s, "
-			"limit : %s "
+			"limit : %s, "
+			"iQueryIndex : %d "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
 			pQids,
 			pSiteId,
-			pLimit
+			pLimit,
+			iQueryIndex
 			);
 
 	// 执行查询
@@ -2265,7 +2826,6 @@ bool MatchServer::QuerySameQuestionLadyList(
 	    string::size_type posQid;
 
 	    int i = 0;
-	    int j = 0;
 	    posQid = qpids.find(",", i);
 
 		while( posQid != string::npos && iCount < 7 ) {
@@ -2281,11 +2841,10 @@ bool MatchServer::QuerySameQuestionLadyList(
 								LOG_STAT,
 								"MatchServer::QuerySameQuestionLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取回答过注册问题有共同答案的女士Id列表], "
 								"qid : %s "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								qid.c_str()
 								);
 
@@ -2313,14 +2872,13 @@ bool MatchServer::QuerySameQuestionLadyList(
 									LOG_STAT,
 									"MatchServer::QuerySameQuestionLadyList( "
 									"tid : %d, "
-									"m->fd: [%d], "
+									"[获取回答过注册问题有共同答案的女士Id列表], "
 									"Count iQueryTime : %u m, "
 									"iQueryIndex : %d, "
 									"iNum : %d, "
 									"iMax : %d "
 									")",
 									(int)syscall(SYS_gettid),
-									m->fd,
 									iQueryTime,
 									iQueryIndex,
 									iNum,
@@ -2357,7 +2915,7 @@ bool MatchServer::QuerySameQuestionLadyList(
 									LOG_STAT,
 									"MatchServer::QuerySameQuestionLadyList( "
 									"tid : %d, "
-									"m->fd: [%d], "
+									"[获取回答过注册问题有共同答案的女士Id列表], "
 									"Query iQueryTime : %u ms, "
 									"iQueryIndex : %d, "
 									"iRow2 : %d, "
@@ -2367,7 +2925,6 @@ bool MatchServer::QuerySameQuestionLadyList(
 									"womanidMap.size() : %d "
 									")",
 									(int)syscall(SYS_gettid),
-									m->fd,
 									iQueryTime,
 									iQueryIndex,
 									iRow2,
@@ -2397,11 +2954,10 @@ bool MatchServer::QuerySameQuestionLadyList(
 								LOG_STAT,
 								"MatchServer::QuerySameQuestionLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取回答过注册问题有共同答案的女士Id列表], "
 								"womanidMap.size() >= %d break "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								iMax
 								);
 						bEnougthLady = true;
@@ -2415,13 +2971,12 @@ bool MatchServer::QuerySameQuestionLadyList(
 								LOG_STAT,
 								"MatchServer::QuerySameQuestionLadyList( "
 								"tid : %d, "
-								"m->fd: [%d], "
+								"[获取回答过注册问题有共同答案的女士Id列表], "
 								"Double Check iQueryTime : %u ms, "
 								"iQueryIndex : %d, "
 								"iSingleQueryTime : %u ms "
 								")",
 								(int)syscall(SYS_gettid),
-								m->fd,
 								iQueryTime,
 								iQueryIndex,
 								iSingleQueryTime
@@ -2451,17 +3006,25 @@ bool MatchServer::QuerySameQuestionLadyList(
 	}
 
 	iHandleTime =  GetTickCount() - iHandleTime;
+	AddHandleTime(iHandleTime);
 
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_WARNING,
 			"MatchServer::QuerySameQuestionLadyList( "
 			"tid : %d, "
-			"m->fd: [%d], "
+			"[获取回答过注册问题有共同答案的女士Id列表], "
+			"qids : %s, "
+			"siteid : %s, "
+			"limit : %s, "
+			"iQueryIndex : %d, "
 			"bSleepAlready : %s, "
 			"iHandleTime : %u ms "
 			")",
 			(int)syscall(SYS_gettid),
-			m->fd,
+			pQids,
+			pSiteId,
+			pLimit,
+			iQueryIndex,
 			bSleepAlready?"true":"false",
 			iHandleTime
 			);

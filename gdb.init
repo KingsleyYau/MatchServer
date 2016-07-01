@@ -1,0 +1,5 @@
+file matchserver
+set args -f matchserver_local.config
+handle SIGPIPE nostop
+source gdb.break
+run

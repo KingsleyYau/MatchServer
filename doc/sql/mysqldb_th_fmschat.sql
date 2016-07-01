@@ -1,6 +1,6 @@
 /*
-SQLyog Ultimate v11.27 (32 bit)
-MySQL - 5.6.27 : Database - qpidnetwork_online_ida
+SQLyog Ultimate v11.42 (32 bit)
+MySQL - 5.1.73 : Database - mysqldb_th_fmschat
 *********************************************************************
 */
 
@@ -12,9 +12,9 @@ MySQL - 5.6.27 : Database - qpidnetwork_online_ida
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-CREATE DATABASE /*!32312 IF NOT EXISTS*/`qpidnetwork_online_ida` /*!40100 DEFAULT CHARACTER SET latin1 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/`mysqldb_th_fmschat` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
-USE `qpidnetwork_online_ida`;
+USE `mysqldb_th_fmschat`;
 
 /*Table structure for table `online_woman` */
 
@@ -82,7 +82,7 @@ BEGIN
 	TRUNCATE TABLE online_woman;
 	SET i = 0;
 	WHILE i < 5000 DO
-	    SET womanid = CONCAT('CD', i);
+	    SET womanid = CONCAT('IDA', i);
 	    INSERT INTO online_woman(`womanid`, `lastlogin`, `status`, `hide`, `binding`, `siteid`) VALUES(womanid, NOW(), 1, 0, 2, 1);
 	    SET i = i + 1;
 	END WHILE;

@@ -44,7 +44,7 @@ void FlushMem2File();
 class CFileCtrl
 {
 public:
-    CFileCtrl(const char *szlogPath, const char* szLogFileName, unsigned long alFileLen = 6, int bSingle = 0);
+    CFileCtrl(const char *szlogPath, const char* szLogFileName, unsigned long alFileLen = 30, int bSingle = 0);
     virtual ~CFileCtrl();
 
 public:

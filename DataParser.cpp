@@ -24,5 +24,5 @@ int DataParser::ParseData(char* buffer, int len) {
 	if( mParser != NULL ) {
 		return mParser->ParseData(buffer, len);
 	}
-	return 1;
+	return 0;
 }

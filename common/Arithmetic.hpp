@@ -12,6 +12,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <string>
+using namespace std;
+
 class Arithmetic
 {
 public:
@@ -36,6 +39,8 @@ public:
     bool Mac2String(char* pstr, char* Mac);
     
     size_t ChangeCharset(char* outbuf, size_t outbytes, const char* inbuf, const char* fromcode, const char* tocode, bool conv_begin = true);
+
+    string AsciiToHexWithSep(const char* data, int i_in_len);
 
 protected:
     void encipher(void* aData, const void* aKey);

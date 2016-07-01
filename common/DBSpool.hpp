@@ -206,5 +206,6 @@ class DBConnection
 
     private:
         bool m_bIdle;
+        bool mIsConnected;
 };
 #endif

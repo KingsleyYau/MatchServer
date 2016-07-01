@@ -1,6 +1,6 @@
 /*
 SQLyog Ultimate v11.27 (32 bit)
-MySQL - 5.6.27 : Database - qpidnetwork_online_cl
+MySQL - 5.6.27 : Database - rudatematch_fmschat
 *********************************************************************
 */
 
@@ -12,9 +12,9 @@ MySQL - 5.6.27 : Database - qpidnetwork_online_cl
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-CREATE DATABASE /*!32312 IF NOT EXISTS*/`qpidnetwork_online_cl` /*!40100 DEFAULT CHARACTER SET latin1 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/`rudatematch_fmschat` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
-USE `qpidnetwork_online_cl`;
+USE `rudatematch_fmschat`;
 
 /*Table structure for table `online_woman` */
 
@@ -82,8 +82,8 @@ BEGIN
 	TRUNCATE TABLE online_woman;
 	SET i = 0;
 	WHILE i < 5000 DO
-	    SET womanid = CONCAT('CL', i);
-	    INSERT INTO online_woman(`womanid`, `lastlogin`, `status`, `hide`, `binding`, `siteid`) VALUES(womanid, NOW(), 1, 0, 2, 0);
+	    SET womanid = CONCAT('CD', i);
+	    INSERT INTO online_woman(`womanid`, `lastlogin`, `status`, `hide`, `binding`, `siteid`) VALUES(womanid, NOW(), 1, 0, 2, 4);
 	    SET i = i + 1;
 	END WHILE;
     END */$$

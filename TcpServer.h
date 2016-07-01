@@ -9,6 +9,9 @@
 #ifndef TCPSERVER_H_
 #define TCPSERVER_H_
 
+#include "MessageList.h"
+#include "LogManager.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,10 +29,8 @@
 
 #include <ev.h>
 
-#include "KThread.h"
-#include "MessageList.h"
-#include "LogManager.h"
-#include "KSafeList.h"
+#include <common/KThread.h>
+#include <common/KSafeList.h>
 
 //typedef list<ev_io *> WatcherList;
 typedef KSafeList<ev_io *> WatcherList;
@@ -42,10 +43,11 @@ class TcpServer;
 class TcpServerObserver {
 public:
 	virtual ~TcpServerObserver(){};
-	virtual bool OnAccept(TcpServer *ts, Message *m) = 0;
+	virtual bool OnAccept(TcpServer *ts, int fd, char* ip) = 0;
 	virtual void OnRecvMessage(TcpServer *ts, Message *m) = 0;
 	virtual void OnSendMessage(TcpServer *ts, Message *m) = 0;
 	virtual void OnDisconnect(TcpServer *ts, int fd) = 0;
+	virtual void OnClose(TcpServer *ts, int fd) = 0;
 	virtual void OnTimeoutMessage(TcpServer *ts, Message *m) = 0;
 };
 class TcpServer {
@@ -94,7 +96,7 @@ public:
 	void Accept_Callback(ev_io *w, int revents);
 	void Recv_Callback(ev_io *w, int revents);
 
-	bool OnAccept(Message *m);
+	bool OnAccept(int fd, char* ip);
 	void OnRecvMessage(Message *m);
 	void OnSendMessage(Message *m);
 	void OnDisconnect(int fd, Message *m);
@@ -103,8 +105,8 @@ private:
 	void StopEvio(ev_io *w);
 	void CloseSocketIfNeedByHandleThread(int fd);
 
-	void AddRecvTime(unsigned long time);
-	void AddSendTime(unsigned long time);
+//	void AddRecvTime(unsigned long time);
+//	void AddSendTime(unsigned long time);
 
 	void LockWatcherList();
 	void UnLockWatcherList();
@@ -115,8 +117,8 @@ private:
 
 	MessageList mSendImmediatelyMessageList;
 
-	MessageList mHandleSendMessageList;
-	MessageList* mpSendMessageList;
+//	MessageList mHandleSendMessageList;
+//	MessageList* mpSendMessageList;
 
 	/* Thread safe watcher list */
 	WatcherList mWatcherList;
@@ -125,6 +127,12 @@ private:
 	int* mpHandlingMessageCount;
 	bool* mpCloseRecv;
 	KMutex mCloseMutex;
+
+	int* mpPacketSeqRecv;
+	KMutex mpPacketSeqRecvMutex;
+
+	int* mpPacketSeqSend;
+	KMutex mpPacketSeqSendMutex;
 
 	/**
 	 * Accept线程
@@ -162,21 +170,6 @@ private:
 	struct ev_loop *mLoop;
 
 	TcpServerObserver *mpTcpServerObserver;
-
-	/**
-	 * 总接收包时间
-	 */
-	unsigned int mTotalRecvTime;
-
-	/**
-	 * 总发送包时间
-	 */
-	unsigned int mTotalSendTime;
-
-	/**
-	 * 总时间
-	 */
-	unsigned int mTotalTime;
 
 	/**
 	 * 接收队列大小

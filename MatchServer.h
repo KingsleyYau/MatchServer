@@ -9,49 +9,98 @@
 #ifndef MatchServer_H_
 #define MatchServer_H_
 
+#define VERSION_STRING "1.0.3"
+
+#include "Client.h"
 #include "MessageList.h"
 #include "TcpServer.h"
 #include "DBManager.h"
-#include "ConfFile.hpp"
-#include "DataHttpParser.h"
-#include "json/json.h"
 
-#include <map>
+#include <common/ConfFile.hpp>
+#include <common/KSafeMap.h>
+#include <common/KSafeList.h>
+#include <common/TimeProc.hpp>
+#include <common/StringHandle.h>
+#include <json/json/json.h>
+
 using namespace std;
-typedef map<int, Message*> SyncMessageMap;
+
+typedef KSafeMap<int, Client*> ClientSyncMessageMap;
+
+// socket -> client
+typedef KSafeMap<int, Client*> ClientMap;
 
 class StateRunnable;
-class MatchServer : public TcpServerObserver, DBManagerListener {
+class MatchServer : public TcpServerObserver, DBManagerListener, ClientCallback {
 public:
 	MatchServer();
 	virtual ~MatchServer();
 
-	void Run(const string& config);
-	void Run();
+	bool Run(const string& config);
+	bool Run();
 	bool Reload();
 	bool IsRunning();
 
-	/* callback by TcpServerObserver */
-	bool OnAccept(TcpServer *ts, Message *m);
+	/**
+	 * TcpServer回调
+	 */
+	bool OnAccept(TcpServer *ts, int fd, char* ip);
 	void OnRecvMessage(TcpServer *ts, Message *m);
 	void OnSendMessage(TcpServer *ts, Message *m);
 	void OnDisconnect(TcpServer *ts, int fd);
+	void OnClose(TcpServer *ts, int fd);
 	void OnTimeoutMessage(TcpServer *ts, Message *m);
 
-	/* callback by DBManager */
+	/**
+	 * 内部服务(HTTP), 命令回调
+	 */
+	void OnClientQuerySameAnswerLadyList(Client* client, const char* pManId, const char* pSiteId,	const char* pLimit, long long iRegTime);
+	void OnClientQueryTheSameQuestionLadyList(Client* client, const char* pQId, const char* pSiteId, const char* pLimit);
+	void OnClientQueryAnySameQuestionLadyList(Client* client, const char* pManId,	const char* pSiteId, const char* pLimit);
+	void OnClientQuerySameQuestionOnlineLadyList(Client* client, const char* pQIds, const char* pSiteId, const char* pLimit);
+	void OnClientQuerySameQuestionAnswerLadyList(Client* client, const char* pQIds, const char* pAIds, const char* pSiteId, const char* pLimit);
+	void OnClientQuerySameQuestionLadyList(Client* client, const char* pQIds, const char* pSiteId, const char* pLimit);
+	void OnClientSync(Client* client);
+	void OnClientUndefinedCommand(Client* client);
+
+	/**
+	 * 内部服务(HTTP), 发送请求响应
+	 * @return true:发送成功/false:发送失败
+	 */
+	bool SendRespond2Client(
+			TcpServer *ts,
+			Client* client,
+			Json::Value& root,
+			bool success = true,
+			bool found = true
+			);
+
+	/* 数据库处理回调 */
 	void OnSyncFinish(DBManager* pDBManager);
 
+	/**
+	 * 增加返回记录
+	 */
+	void AddResopnd(bool hit, long long respondTime);
+
+	/**
+	 * 增加处理时间
+	 */
+	void AddHandleTime(long long time);
+
+	/**
+	 * 统计线程
+	 */
 	void StateRunnableHandle();
 
 private:
-	/*
-	 *	请求解析函数
-	 *	return : -1:Send fail respond / 0:Continue recv, send no respond / 1:Send OK respond
-	 */
-	int HandleRecvMessage(Message *m, Message *sm);
-	int HandleTimeoutMessage(Message *m, Message *sm);
-	int HandleInsideRecvMessage(Message *m, Message *sm);
+	void TcpServerRecvMessageHandle(TcpServer *ts, Message *m);
+	void TcpServerTimeoutMessageHandle(TcpServer *ts, Message *m);
 
+	void TcpServerPublicRecvMessageHandle(TcpServer *ts, Message *m);
+	void TcpServerPublicTimeoutMessageHandle(TcpServer *ts, Message *m);
+
+	/***************************** 内部服务接口 **************************************/
 	/**
 	 * 1.获取跟男士有任意共同答案的问题的女士Id列表接口(http get)
 	 * @param pManId	男士Id
@@ -65,7 +114,7 @@ private:
 			const char* pSiteId,
 			const char* pLimit,
 			long long iRegTime,
-			Message *m
+			int iQueryIndex
 			);
 
 	/**
@@ -79,7 +128,7 @@ private:
 			const char* pQid,
 			const char* pSiteId,
 			const char* pLimit,
-			Message *m
+			int iQueryIndex
 			);
 
 	/**
@@ -93,7 +142,7 @@ private:
 			const char* pManId,
 			const char* pSiteId,
 			const char* pLimit,
-			Message *m
+			int iQueryIndex
 			);
 
 	/**
@@ -107,7 +156,7 @@ private:
 			const char* pQids,
 			const char* pSiteId,
 			const char* pLimit,
-			Message *m
+			int iQueryIndex
 			);
 
 	/**
@@ -123,7 +172,7 @@ private:
 			const char* pAids,
 			const char* pSiteId,
 			const char* pLimit,
-			Message *m
+			int iQueryIndex
 			);
 
 	/**
@@ -137,51 +186,129 @@ private:
 			const char* pQids,
 			const char* pSiteId,
 			const char* pLimit,
-			Message *m
+			int iQueryIndex
 			);
+	/***************************** 内部服务接口 end **************************************/
 
-	TcpServer mClientTcpServer;
-	TcpServer mClientTcpInsideServer;
-	DBManager mDBManager;
+	/***************************** 基本参数 **************************************/
+	/**
+	 * 监听端口
+	 */
+	short miPort;
 
 	/**
-	 * 等待发送队列
+	 * 最大连接数
 	 */
-	SyncMessageMap mWaitForSendMessageMap;
-	KMutex mWaitForSendMessageMapMutex;
+	int miMaxClient;
+
+	/**
+	 * 处理线程数目
+	 */
+	int miMaxHandleThread;
+
+	/**
+	 * 内存copy数目
+	 */
+	int miMaxMemoryCopy;
+
+	/**
+	 * 每条线程处理任务速度(个/秒)
+	 */
+	int miMaxQueryPerThread;
+
+	/**
+	 * 请求超时(秒)
+	 */
+	unsigned int miTimeout;
+	/***************************** 基本参数 end **************************************/
+
+	/***************************** 数据库参数 **************************************/
+	/**
+	 * 问题库连接配置
+	 */
+	DBSTRUCT mDbQA;
+	int miSyncTime;
+	int miSyncOnlineTime;
+
+	/**
+	 * 在线库连接配置
+	 */
+	int miOnlineDbCount;
+	DBSTRUCT mDbOnline[4];
+	/***************************** 数据库参数 end **************************************/
+
+	/***************************** 日志参数 **************************************/
+	/**
+	 * 日志等级
+	 */
+	int miLogLevel;
+
+	/**
+	 * 日志路径
+	 */
+	string mLogDir;
+
+	/**
+	 * 是否debug模式
+	 */
+	int miDebugMode;
+	/***************************** 日志参数 end **************************************/
+
+	/***************************** 统计参数 **************************************/
+	/**
+	 * 统计请求总数
+	 */
+	unsigned int mTotal;
+	/**
+	 * 统计成功处理请求总数
+	 */
+	unsigned int mHit;
+	/**
+	 * 统计响应总时间
+	 */
+	long long mResponedTime;
+	/**
+	 * 统计处理总时间
+	 */
+	long long mHandleTime;
+	KMutex mCountMutex;
+
+	/**
+	 * 监听线程输出间隔
+	 */
+	unsigned int miStateTime;
+
+	/***************************** 统计参数 end **************************************/
+
+	/***************************** 运行参数 **************************************/
+	/**
+	 * 是否运行
+	 */
+	bool mIsRunning;
+
+	/**
+	 * 内部服务(HTTP)
+	 */
+	TcpServer mTcpServer;
+	/**
+	 * 外部服务(HTTP)
+	 */
+	TcpServer mTcpServerPublic;
+
+	/**
+	 * 客户端缓存数据包buffer
+	 */
+	MessageList mIdleMessageList;
+
+	/**
+	 * 数据库管理
+	 */
+	DBManager mDBManager;
 
 	/**
 	 * 配置文件锁
 	 */
 	KMutex mConfigMutex;
-
-	// BASE
-	short miPort;
-	int miMaxClient;
-	int miMaxMemoryCopy;
-	int miMaxHandleThread;
-	int miMaxQueryPerThread;
-	/**
-	 * 请求超时(秒)
-	 */
-	unsigned int miTimeout;
-
-	// DB
-	DBSTRUCT mDbQA;
-	int miSyncTime;
-	int miSyncOnlineTime;
-	int miOnlineDbCount;
-	DBSTRUCT mDbOnline[4];
-
-	// LOG
-	int miLogLevel;
-	string mLogDir;
-	int miDebugMode;
-
-	/**
-	 * 是否运行
-	 */
-	bool mIsRunning;
 
 	/**
 	 * State线程
@@ -190,22 +317,16 @@ private:
 	KThread* mpStateThread;
 
 	/**
-	 * 统计请求
-	 */
-	unsigned int mTotal;
-	unsigned int mHit;
-	unsigned int mResponed;
-	KMutex mCountMutex;
-
-	/**
 	 * 配置文件
 	 */
 	string mConfigFile;
 
-	/**
-	 * 监听线程输出间隔
+	/*
+	 * 内部服务(HTTP), 在线客户端列表
 	 */
-	unsigned int miStateTime;
+	ClientMap mClientMap;
+
+	/***************************** 运行参数 end **************************************/
 };
 
 #endif /* MatchServer_H_ */

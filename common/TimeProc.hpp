@@ -9,10 +9,12 @@
 #ifndef __TIMEPROC_DEF_H_
 #define __TIMEPROC_DEF_H_
 
-//#include <time.h>
+#include <stdio.h>
+#include <time.h>
 #include <sys/time.h>
 
-#define DiffGetTickCount(start, end)    ((start) <= (end) ? (end) - (start) : ((unsigned int)(-1)) - (start) + (end))
+#define DAY_USECONDS	86400000
+#define GetTickCountDifferences(start, end)    ((start) <= (end) ? (end) - (start) : DAY_USECONDS - (start) + (end))
 inline unsigned int GetTickCount()
 {
     struct timeval tv;

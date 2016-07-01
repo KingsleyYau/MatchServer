@@ -7,6 +7,9 @@
 
 #include "DataHttpParser.h"
 
+#define MAX_URL 2048
+#define MAX_FIRST_LINE 4096
+
 DataHttpParser::DataHttpParser() {
 	// TODO Auto-generated constructor stub
 	Reset();
@@ -18,178 +21,171 @@ DataHttpParser::~DataHttpParser() {
 
 void DataHttpParser::Reset() {
 	miContentLength = -1;
-	mHeaderIndex = 0;
-	mbReceiveHeaderFinish = false;
 	mHttpType = UNKNOW;
+	mPath = "";
+	mParameters.clear();
 }
 
 int DataHttpParser::ParseData(char* buffer, int len) {
-	char temp[16] = {'\0'};
 	int result = 0;
-	int j = 0;
-	char* pParam = NULL;
 
-	// parse header
-	char *pFirst = NULL;
-	char*p = strtok_r(buffer, "\r\n", &pFirst);
-	while( p != NULL ) {
-		if( j == 0 ) {
-			if( ParseFirstLine(p) ) {
-				result = 1;
-			}
+	// 解析http头部first line
+	string headers = buffer;
 
-			// only first line is useful
-			break;
+	string::size_type pos = headers.find("\r\n");
+	if( pos != string::npos ) {
+		// Read first line
+		string firstLine = headers.substr(0, pos);
+		result = pos + 2;
+
+		// 只解析第一行
+		if( ParseFirstLine(firstLine) ) {
+			// success
+
+		} else {
+			// fail
+			result = -1;
 		}
-		j++;
-		p = strtok_r(NULL, "\r\n", &pFirst);
+
+	} else if( headers.length() > MAX_FIRST_LINE || len > MAX_FIRST_LINE ) {
+		// 第一行超过4096 bytes
+		result = -1;
+
 	}
-
-//	if( !mbReceiveHeaderFinish ) {
-//		int recvLen = (len < MAXLEN - mHeaderIndex)?len:MAXLEN - mHeaderIndex;
-//		if( recvLen > 0 ) {
-//			memcpy(mHeaderBuffer + mHeaderIndex, buffer, recvLen);
-//			mHeaderIndex += recvLen;
-//			mHeaderBuffer[mHeaderIndex + 1] = '\0';
-//
-//			// find Header Sep
-//			char *pBody = strstr(mHeaderBuffer, "\r\n\r\n");
-//			if( pBody != NULL ) {
-//				pBody += strlen("\r\n\r\n");
-//				mbReceiveHeaderFinish = true;
-//
-//				// parse header
-//				char *pFirst = NULL;
-//				char*p = strtok_r(mHeaderBuffer, "\r\n", &pFirst);
-//				while( p != NULL ) {
-//					if( j == 0 ) {
-//						ParseFirstLine(p);
-//						result = 1;
-//						// only first line is useful
-//						break;
-//					} else {
-//						if( (pParam = strstr(p, "Content-Length:")) != NULL ) {
-//							int len = strlen("Content-Length:");
-//							// find Content-Length
-//							pParam += len;
-//							if( pParam != NULL  ) {
-//								memcpy(temp, pParam, strlen(p) - len);
-//								miContentLength = atoi(temp);
-//							}
-//						}
-//					}
-//					j++;
-//					p = strtok_r(NULL, "\r\n", &pFirst);
-//				}
-//			}
-//		}
-//	}
-
 
 	return result;
 }
 
-const char* DataHttpParser::GetParam(const char* key) {
-	const char* result = NULL;
-	Parameters::iterator itr = mParameters.find(key);
+string DataHttpParser::GetParam(const string& key)  {
+	string result = "";
+	Parameters::iterator itr = mParameters.find(key.c_str());
 	if( itr != mParameters.end() ) {
-		result = (itr->second).c_str();
+		result = (itr->second);
 	}
 	return result;
 }
 
-const char* DataHttpParser::GetPath() {
-	return mPath.c_str();
+string DataHttpParser::GetPath() {
+	return mPath;
 }
 
 HttpType DataHttpParser::GetType() {
 	return mHttpType;
 }
 
-bool DataHttpParser::ParseFirstLine(char* buffer) {
+bool DataHttpParser::ParseFirstLine(const string& wholeLine) {
 	bool bFlag = true;
-	char temp[1024];
-	char* p = NULL;
-	int j = 0;
+	string line;
+	int i = 0;
+	string::size_type index = 0;
+	string::size_type pos;
 
-	char *pFirst = NULL;
+	while( string::npos != index ) {
+		pos = wholeLine.find(" ", index);
+		if( string::npos != pos ) {
+			// 找到分隔符
+			line = wholeLine.substr(index, pos - index);
+			// 移动下标
+			index = pos + 1;
 
-	p = strtok_r(buffer, " ", &pFirst);
-	while( p != NULL ) {
-		switch(j) {
+		} else {
+			// 是否最后一次
+			if( index < wholeLine.length() ) {
+				line = wholeLine.substr(index, pos - index);
+				// 移动下标
+				index = string::npos;
+
+			} else {
+				// 找不到
+				index = string::npos;
+				break;
+			}
+		}
+
+		switch(i) {
 		case 0:{
-			// type
-			if( strcmp("GET", p) == 0 ) {
+			// 解析http type
+			if( strcasecmp("GET", line.c_str()) == 0 ) {
 				mHttpType = GET;
-			} else if( strcmp("POST", p) == 0 ) {
+
+			} else if( strcasecmp("POST", line.c_str()) == 0 ) {
 				mHttpType = POST;
+
 			} else {
 				bFlag = false;
 				break;
 			}
 		}break;
 		case 1:{
-			// path and parameters
-			char path[1025] = {'\0'};
+			// 解析url
 			Arithmetic ari;
-			int len = strlen(p);
-			len = ari.decode_url(p, len, temp);
-			char* pPath = strstr(temp, "?");
-			if( pPath != NULL && ((pPath + 1) != NULL) ) {
-				len = pPath - temp;
-				memcpy(path, temp, len);
-				ParseParameters(pPath + 1);
+			char temp[MAX_URL] = {'\0'};
+			int decodeLen = ari.decode_url(line.c_str(), line.length(), temp);
+			temp[decodeLen] = '\0';
+			string path = temp;
+			string::size_type posSep = path.find("?");
+			if( (string::npos != posSep) && (posSep + 1 < path.length()) ) {
+				// 解析路径
+				mPath = path.substr(0, posSep);
+
+				// 解析参数
+				string param = path.substr(posSep + 1, path.length() - (posSep + 1));
+				ParseParameters(param);
+
 			} else {
-				len = strlen(temp);
-				memcpy(path, temp, len);
+				mPath = path;
 			}
-			path[len] = '\0';
-			mPath = path;
-			transform(mPath.begin(), mPath.end(), mPath.begin(), ::toupper);
+
 		}break;
 		default:break;
 		};
 
-		j++;
-		p = strtok_r(NULL, " ", &pFirst);
+		i++;
 	}
 
 	return bFlag;
 }
 
-void DataHttpParser::ParseParameters(char* buffer) {
-	char* p = NULL;
-	char* param = NULL;
+void DataHttpParser::ParseParameters(const string& wholeLine) {
 	string key;
 	string value;
-	int j = 0;
 
-	char *pFirst = NULL;
-	char *pSecond = NULL;
+	string line;
+	string::size_type posSep;
+	string::size_type index = 0;
+	string::size_type pos;
 
-	param = strtok_r(buffer, "&", &pFirst);
-	while( param != NULL ) {
-		j = 0;
-		p = strtok_r(param, "=", &pSecond);
-		while( p != NULL ) {
-			switch(j) {
-			case 0:{
-				// key
-				key = p;
-				transform(key.begin(), key.end(), key.begin(), ::toupper);
-			}break;
-			case 1:{
-				// value
-				value = p;
-				transform(value.begin(), value.end(), value.begin(), ::toupper);
-				mParameters.insert(Parameters::value_type(key, value));
-			}break;
-			default:break;
-			};
+	while( string::npos != index ) {
+		pos = wholeLine.find("&", index);
+		if( string::npos != pos ) {
+			// 找到分隔符
+			line = wholeLine.substr(index, pos - index);
+			// 移动下标
+			index = pos + 1;
 
-			j++;
-			p = strtok_r(NULL, "=", &pSecond);
+		} else {
+			// 是否最后一次
+			if( index < wholeLine.length() ) {
+				line = wholeLine.substr(index, pos - index);
+				// 移动下标
+				index = string::npos;
+
+			} else {
+				// 找不到
+				index = string::npos;
+				break;
+			}
 		}
-		param = strtok_r(NULL, "&", &pFirst);
+
+		posSep = line.find("=");
+		if( (string::npos != posSep) && (posSep + 1 < line.length()) ) {
+			key = line.substr(0, posSep);
+			value = line.substr(posSep + 1, line.length() - (posSep + 1));
+			mParameters.insert(Parameters::value_type(key, value));
+
+		} else {
+			key = line;
+		}
+
 	}
 }

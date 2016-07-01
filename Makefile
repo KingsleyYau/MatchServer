@@ -24,24 +24,23 @@ LIBS =		-L. \
 			-Wl,-Bdynamic -L/usr/lib64/mysql -L/usr/lib/mysql -lmysqlclient \
 			-Wl,-Bdynamic -ldl -lz -lpthread 
 
-JSONOBJS = 	json_reader.o json_value.o json_writer.o md5.o
-OBJS =		server.o KThread.o ConfFile.o Arithmetic.o LogManager.o LogFile.o \
-			MatchServer.o TcpServer.o MessageList.o DataParser.o DataHttpParser.o DBManager.o DBSpool.o
-OBJS += 	$(JSONOBJS)
+COMMON  	=	common/LogFile.o common/md5.o common/KThread.o common/ConfFile.o common/Arithmetic.o\
+				common/IAutoLock.o common/CommonFunc.o common/DBSpool.o
+				
+JSON    	=	json/json_reader.o json/json_value.o json/json_writer.o
+
+OBJS =		server.o LogManager.o Client.o\
+			MatchServer.o TcpServer.o MessageList.o DataParser.o DataHttpParser.o DBManager.o
+			
+OBJS +=		$(COMMON)
+OBJS +=		$(JSON)			
+			
 TARGET =	matchserver
-
-DBTEST_OBJS	=	dbtest.o KThread.o DBManager.o DBManagerTest.o DBSpool.o LogManager.o LogFile.o MessageList.o \
-				ConfFile.o Arithmetic.o 
-DBTEST_OBJS += 	$(JSONOBJS)
-DBTEST_TARGET =		dbtest
-
-CLIENTTEST_OBJS	=	client.o KThread.o TcpTestClient.o
-CLIENTTEST_TARGET =		client
 
 DEPDIRS	:= sqlite libev
 CLEAN_DEPS := $(addprefix _clean_, $(DEPDIRS))
 
-.PHONY: all deps test clean cleanall install $(DEPDIRS) $(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
+.PHONY: all deps clean cleanall install $(DEPDIRS) $(TARGET)
 
 $(TARGET):	deps $(OBJS)
 	$(CXX) -o $(TARGET) $(OBJS) $(LIBS)
@@ -57,22 +56,6 @@ $(DEPDIRS):
 $(CLEAN_DEPS):	
 	$(MAKE) -C $(patsubst _clean_%, %, $@) clean
 	
-$(DBTEST_TARGET):	$(DBTEST_OBJS)
-	$(CXX) -o $(DBTEST_TARGET) $(DBTEST_OBJS) $(LIBS)
-	@echo '################################################################'
-	@echo ''
-	@echo '# Bulid dbtest completed!'
-	@echo ''
-	@echo '################################################################'
-
-$(CLIENTTEST_TARGET):	$(CLIENTTEST_OBJS)
-	$(CXX) -o $(CLIENTTEST_TARGET) $(CLIENTTEST_OBJS) $(LIBS)
-	@echo '################################################################'
-	@echo ''
-	@echo '# Bulid client completed!'
-	@echo ''
-	@echo '################################################################'
-	
 deps:	$(DEPDIRS)
 	@echo '################################################################'
 	@echo ''
@@ -80,12 +63,10 @@ deps:	$(DEPDIRS)
 	@echo ''
 	@echo '################################################################'
 	
-all:	deps $(TARGET) $(DBTEST_TARGET) $(CLIENTTEST_TARGET)
+all:	deps $(TARGET)
 
-test:	$(DBTEST_TARGET) $(CLIENTTEST_TARGET)
-	
 clean:
-	rm -f $(OBJS) $(TARGET) $(DBTEST_TARGET) $(DBTEST_OBJS) $(CLIENTTEST_TARGET) $(CLIENTTEST_OBJS)
+	rm -f $(OBJS) $(TARGET)
 
 cleanall: clean	$(CLEAN_DEPS) 
 	@echo '################################################################'

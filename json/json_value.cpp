@@ -1,6 +1,6 @@
 #include <iostream>
-#include <json/value.h>
-#include <json/writer.h>
+#include "json/value.h"
+#include "json/writer.h"
 #include <utility>
 #include <stdexcept>
 #include <cstring>
@@ -305,6 +305,7 @@ Value::Value( ValueType type )
       break;
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
 }
 
@@ -455,6 +456,7 @@ Value::Value( const Value &other )
 #endif
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    if ( other.comments_ )
    {
@@ -498,6 +500,7 @@ Value::~Value()
 #endif
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
 
    if ( comments_ )
@@ -601,6 +604,7 @@ Value::operator <( const Value &other ) const
 #endif
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    return 0;  // unreachable
 }
@@ -663,6 +667,7 @@ Value::operator ==( const Value &other ) const
 #endif
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    return 0;  // unreachable
 }
@@ -698,8 +703,10 @@ Value::asString() const
    case arrayValue:
    case objectValue:
       JSON_ASSERT_MESSAGE( false, "Type is not convertible to string" );
+      break;
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    return ""; // unreachable
 }
@@ -733,8 +740,10 @@ Value::asInt() const
    case arrayValue:
    case objectValue:
       JSON_ASSERT_MESSAGE( false, "Type is not convertible to int" );
+      break;
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    return 0; // unreachable;
 }
@@ -760,8 +769,10 @@ Value::asUInt() const
    case arrayValue:
    case objectValue:
       JSON_ASSERT_MESSAGE( false, "Type is not convertible to uint" );
+      break;
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    return 0; // unreachable;
 }
@@ -785,8 +796,10 @@ Value::asDouble() const
    case arrayValue:
    case objectValue:
       JSON_ASSERT_MESSAGE( false, "Type is not convertible to double" );
+      break;
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    return 0; // unreachable;
 }
@@ -812,6 +825,7 @@ Value::asBool() const
       return value_.map_->size() != 0;
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    return false; // unreachable;
 }
@@ -863,6 +877,7 @@ Value::isConvertibleTo( ValueType other ) const
              ||  ( other == nullValue  &&  value_.map_->size() == 0 );
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    return false; // unreachable;
 }
@@ -900,6 +915,7 @@ Value::size() const
 #endif
    default:
       JSON_ASSERT_UNREACHABLE;
+      break;
    }
    return 0; // unreachable;
 }

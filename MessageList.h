@@ -9,6 +9,8 @@
 #ifndef MESSAGELIST_H_
 #define MESSAGELIST_H_
 
+#include <common/Buffer.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,25 +23,33 @@
 #include <list>
 using namespace std;
 
-#define MAXLEN 2048
+typedef enum MessageType {
+	MessageTypeRecv,
+	MessageTypeSend
+};
+
 typedef struct Message {
 	int		fd;
 	int 	len;
 	int		index;
+	int		seq;
+
+	MessageType		type;
+
 	unsigned int 	starttime;
-	unsigned int	totaltime;
-	int		type;
-	char	buffer[MAXLEN];
-	char    bitBuffer[128];
+
+	char	buffer[MAX_LOG_BUFFER_LEN];
+//	char    bitBuffer[128];
 	ev_io *wr;
 	ev_io *ww;
 
 	void Reset() {
 		len = 0;
+		seq = 0;
+		type = MessageTypeRecv;
 		starttime = 0;
-		totaltime = 0;
 		memset(buffer, '\0', sizeof(buffer));
-		memset(bitBuffer, '\0', sizeof(bitBuffer));
+//		memset(bitBuffer, '\0', sizeof(bitBuffer));
 		wr = NULL;
 		ww = NULL;
 	}

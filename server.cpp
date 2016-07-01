@@ -17,15 +17,13 @@ using namespace std;
 
 #include "MatchServer.h"
 
-#define VERSION_STRING "Version : 1.0.1"
-
 string sConf = "";  // 配置文件
 
 bool Parse(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
 	printf("############## Match Server ############## \n");
-	printf("# %s \n", VERSION_STRING);
+	printf("# Version : %s \n", VERSION_STRING);
 	printf("# Build date : %s %s \n", __DATE__, __TIME__ );
 
 	srand(time(0));
@@ -38,12 +36,18 @@ int main(int argc, char *argv[]) {
 
 	Parse(argc, argv);
 
+	bool bFlag = false;
 	MatchServer server;
 	if( sConf.length() > 0 ) {
-		server.Run(sConf);
+		bFlag = server.Run(sConf);
 	} else {
 		printf("# Usage : ./matchserver [ -f <config file> ] \n");
-		server.Run("/etc/matchserver.config");
+		bFlag = server.Run("/etc/matchserver.config");
+	}
+
+	while( bFlag && server.IsRunning() ) {
+		/* do nothing here */
+		sleep(5);
 	}
 
 	return EXIT_SUCCESS;

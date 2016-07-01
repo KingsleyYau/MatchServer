@@ -9,8 +9,10 @@
 #define DATAHTTPPARSER_H_
 
 #include "DataParser.h"
-#include "Arithmetic.hpp"
 #include "MessageList.h"
+
+#include <common/Arithmetic.hpp>
+#include <common/KMutex.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,23 +39,20 @@ public:
 
 	int ParseData(char* buffer, int len);
 
-	const char* GetParam(const char* key);
-	const char* GetPath();
+	string GetParam(const string& key);
+	string GetPath();
 	HttpType GetType();
 
 	void Reset();
+
 private:
 	HttpType mHttpType;
 	int miContentLength;
 	Parameters mParameters;
 	string mPath;
 
-	char mHeaderBuffer[MAXLEN + 1];
-	int mHeaderIndex;
-	bool mbReceiveHeaderFinish;
-
-	bool ParseFirstLine(char* buffer);
-	void ParseParameters(char* buffer);
+	bool ParseFirstLine(const string& line);
+	void ParseParameters(const string& line);
 };
 
 #endif /* DATAHTTPPARSER_H_ */
