@@ -698,7 +698,7 @@ void MatchServer::OnTimeoutMessage(TcpServer *ts, Message *m) {
 	if( &mTcpServer == ts ) {
 		// 内部服务(HTTP)
 		LogManager::GetLogManager()->Log(
-				LOG_WARNING,
+				LOG_MSG,
 				"MatchServer::OnTimeoutMessage( "
 				"tid : %d, "
 				"[内部服务(HTTP), 收到超时数据], "
@@ -997,7 +997,7 @@ bool MatchServer::SendRespond2Client(
 
 				if( &mTcpServer == ts ) {
 					LogManager::GetLogManager()->Log(
-							LOG_WARNING,
+							LOG_MSG,
 							"MatchServer::SendRespond2Client( "
 							"tid : %d, "
 							"[内部服务(HTTP), 返回请求内容到客户端], "
@@ -1011,7 +1011,7 @@ bool MatchServer::SendRespond2Client(
 
 				} else if( &mTcpServerPublic == ts ) {
 					LogManager::GetLogManager()->Log(
-							LOG_WARNING,
+							LOG_MSG,
 							"MatchServer::SendRespond2Client( "
 							"tid : %d, "
 							"[外部服务(HTTP), 返回请求内容到客户端], "
@@ -1071,7 +1071,7 @@ bool MatchServer::SendRespond2Client(
 /* callback by DBManager */
 void MatchServer::OnSyncFinish(DBManager* pDBManager) {
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::OnSyncFinish( "
 			"tid : %d "
 			"[同步数据库记录完成] "
@@ -1195,7 +1195,7 @@ void MatchServer::OnClientQuerySameAnswerLadyList(
 		long long iRegTime
 		) {
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::OnClientQuerySameAnswerLadyList( "
 			"tid : %d, "
 			"[内部服务(HTTP), 收到命令:获取跟男士有任意共同答案的问题的女士Id列表], "
@@ -1235,7 +1235,7 @@ void MatchServer::OnClientQueryTheSameQuestionLadyList(
 		const char* pLimit
 		) {
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::OnClientQueryTheSameQuestionLadyList( "
 			"tid : %d, "
 			"[内部服务(HTTP), 收到命令:获取有指定共同问题的女士Id列表], "
@@ -1270,7 +1270,7 @@ void MatchServer::OnClientQueryAnySameQuestionLadyList(
 		const char* pLimit
 		) {
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::OnClientQueryAnySameQuestionLadyList( "
 			"tid : %d, "
 			"[内部服务(HTTP), 收到命令:获取有任意共同问题的女士Id列表], "
@@ -1305,7 +1305,7 @@ void MatchServer::OnClientQuerySameQuestionOnlineLadyList(
 		const char* pLimit
 		) {
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::OnClientQuerySameQuestionOnlineLadyList( "
 			"tid : %d, "
 			"[内部服务(HTTP), 收到命令:获取回答过注册问题的在线女士Id列表], "
@@ -1341,7 +1341,7 @@ void MatchServer::OnClientQuerySameQuestionAnswerLadyList(
 		const char* pLimit
 		) {
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::OnClientQuerySameQuestionAnswerLadyList( "
 			"tid : %d, "
 			"[内部服务(HTTP), 收到命令:获取指定问题有共同答案的女士Id列表], "
@@ -1382,7 +1382,7 @@ void MatchServer::OnClientQuerySameQuestionLadyList(
 		const char* pLimit
 		) {
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::OnClientQuerySameQuestionLadyList( "
 			"tid : %d, "
 			"[内部服务(HTTP), 收到命令:获取回答过注册问题的女士Id列表], "
@@ -1412,7 +1412,7 @@ void MatchServer::OnClientQuerySameQuestionLadyList(
 
 void MatchServer::OnClientSync(Client* client) {
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::OnClientSync( "
 			"tid : %d, "
 			"[外部服务(HTTP), 收到命令:同步数据库], "
@@ -1429,7 +1429,7 @@ void MatchServer::OnClientSync(Client* client) {
 
 void MatchServer::OnClientUndefinedCommand(Client* client) {
 	LogManager::GetLogManager()->Log(
-			LOG_WARNING,
+			LOG_MSG,
 			"MatchServer::OnClientUndefinedCommand( "
 			"tid : %d, "
 			"[内部服务(HTTP), 收到命令:未知命令], "

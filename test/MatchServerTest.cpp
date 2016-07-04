@@ -203,6 +203,9 @@ void MatchServerTest::RequestRunnableHandle() {
 			int r = mCurrentRequest % 6;
 			int limit = 8;
 
+//			time_t t;
+//			long long unixTime = time(&t);
+
 			switch(r) {
 			case 0:{
 				// 1.获取跟男士有任意共同答案的问题的女士Id列表接口
@@ -210,6 +213,7 @@ void MatchServerTest::RequestRunnableHandle() {
 				snprintf(sendBuffer, 2048 - 1, "GET %s%d HTTP/1.0\r\nConection: %s\r\n\r\n",
 						"/QUERY_SAME_ANSWER_LADY_LIST?MANID=CM100&SUBMITTIME=&SITEID=1&LIMIT=",
 						limit,
+//						unixTime,
 						"Keep-alive"
 						);
 				Request(mCurrentRequest, sendBuffer, strlen(sendBuffer));
