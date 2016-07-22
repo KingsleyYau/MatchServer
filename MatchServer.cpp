@@ -278,7 +278,7 @@ bool MatchServer::Reload() {
 			miOnlineDbCount = miOnlineDbCount > 4?4:miOnlineDbCount;
 			miOnlineDbCount = miOnlineDbCount < 0?0:miOnlineDbCount;
 
-			char domain[4] = {'\0'};
+			char domain[16] = {'\0'};
 			for(int i = 0; i < miOnlineDbCount; i++) {
 				sprintf(domain, "DB_ONLINE_%d", i);
 				mDbOnline[i].mHost = conf.GetPrivate(domain, "DBHOST", "localhost");

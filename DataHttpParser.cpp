@@ -36,12 +36,12 @@ int DataHttpParser::ParseData(char* buffer, int len) {
 	if( pos != string::npos ) {
 		// Read first line
 		string firstLine = headers.substr(0, pos);
-		result = pos + 2;
+		int next = pos + 2;
 
 		// 只解析第一行
 		if( ParseFirstLine(firstLine) ) {
 			// success
-
+			result = 1;
 		} else {
 			// fail
 			result = -1;

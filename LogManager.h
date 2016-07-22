@@ -26,6 +26,7 @@ using namespace std;
 
 #define DiffGetTickCount(start, end)    ((start) <= (end) ? (end) - (start) : ((unsigned int)(-1)) - (start) + (end))
 
+class LogRunnable;
 class LogManager {
 public:
 
@@ -52,6 +53,7 @@ public:
 
 private:
 	KThread *mpLogThread;
+	LogRunnable *mpLogRunnable;
 	bool mIsRunning;
 
 	string mLogDir;

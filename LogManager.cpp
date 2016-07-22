@@ -85,6 +85,7 @@ LogManager::LogManager() {
 	// TODO Auto-generated constructor stub
 	mIsRunning = false;
 	mpLogThread = NULL;
+	mpLogRunnable = NULL;
 }
 
 LogManager::~LogManager() {
@@ -157,13 +158,19 @@ bool LogManager::Log(LOG_LEVEL nLevel, const char *format, ...) {
 }
 
 bool LogManager::Start(int maxIdle, LOG_LEVEL nLevel, const string& dir) {
+	if( !mIsRunning ) {
+		mIsRunning = true;
+	} else {
+		return false;
+	}
+
+	printf("# LogManager starting... \n");
+
 	/* create log buffers */
 	for(int i = 0; i < maxIdle; i++) {
 		Message *m = new Message();
 		mIdleMessageList.PushBack(m);
 	}
-
-	mIsRunning = true;
 
 	// Just 4 log
 	g_iLogLevel = nLevel;
@@ -174,7 +181,8 @@ bool LogManager::Start(int maxIdle, LOG_LEVEL nLevel, const string& dir) {
 //    KLog::SetLogDirectory(g_SysConf.strLogPath.c_str());
 
 	/* start log thread */
-	mpLogThread = new KThread(new LogRunnable(this));
+    mpLogRunnable = new LogRunnable(this);
+	mpLogThread = new KThread(mpLogRunnable);
 	if( mpLogThread->start() != 0 ) {
 //		printf("# Create log thread ok \n");
 	}
@@ -183,10 +191,21 @@ bool LogManager::Start(int maxIdle, LOG_LEVEL nLevel, const string& dir) {
 }
 
 bool LogManager::Stop() {
+	if( mIsRunning ) {
+		mIsRunning = false;
+	} else {
+		return false;
+	}
+
+	printf("# LogManager stopping... \n");
+
 	/* stop log thread */
-	mIsRunning = false;
+
 	if( mpLogThread ) {
 		mpLogThread->stop();
+	}
+	if( mpLogRunnable ) {
+		delete mpLogRunnable;
 	}
 
 	/* release log buffers */
@@ -201,6 +220,8 @@ bool LogManager::Stop() {
 	while( NULL != ( m = mIdleMessageList.PopFront() ) ) {
 		delete m;
 	}
+
+	printf("# LogManager stop OK. \n");
 
 	return true;
 }
