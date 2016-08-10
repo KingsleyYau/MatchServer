@@ -9,7 +9,7 @@
 #ifndef MatchServer_H_
 #define MatchServer_H_
 
-#define VERSION_STRING "1.0.3"
+#define VERSION_STRING "1.0.2"
 
 #include "Client.h"
 #include "MessageList.h"

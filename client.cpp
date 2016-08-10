@@ -109,7 +109,7 @@ int Client::ParseData(Message* m)  {
 
 			} else {
 				LogManager::GetLogManager()->Log(
-						LOG_WARNING,
+						LOG_STAT,
 						"Client::ParseData( "
 						"tid : %d, "
 						"[客户端没有缓存空间] "
@@ -209,7 +209,7 @@ int Client::ParseData(Message* m)  {
 	if( ret == -1 ) {
 		if( !mbError ) {
 			LogManager::GetLogManager()->Log(
-					LOG_WARNING,
+					LOG_STAT,
 					"Client::ParseData( "
 					"tid : %d, "
 					"[客户端数据包解析错误] "

@@ -41,7 +41,7 @@ int DataHttpParser::ParseData(char* buffer, int len) {
 		// 只解析第一行
 		if( ParseFirstLine(firstLine) ) {
 			// success
-			result = 1;
+			result = firstLine.length();
 		} else {
 			// fail
 			result = -1;
